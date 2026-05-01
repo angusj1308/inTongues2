@@ -6,25 +6,25 @@ const PlaylistTile = ({ playlist, isPinned, onTogglePin, pinDisabled, onOpen }) 
   const count = playlist.episodeIds?.length
 
   return (
-    <div className="podcast-show-tile">
+    <div className="media-show-tile">
       <button
         type="button"
-        className="podcast-show-tile-cover"
+        className="media-show-tile-cover"
         onClick={() => onOpen?.(playlist)}
         aria-label={`Open ${playlist.name}`}
       >
         <CoverArt src={playlist.coverUrl} title={playlist.name} size={180} />
       </button>
-      <div className="podcast-show-tile-meta">
-        <p className="podcast-show-tile-title">{playlist.name}</p>
+      <div className="media-show-tile-meta">
+        <p className="media-show-tile-title">{playlist.name}</p>
         {count != null && (
-          <p className="podcast-show-tile-host">
+          <p className="media-show-tile-host">
             {count} episode{count === 1 ? '' : 's'}
           </p>
         )}
       </div>
       {onTogglePin && (
-        <div className="podcast-show-tile-pin">
+        <div className="media-show-tile-pin">
           <PinButton
             isPinned={isPinned}
             disabled={pinDisabled}

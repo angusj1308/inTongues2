@@ -116,17 +116,17 @@ const PodcastLibrary = () => {
 
   if (!hasAnyData) {
     return (
-      <div className="podcast-library">
-        <section className="podcast-section">
-          <h2 className="podcast-section-header">Following</h2>
-          <div className="podcast-empty-card">
-            <p className="podcast-empty-card-title">No shows yet.</p>
-            <p className="podcast-empty-card-body">
+      <div className="media-library">
+        <section className="media-section">
+          <h2 className="media-section-header">Following</h2>
+          <div className="media-empty-card">
+            <p className="media-empty-card-title">No shows yet.</p>
+            <p className="media-empty-card-body">
               Find podcasts in your target language to study transcripts as you listen.
             </p>
             <button
               type="button"
-              className="podcast-primary-button ui-text"
+              className="media-primary-button ui-text"
               onClick={() => navigate('/podcasts/discover')}
             >
               Discover Podcasts
@@ -134,21 +134,21 @@ const PodcastLibrary = () => {
           </div>
         </section>
 
-        <section className="podcast-section">
-          <h2 className="podcast-section-header">In Progress</h2>
-          <p className="podcast-empty-line">Your in-progress episodes will live here.</p>
+        <section className="media-section">
+          <h2 className="media-section-header">In Progress</h2>
+          <p className="media-empty-line">Your in-progress episodes will live here.</p>
         </section>
 
-        <section className="podcast-section">
-          <h2 className="podcast-section-header">Recently Played</h2>
-          <p className="podcast-empty-line">Recently played episodes will appear here.</p>
+        <section className="media-section">
+          <h2 className="media-section-header">Recently Played</h2>
+          <p className="media-empty-line">Recently played episodes will appear here.</p>
         </section>
       </div>
     )
   }
 
   return (
-    <div className="podcast-library">
+    <div className="media-library">
       {continueEpisode && <ContinueListening episode={continueEpisode} />}
 
       {pins.length > 0 && (
@@ -160,16 +160,16 @@ const PodcastLibrary = () => {
         />
       )}
 
-      {pinError && <p className="podcast-pin-error ui-text">{pinError}</p>}
+      {pinError && <p className="media-pin-error ui-text">{pinError}</p>}
 
       <NewEpisodes episodes={newEpisodes} />
 
       <RecentShelf episodes={recentEpisodes} />
 
       {followedShows.length > 0 && (
-        <section className="podcast-section">
-          <h2 className="podcast-section-header">My Shows</h2>
-          <div className="podcast-show-grid">
+        <section className="media-section">
+          <h2 className="media-section-header">My Shows</h2>
+          <div className="media-show-grid">
             {followedShows.map((show) => (
               <ShowTile
                 key={show.id}
@@ -183,21 +183,21 @@ const PodcastLibrary = () => {
         </section>
       )}
 
-      <section className="podcast-section">
-        <div className="podcast-section-row">
-          <h2 className="podcast-section-header">Playlists</h2>
+      <section className="media-section">
+        <div className="media-section-row">
+          <h2 className="media-section-header">Playlists</h2>
           <button
             type="button"
-            className="podcast-text-button ui-text"
+            className="media-text-button ui-text"
             onClick={() => setNewPlaylistOpen(true)}
           >
             + New Playlist
           </button>
         </div>
         {playlists.length === 0 ? (
-          <p className="podcast-empty-line">No playlists yet.</p>
+          <p className="media-empty-line">No playlists yet.</p>
         ) : (
-          <div className="podcast-show-grid">
+          <div className="media-show-grid">
             {playlists.map((playlist) => (
               <PlaylistTile
                 key={playlist.id}

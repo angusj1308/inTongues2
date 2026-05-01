@@ -3,7 +3,7 @@ const PinButton = ({ isPinned, onClick, disabled, title }) => {
   return (
     <button
       type="button"
-      className={`podcast-pin-button ${isPinned ? 'is-pinned' : ''}`}
+      className={`media-pin-button ${isPinned ? 'is-pinned' : ''}`}
       onClick={onClick}
       disabled={disabled}
       aria-pressed={!!isPinned}

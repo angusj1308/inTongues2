@@ -8,21 +8,21 @@ const ShowTile = ({ show, isPinned, onTogglePin, pinDisabled }) => {
   const { id, title, host, coverUrl } = show
 
   return (
-    <div className="podcast-show-tile">
+    <div className="media-show-tile">
       <button
         type="button"
-        className="podcast-show-tile-cover"
+        className="media-show-tile-cover"
         onClick={() => navigate(`/podcasts/show/${id}`)}
         aria-label={`Open ${title}`}
       >
         <CoverArt src={coverUrl} title={title} size={180} />
       </button>
-      <div className="podcast-show-tile-meta">
-        <p className="podcast-show-tile-title">{title}</p>
-        {host && <p className="podcast-show-tile-host">{host}</p>}
+      <div className="media-show-tile-meta">
+        <p className="media-show-tile-title">{title}</p>
+        {host && <p className="media-show-tile-host">{host}</p>}
       </div>
       {onTogglePin && (
-        <div className="podcast-show-tile-pin">
+        <div className="media-show-tile-pin">
           <PinButton
             isPinned={isPinned}
             disabled={pinDisabled}

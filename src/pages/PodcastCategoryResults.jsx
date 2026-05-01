@@ -57,11 +57,11 @@ const PodcastCategoryResultsPage = () => {
 
   return (
     <PodcastShell>
-      <Link to="/podcasts/discover" className="podcast-back-link ui-text">
+      <Link to="/podcasts/discover" className="media-back-link ui-text">
         ← Discover
       </Link>
-      <header className="podcast-results-header">
-        <h1 className="podcast-results-header-title podcast-results-header-category">
+      <header className="media-results-header">
+        <h1 className="media-results-header-title media-results-header-category">
           {localizedTitle}
         </h1>
       </header>
@@ -75,10 +75,10 @@ const PodcastCategoryResultsPage = () => {
       />
 
       {!exhausted && results.length > 0 && (
-        <div className="podcast-load-more">
+        <div className="media-load-more">
           <button
             type="button"
-            className="podcast-secondary-button ui-text"
+            className="media-secondary-button ui-text"
             onClick={handleLoadMore}
             disabled={loading}
           >
@@ -88,7 +88,7 @@ const PodcastCategoryResultsPage = () => {
       )}
 
       {!loading && results.length === 0 && (
-        <p className="podcast-empty-line">No shows found in this category.</p>
+        <p className="media-empty-line">No shows found in this category.</p>
       )}
     </PodcastShell>
   )

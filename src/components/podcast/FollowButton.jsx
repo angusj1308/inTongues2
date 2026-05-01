@@ -31,15 +31,15 @@ const FollowButton = ({
 
   if (confirming) {
     return (
-      <div className={`podcast-follow-confirm ${className}`} role="dialog" aria-label="Confirm unfollow">
-        <p className="podcast-follow-confirm-text">Unfollow and remove from Pinned?</p>
-        <div className="podcast-follow-confirm-actions">
-          <button type="button" className="podcast-text-button ui-text" onClick={cancelConfirm}>
+      <div className={`media-follow-confirm ${className}`} role="dialog" aria-label="Confirm unfollow">
+        <p className="media-follow-confirm-text">Unfollow and remove from Pinned?</p>
+        <div className="media-follow-confirm-actions">
+          <button type="button" className="media-text-button ui-text" onClick={cancelConfirm}>
             Cancel
           </button>
           <button
             type="button"
-            className="podcast-secondary-button ui-text"
+            className="media-secondary-button ui-text"
             onClick={handleClick}
           >
             Unfollow
@@ -52,7 +52,7 @@ const FollowButton = ({
   return (
     <button
       type="button"
-      className={`podcast-follow-button ${size === 'small' ? 'small' : ''} ${
+      className={`media-follow-button ${size === 'small' ? 'small' : ''} ${
         isFollowed ? 'is-followed' : ''
       } ${className}`}
       onClick={handleClick}

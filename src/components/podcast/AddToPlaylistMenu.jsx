@@ -40,18 +40,18 @@ const AddToPlaylistMenu = ({ uid, episode, playlists = [], onClose }) => {
   }
 
   return (
-    <div ref={ref} className="podcast-menu" role="menu">
-      <p className="podcast-menu-heading">Add to playlist</p>
+    <div ref={ref} className="media-menu" role="menu">
+      <p className="media-menu-heading">Add to playlist</p>
       {playlists.length === 0 && !creating && (
-        <p className="podcast-menu-empty">No playlists yet.</p>
+        <p className="media-menu-empty">No playlists yet.</p>
       )}
       {!creating && (
-        <ul className="podcast-menu-list">
+        <ul className="media-menu-list">
           {playlists.map((playlist) => (
             <li key={playlist.id}>
               <button
                 type="button"
-                className="podcast-menu-item"
+                className="media-menu-item"
                 onClick={() => handleAdd(playlist.id)}
                 disabled={busy}
               >
@@ -62,20 +62,20 @@ const AddToPlaylistMenu = ({ uid, episode, playlists = [], onClose }) => {
         </ul>
       )}
       {creating ? (
-        <form className="podcast-menu-form" onSubmit={handleCreateAndAdd}>
+        <form className="media-menu-form" onSubmit={handleCreateAndAdd}>
           <input
             type="text"
-            className="podcast-modal-input"
+            className="media-modal-input"
             placeholder="Playlist name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             autoFocus
             maxLength={120}
           />
-          <div className="podcast-menu-form-actions">
+          <div className="media-menu-form-actions">
             <button
               type="button"
-              className="podcast-text-button ui-text"
+              className="media-text-button ui-text"
               onClick={() => setCreating(false)}
               disabled={busy}
             >
@@ -83,7 +83,7 @@ const AddToPlaylistMenu = ({ uid, episode, playlists = [], onClose }) => {
             </button>
             <button
               type="submit"
-              className="podcast-secondary-button ui-text"
+              className="media-secondary-button ui-text"
               disabled={busy || !newName.trim()}
             >
               {busy ? 'Saving…' : 'Save'}
@@ -93,7 +93,7 @@ const AddToPlaylistMenu = ({ uid, episode, playlists = [], onClose }) => {
       ) : (
         <button
           type="button"
-          className="podcast-menu-item podcast-menu-item-create"
+          className="media-menu-item media-menu-item-create"
           onClick={() => setCreating(true)}
           disabled={busy}
         >

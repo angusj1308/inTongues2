@@ -76,38 +76,38 @@ const PodcastShowPage = () => {
 
   return (
     <PodcastShell>
-      <div className="podcast-show-page">
-        <Link to="/podcasts" className="podcast-back-link ui-text">
+      <div className="media-show-page">
+        <Link to="/podcasts" className="media-back-link ui-text">
           ← Library
         </Link>
 
         {loading && !show ? (
-          <p className="podcast-placeholder">Loading…</p>
+          <p className="media-placeholder">Loading…</p>
         ) : !show ? (
-          <p className="podcast-placeholder">Show not found.</p>
+          <p className="media-placeholder">Show not found.</p>
         ) : (
           <>
-            <header className="podcast-show-header">
+            <header className="media-show-header">
               <CoverArt src={show.coverUrl} title={show.title} size={220} />
-              <div className="podcast-show-header-meta">
-                <p className="podcast-eyebrow">Podcast</p>
-                <h1 className="podcast-show-title">{show.title}</h1>
-                {show.host && <p className="podcast-show-host">{show.host}</p>}
+              <div className="media-show-header-meta">
+                <p className="media-eyebrow">Podcast</p>
+                <h1 className="media-show-title">{show.title}</h1>
+                {show.host && <p className="media-show-host">{show.host}</p>}
                 {show.description && (
-                  <p className="podcast-show-description">{show.description}</p>
+                  <p className="media-show-description">{show.description}</p>
                 )}
-                <div className="podcast-show-actions">
+                <div className="media-show-actions">
                   <FollowButton
                     isFollowed={followed}
                     isPinned={pinned}
                     onFollow={handleFollow}
                     onUnfollow={handleUnfollow}
                   />
-                  <button type="button" className="podcast-primary-button ui-text">
+                  <button type="button" className="media-primary-button ui-text">
                     Play Latest
                   </button>
                 </div>
-                <dl className="podcast-show-stats">
+                <dl className="media-show-stats">
                   {show.episodeCount != null && (
                     <div>
                       <dt>Episodes</dt>
@@ -136,13 +136,13 @@ const PodcastShowPage = () => {
               </div>
             </header>
 
-            <section className="podcast-section">
-              <div className="podcast-section-row">
-                <h2 className="podcast-section-header">Episodes</h2>
-                <label className="podcast-sort-label ui-text">
+            <section className="media-section">
+              <div className="media-section-row">
+                <h2 className="media-section-header">Episodes</h2>
+                <label className="media-sort-label ui-text">
                   Sort
                   <select
-                    className="podcast-sort-select"
+                    className="media-sort-select"
                     value={sort}
                     onChange={(e) => setSort(e.target.value)}
                   >
@@ -156,13 +156,13 @@ const PodcastShowPage = () => {
               </div>
 
               {episodes.length === 0 ? (
-                <p className="podcast-empty-line">No episodes available.</p>
+                <p className="media-empty-line">No episodes available.</p>
               ) : (
-                <div className="podcast-episode-detail-list">
+                <div className="media-episode-detail-list">
                   {episodes.map((ep) => {
                     const state = stateById.get(ep.id)
                     return (
-                      <div key={ep.id} className="podcast-episode-detail-wrapper">
+                      <div key={ep.id} className="media-episode-detail-wrapper">
                         <EpisodeRow
                           episode={{
                             ...ep,
@@ -187,10 +187,10 @@ const PodcastShowPage = () => {
               )}
 
               {nextCursor && (
-                <div className="podcast-load-more">
+                <div className="media-load-more">
                   <button
                     type="button"
-                    className="podcast-secondary-button ui-text"
+                    className="media-secondary-button ui-text"
                     onClick={handleLoadMore}
                     disabled={loadingMore}
                   >

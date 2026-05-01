@@ -49,45 +49,45 @@ const NewPlaylistModal = ({ uid, open, onClose, onCreated }) => {
   }
 
   return (
-    <div className="podcast-modal-backdrop" onClick={onClose}>
+    <div className="media-modal-backdrop" onClick={onClose}>
       <div
-        className="podcast-modal"
+        className="media-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="podcast-new-playlist-title"
+        aria-labelledby="media-new-playlist-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="podcast-new-playlist-title" className="podcast-modal-title">
+        <h2 id="media-new-playlist-title" className="media-modal-title">
           New Playlist
         </h2>
-        <form className="podcast-modal-form" onSubmit={handleSubmit}>
-          <label className="podcast-modal-field">
-            <span className="podcast-modal-field-label">Name</span>
+        <form className="media-modal-form" onSubmit={handleSubmit}>
+          <label className="media-modal-field">
+            <span className="media-modal-field-label">Name</span>
             <input
               ref={inputRef}
               type="text"
-              className="podcast-modal-input"
+              className="media-modal-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="My listening list"
               maxLength={120}
             />
           </label>
-          <label className="podcast-modal-field">
-            <span className="podcast-modal-field-label">Description (optional)</span>
+          <label className="media-modal-field">
+            <span className="media-modal-field-label">Description (optional)</span>
             <textarea
-              className="podcast-modal-input"
+              className="media-modal-input"
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={500}
             />
           </label>
-          {error && <p className="podcast-modal-error ui-text">{error}</p>}
-          <div className="podcast-modal-actions">
+          {error && <p className="media-modal-error ui-text">{error}</p>}
+          <div className="media-modal-actions">
             <button
               type="button"
-              className="podcast-text-button ui-text"
+              className="media-text-button ui-text"
               onClick={onClose}
               disabled={submitting}
             >
@@ -95,7 +95,7 @@ const NewPlaylistModal = ({ uid, open, onClose, onCreated }) => {
             </button>
             <button
               type="submit"
-              className="podcast-primary-button ui-text"
+              className="media-primary-button ui-text"
               disabled={submitting || !name.trim()}
             >
               {submitting ? 'Creating…' : 'Create'}

@@ -8,9 +8,9 @@ const NewEpisodes = ({ episodes = [] }) => {
   const visible = showAll ? episodes : episodes.slice(0, 10)
 
   return (
-    <section className="podcast-section">
-      <h2 className="podcast-section-header">New Episodes</h2>
-      <div className="podcast-episode-list">
+    <section className="media-section">
+      <h2 className="media-section-header">New Episodes</h2>
+      <div className="media-episode-list">
         {visible.map((ep) => (
           <EpisodeRow key={ep.id} episode={ep} variant="list" />
         ))}
@@ -18,7 +18,7 @@ const NewEpisodes = ({ episodes = [] }) => {
       {episodes.length > 10 && !showAll && (
         <button
           type="button"
-          className="podcast-text-button ui-text"
+          className="media-text-button ui-text"
           onClick={() => setShowAll(true)}
         >
           See all

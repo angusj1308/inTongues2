@@ -19,34 +19,34 @@ const PodcastDiscover = () => {
   }
 
   return (
-    <div className="podcast-discover">
-      <form className="podcast-search-form" onSubmit={handleSubmit} role="search">
+    <div className="media-discover">
+      <form className="media-search-form" onSubmit={handleSubmit} role="search">
         <input
           type="search"
-          className="podcast-search-input"
+          className="media-search-input"
           placeholder="Search shows or topics."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search podcasts"
         />
-        <button type="submit" className="podcast-secondary-button ui-text">
+        <button type="submit" className="media-secondary-button ui-text">
           Search
         </button>
       </form>
 
-      <section className="podcast-section">
-        <h2 className="podcast-section-header">Browse by Category</h2>
-        <div className="podcast-category-grid">
+      <section className="media-section">
+        <h2 className="media-section-header">Browse by Category</h2>
+        <div className="media-category-grid">
           {PODCAST_CATEGORIES.map((category) => (
             <button
               key={category}
               type="button"
-              className="podcast-category-tile"
+              className="media-category-tile"
               onClick={() =>
                 navigate(`/podcasts/discover/${encodeURIComponent(category)}`)
               }
             >
-              <span className="podcast-category-tile-label">
+              <span className="media-category-tile-label">
                 {localizeCategory(category, nativeLanguage)}
               </span>
             </button>

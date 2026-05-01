@@ -24,7 +24,7 @@ const CoverArt = ({ src, title = '', size = 140, className = '' }) => {
       <img
         src={src}
         alt=""
-        className={`podcast-cover ${className}`}
+        className={`media-cover ${className}`}
         style={{ width: dim, height: dim }}
         loading="lazy"
       />
@@ -34,12 +34,12 @@ const CoverArt = ({ src, title = '', size = 140, className = '' }) => {
   const initials = initialsOf(title)
   return (
     <div
-      className={`podcast-cover podcast-cover-fallback ${className}`}
+      className={`media-cover media-cover-fallback ${className}`}
       style={{ width: dim, height: dim, background: bg }}
       role="img"
       aria-label={title || 'Podcast cover'}
     >
-      <span className="podcast-cover-initials">{initials}</span>
+      <span className="media-cover-initials">{initials}</span>
     </div>
   )
 }

@@ -62,20 +62,20 @@ const EpisodeRow = ({
 
   if (variant === 'tile') {
     return (
-      <button type="button" className="podcast-episode-tile" onClick={() => onPlay?.(episode)}>
+      <button type="button" className="media-episode-tile" onClick={() => onPlay?.(episode)}>
         <CoverArt src={coverUrl} title={eyebrow || title} size={180} />
-        {eyebrow && <p className="podcast-eyebrow">{eyebrow}</p>}
-        <p className="podcast-episode-tile-title">{title}</p>
-        {status && <p className="podcast-episode-tile-status">{status}</p>}
+        {eyebrow && <p className="media-eyebrow">{eyebrow}</p>}
+        <p className="media-episode-tile-title">{title}</p>
+        {status && <p className="media-episode-tile-status">{status}</p>}
       </button>
     )
   }
 
   if (variant === 'pinned-tile') {
     return (
-      <button type="button" className="podcast-pinned-tile" onClick={() => onPlay?.(episode)}>
+      <button type="button" className="media-pinned-tile" onClick={() => onPlay?.(episode)}>
         <CoverArt src={coverUrl} title={eyebrow || title} size={140} />
-        <p className="podcast-pinned-tile-title">{title}</p>
+        <p className="media-pinned-tile-title">{title}</p>
       </button>
     )
   }
@@ -86,28 +86,28 @@ const EpisodeRow = ({
     const played = durationMs && progressMs >= durationMs - 5000
     const buttonLabel = played ? 'Replay' : inProgress ? 'Resume' : 'Play'
     return (
-      <div className="podcast-episode-detail-row">
-        <div className="podcast-episode-detail-meta">
-          <div className="podcast-episode-detail-line">
+      <div className="media-episode-detail-row">
+        <div className="media-episode-detail-meta">
+          <div className="media-episode-detail-line">
             {episodeNumber != null && (
-              <span className="podcast-episode-detail-number">#{episodeNumber}</span>
+              <span className="media-episode-detail-number">#{episodeNumber}</span>
             )}
             {publishedAt && <span>{formatDate(publishedAt)}</span>}
             {durationMs && <span>{formatDuration(durationMs)}</span>}
             {inProgress && left != null && (
-              <span className="podcast-status-inprogress">{left}m left</span>
+              <span className="media-status-inprogress">{left}m left</span>
             )}
-            {played && <span className="podcast-status-played">Played</span>}
+            {played && <span className="media-status-played">Played</span>}
           </div>
-          <h3 className="podcast-episode-detail-title">{title}</h3>
+          <h3 className="media-episode-detail-title">{title}</h3>
           {description && (
-            <p className="podcast-episode-detail-description">{description}</p>
+            <p className="media-episode-detail-description">{description}</p>
           )}
         </div>
-        <div className="podcast-episode-detail-actions">
+        <div className="media-episode-detail-actions">
           <button
             type="button"
-            className="podcast-secondary-button ui-text"
+            className="media-secondary-button ui-text"
             onClick={() => onPlay?.(episode)}
           >
             {buttonLabel}
@@ -115,7 +115,7 @@ const EpisodeRow = ({
           {onAddToPlaylist && (
             <button
               type="button"
-              className="podcast-icon-button"
+              className="media-icon-button"
               aria-label="Add to playlist"
               onClick={() => onAddToPlaylist(episode)}
             >
@@ -129,20 +129,20 @@ const EpisodeRow = ({
 
   // 'list' default
   return (
-    <div className="podcast-episode-list-row">
+    <div className="media-episode-list-row">
       <CoverArt src={coverUrl} title={eyebrow || title} size={56} />
-      <div className="podcast-episode-list-body">
-        {eyebrow && <p className="podcast-eyebrow">{eyebrow}</p>}
-        <h3 className="podcast-episode-list-title">{title}</h3>
+      <div className="media-episode-list-body">
+        {eyebrow && <p className="media-eyebrow">{eyebrow}</p>}
+        <h3 className="media-episode-list-title">{title}</h3>
       </div>
-      <div className="podcast-episode-list-meta">
+      <div className="media-episode-list-meta">
         {publishedAt && <span>{formatDate(publishedAt)}</span>}
         {durationMs && <span>{formatDuration(durationMs)}</span>}
       </div>
-      <div className="podcast-episode-list-actions">
+      <div className="media-episode-list-actions">
         <button
           type="button"
-          className="podcast-icon-button"
+          className="media-icon-button"
           aria-label="Play episode"
           onClick={() => onPlay?.(episode)}
         >
@@ -151,7 +151,7 @@ const EpisodeRow = ({
         {onAddToPlaylist && (
           <button
             type="button"
-            className="podcast-icon-button"
+            className="media-icon-button"
             aria-label="Add to playlist"
             onClick={() => onAddToPlaylist(episode)}
           >

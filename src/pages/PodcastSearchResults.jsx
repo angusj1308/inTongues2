@@ -63,14 +63,14 @@ const PodcastSearchResultsPage = () => {
 
   return (
     <PodcastShell>
-      <Link to="/podcasts/discover" className="podcast-back-link ui-text">
+      <Link to="/podcasts/discover" className="media-back-link ui-text">
         ← Discover
       </Link>
-      <header className="podcast-results-header">
-        <h1 className="podcast-results-header-title">
+      <header className="media-results-header">
+        <h1 className="media-results-header-title">
           Results for <em>"{query}"</em>
         </h1>
-        <p className="podcast-results-header-count">
+        <p className="media-results-header-count">
           {loading && results.length === 0
             ? 'Searching…'
             : `${results.length} result${results.length === 1 ? '' : 's'}`}
@@ -86,10 +86,10 @@ const PodcastSearchResultsPage = () => {
       />
 
       {!exhausted && results.length > 0 && (
-        <div className="podcast-load-more">
+        <div className="media-load-more">
           <button
             type="button"
-            className="podcast-secondary-button ui-text"
+            className="media-secondary-button ui-text"
             onClick={handleLoadMore}
             disabled={loading}
           >

@@ -19,23 +19,23 @@ const ContinueListening = ({ episode, onResume }) => {
   const left = formatMinutesLeft(durationMs, progressMs)
 
   return (
-    <section className="podcast-section podcast-continue">
-      <h2 className="podcast-section-header">Continue Listening</h2>
-      <div className="podcast-continue-card">
+    <section className="media-section media-continue">
+      <h2 className="media-section-header">Continue Listening</h2>
+      <div className="media-continue-card">
         <CoverArt src={coverUrl} title={showName || title} size={120} />
-        <div className="podcast-continue-body">
-          {showName && <p className="podcast-eyebrow">{showName}</p>}
-          <h3 className="podcast-continue-title">{title}</h3>
-          <div className="podcast-progress-bar" aria-hidden="true">
-            <div className="podcast-progress-fill" style={{ width: `${percent}%` }} />
+        <div className="media-continue-body">
+          {showName && <p className="media-eyebrow">{showName}</p>}
+          <h3 className="media-continue-title">{title}</h3>
+          <div className="media-progress-bar" aria-hidden="true">
+            <div className="media-progress-fill" style={{ width: `${percent}%` }} />
           </div>
-          <p className="podcast-continue-meta">
+          <p className="media-continue-meta">
             {left} · {percent}% played
           </p>
         </div>
         <button
           type="button"
-          className="podcast-primary-button ui-text"
+          className="media-primary-button ui-text"
           onClick={() => onResume?.(episode)}
         >
           Resume

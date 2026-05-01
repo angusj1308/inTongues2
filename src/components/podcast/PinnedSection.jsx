@@ -31,24 +31,24 @@ const SortablePinnedRow = ({ pin, episodes, tagLabel, onUnpin }) => {
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="podcast-pinned-row">
+    <div ref={setNodeRef} style={style} className="media-pinned-row">
       <button
         type="button"
-        className="podcast-pinned-row-handle"
+        className="media-pinned-row-handle"
         aria-label="Drag to reorder"
         {...attributes}
         {...listeners}
       >
         ⋮⋮
       </button>
-      <div className="podcast-pinned-row-body">
-        <div className="podcast-pinned-row-header">
-          <span className="podcast-pinned-row-tag">{tagLabel}</span>
-          <span className="podcast-pinned-row-title">{pin.title}</span>
+      <div className="media-pinned-row-body">
+        <div className="media-pinned-row-header">
+          <span className="media-pinned-row-tag">{tagLabel}</span>
+          <span className="media-pinned-row-title">{pin.title}</span>
         </div>
-        <div className="podcast-pinned-strip">
+        <div className="media-pinned-strip">
           {episodes.length === 0 ? (
-            <p className="podcast-empty-line">No episodes yet.</p>
+            <p className="media-empty-line">No episodes yet.</p>
           ) : (
             episodes.map((ep) => (
               <EpisodeRow
@@ -60,7 +60,7 @@ const SortablePinnedRow = ({ pin, episodes, tagLabel, onUnpin }) => {
           )}
         </div>
       </div>
-      <div className="podcast-pinned-row-pin">
+      <div className="media-pinned-row-pin">
         <PinButton isPinned onClick={onUnpin} />
       </div>
     </div>
@@ -101,15 +101,15 @@ const PinnedSection = ({ uid, pins, followedShows, playlists }) => {
   if (!pins.length) return null
 
   return (
-    <section className="podcast-section podcast-pinned">
-      <div className="podcast-section-row">
-        <h2 className="podcast-section-header">Pinned</h2>
-        <span className="podcast-section-hint">Drag to reorder</span>
+    <section className="media-section media-pinned">
+      <div className="media-section-row">
+        <h2 className="media-section-header">Pinned</h2>
+        <span className="media-section-hint">Drag to reorder</span>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={pins.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-          <div className="podcast-pinned-rows">
+          <div className="media-pinned-rows">
             {pins.map((pin) => {
               const isShow = pin.kind === 'show'
               const source = isShow ? showsById.get(pin.refId) : playlistsById.get(pin.refId)

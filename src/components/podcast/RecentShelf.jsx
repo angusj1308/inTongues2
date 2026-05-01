@@ -26,9 +26,9 @@ const RecentShelf = ({ episodes = [] }) => {
   if (!episodes.length) return null
 
   return (
-    <section className="podcast-section">
-      <h2 className="podcast-section-header">Recent</h2>
-      <div className="podcast-recent-strip">
+    <section className="media-section">
+      <h2 className="media-section-header">Recent</h2>
+      <div className="media-recent-strip">
         {episodes.map((ep) => (
           <EpisodeRow
             key={ep.id}

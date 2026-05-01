@@ -465,6 +465,13 @@
   cursor: grab;
   font-size: 1rem;
   user-select: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.podcast-pinned-row-handle:active {
+  cursor: grabbing;
 }
 
 .podcast-pinned-row-body {

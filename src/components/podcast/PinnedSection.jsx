@@ -1,9 +1,72 @@
 import { useMemo } from 'react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+  useSortable,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import EpisodeRow from './EpisodeRow'
 import PinButton from './PinButton'
-import { unpinByRef } from '../../services/podcast'
+import { reorderPins, unpinByRef } from '../../services/podcast'
 
-// Static (non-draggable) pinned section. Drag-to-reorder lands in Task 4.
+const SortablePinnedRow = ({ pin, episodes, tagLabel, onUnpin }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: pin.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="podcast-pinned-row">
+      <button
+        type="button"
+        className="podcast-pinned-row-handle"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        ⋮⋮
+      </button>
+      <div className="podcast-pinned-row-body">
+        <div className="podcast-pinned-row-header">
+          <span className="podcast-pinned-row-tag">{tagLabel}</span>
+          <span className="podcast-pinned-row-title">{pin.title}</span>
+        </div>
+        <div className="podcast-pinned-strip">
+          {episodes.length === 0 ? (
+            <p className="podcast-empty-line">No episodes yet.</p>
+          ) : (
+            episodes.map((ep) => (
+              <EpisodeRow
+                key={ep.id}
+                episode={{ ...ep, coverUrl: ep.coverUrl || pin.coverUrl }}
+                variant="pinned-tile"
+              />
+            ))
+          )}
+        </div>
+      </div>
+      <div className="podcast-pinned-row-pin">
+        <PinButton isPinned onClick={onUnpin} />
+      </div>
+    </div>
+  )
+}
+
 const PinnedSection = ({ uid, pins, followedShows, playlists }) => {
   const showsById = useMemo(() => {
     const map = new Map()
@@ -17,6 +80,24 @@ const PinnedSection = ({ uid, pins, followedShows, playlists }) => {
     return map
   }, [playlists])
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = pins.findIndex((p) => p.id === active.id)
+    const newIndex = pins.findIndex((p) => p.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+    const reordered = arrayMove(pins, oldIndex, newIndex)
+    await reorderPins(
+      uid,
+      reordered.map((p) => p.id),
+    )
+  }
+
   if (!pins.length) return null
 
   return (
@@ -26,44 +107,30 @@ const PinnedSection = ({ uid, pins, followedShows, playlists }) => {
         <span className="podcast-section-hint">Drag to reorder</span>
       </div>
 
-      <div className="podcast-pinned-rows">
-        {pins.map((pin) => {
-          const isShow = pin.kind === 'show'
-          const source = isShow ? showsById.get(pin.refId) : playlistsById.get(pin.refId)
-          const episodes = isShow
-            ? (source?.recentEpisodes || []).slice(0, 10)
-            : (source?.episodes || [])
-          const tagLabel = isShow ? 'Show' : 'Playlist'
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={pins.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+          <div className="podcast-pinned-rows">
+            {pins.map((pin) => {
+              const isShow = pin.kind === 'show'
+              const source = isShow ? showsById.get(pin.refId) : playlistsById.get(pin.refId)
+              const episodes = isShow
+                ? (source?.recentEpisodes || []).slice(0, 10)
+                : source?.episodes || []
+              const tagLabel = isShow ? 'Show' : 'Playlist'
 
-          return (
-            <div key={pin.id} className="podcast-pinned-row">
-              <div className="podcast-pinned-row-handle" aria-hidden="true">⋮⋮</div>
-              <div className="podcast-pinned-row-body">
-                <div className="podcast-pinned-row-header">
-                  <span className="podcast-pinned-row-tag">{tagLabel}</span>
-                  <span className="podcast-pinned-row-title">{pin.title}</span>
-                </div>
-                <div className="podcast-pinned-strip">
-                  {episodes.length === 0 ? (
-                    <p className="podcast-empty-line">No episodes yet.</p>
-                  ) : (
-                    episodes.map((ep) => (
-                      <EpisodeRow
-                        key={ep.id}
-                        episode={{ ...ep, coverUrl: ep.coverUrl || pin.coverUrl }}
-                        variant="pinned-tile"
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-              <div className="podcast-pinned-row-pin">
-                <PinButton isPinned onClick={() => unpinByRef(uid, pin.refId)} />
-              </div>
-            </div>
-          )
-        })}
-      </div>
+              return (
+                <SortablePinnedRow
+                  key={pin.id}
+                  pin={pin}
+                  episodes={episodes}
+                  tagLabel={tagLabel}
+                  onUnpin={() => unpinByRef(uid, pin.refId)}
+                />
+              )
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
     </section>
   )
 }

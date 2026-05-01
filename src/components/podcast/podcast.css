@@ -1198,6 +1198,120 @@
   color: #1c1917;
 }
 
+/* Search & category results */
+.podcast-results-header {
+  margin: 0 0 1.5rem;
+}
+
+.podcast-results-header-title {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-size: 1.5rem;
+  margin: 0;
+  color: #1c2230;
+  font-weight: 400;
+}
+
+.podcast-results-header-title em {
+  font-style: italic;
+}
+
+.podcast-results-header-category {
+  font-style: italic;
+}
+
+.podcast-results-header-count {
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.78rem;
+  color: #78716c;
+  margin: 0.25rem 0 0;
+  letter-spacing: 0.04em;
+}
+
+.podcast-results-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 0.5px solid #d6d3c8;
+}
+
+.podcast-result-row {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 1.25rem;
+  padding: 1.1rem 0;
+  border-bottom: 0.5px solid #d6d3c8;
+  align-items: center;
+}
+
+.podcast-result-cover-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.podcast-result-body {
+  min-width: 0;
+}
+
+.podcast-result-title-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.podcast-result-title {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-style: italic;
+  font-size: 1.15rem;
+  margin: 0;
+  color: #1c2230;
+  line-height: 1.25;
+}
+
+.podcast-result-host {
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.82rem;
+  color: #5b574d;
+  margin: 0.15rem 0 0;
+}
+
+.podcast-result-description {
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.85rem;
+  color: #5b574d;
+  margin: 0.4rem 0 0;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 60ch;
+}
+
+.podcast-result-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+[data-theme='dark'] .podcast-results-header-title,
+[data-theme='dark'] .podcast-result-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .podcast-results-header-count,
+[data-theme='dark'] .podcast-result-host,
+[data-theme='dark'] .podcast-result-description {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .podcast-results-list,
+[data-theme='dark'] .podcast-result-row {
+  border-color: #3a3633;
+}
+
 /* Dark mode — keep parity with rest of app */
 [data-theme='dark'] .podcast-page {
   background: #1c1917;

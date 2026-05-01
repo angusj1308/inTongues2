@@ -5,6 +5,7 @@ import PodcastShell from '../components/podcast/PodcastShell'
 import CoverArt from '../components/podcast/CoverArt'
 import EpisodeRow from '../components/podcast/EpisodeRow'
 import FollowButton from '../components/podcast/FollowButton'
+import AddToPlaylistMenu from '../components/podcast/AddToPlaylistMenu'
 import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 
 const SORT_OPTIONS = [
@@ -14,13 +15,15 @@ const SORT_OPTIONS = [
 
 const PodcastShowPage = () => {
   const { id } = useParams()
-  const { episodeStates, isFollowed, isPinned, follow, unfollow } = usePodcastSubscriptions()
+  const { user, episodeStates, playlists, isFollowed, isPinned, follow, unfollow } =
+    usePodcastSubscriptions()
   const [show, setShow] = useState(null)
   const [episodes, setEpisodes] = useState([])
   const [nextCursor, setNextCursor] = useState(null)
   const [sort, setSort] = useState('newest')
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [addMenuFor, setAddMenuFor] = useState(null) // episodeId
 
   useEffect(() => {
     let cancelled = false
@@ -159,15 +162,25 @@ const PodcastShowPage = () => {
                   {episodes.map((ep) => {
                     const state = stateById.get(ep.id)
                     return (
-                      <EpisodeRow
-                        key={ep.id}
-                        episode={{
-                          ...ep,
-                          coverUrl: ep.coverUrl || show.coverUrl,
-                          progressMs: state?.progressMs || 0,
-                        }}
-                        variant="detail"
-                      />
+                      <div key={ep.id} className="podcast-episode-detail-wrapper">
+                        <EpisodeRow
+                          episode={{
+                            ...ep,
+                            coverUrl: ep.coverUrl || show.coverUrl,
+                            progressMs: state?.progressMs || 0,
+                          }}
+                          variant="detail"
+                          onAddToPlaylist={() => setAddMenuFor(ep.id)}
+                        />
+                        {addMenuFor === ep.id && (
+                          <AddToPlaylistMenu
+                            uid={user?.uid}
+                            episode={ep}
+                            playlists={playlists}
+                            onClose={() => setAddMenuFor(null)}
+                          />
+                        )}
+                      </div>
                     )
                   })}
                 </div>

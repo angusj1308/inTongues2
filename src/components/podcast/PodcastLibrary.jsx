@@ -8,6 +8,7 @@ import ContinueListening from './ContinueListening'
 import PinnedSection from './PinnedSection'
 import NewEpisodes from './NewEpisodes'
 import RecentShelf from './RecentShelf'
+import NewPlaylistModal from './NewPlaylistModal'
 import usePodcastSubscriptions from './usePodcastSubscriptions'
 
 const MAX_PINS = 4
@@ -23,6 +24,7 @@ const PodcastLibrary = () => {
     pinnedRefs: pinnedRefIds,
   } = usePodcastSubscriptions()
   const [pinError, setPinError] = useState('')
+  const [newPlaylistOpen, setNewPlaylistOpen] = useState(false)
 
   const maxPinOrder = useMemo(
     () => pins.reduce((acc, p) => Math.max(acc, p.order || 0), 0),
@@ -185,7 +187,11 @@ const PodcastLibrary = () => {
       <section className="podcast-section">
         <div className="podcast-section-row">
           <h2 className="podcast-section-header">Playlists</h2>
-          <button type="button" className="podcast-text-button ui-text" disabled>
+          <button
+            type="button"
+            className="podcast-text-button ui-text"
+            onClick={() => setNewPlaylistOpen(true)}
+          >
             + New Playlist
           </button>
         </div>
@@ -223,6 +229,12 @@ const PodcastLibrary = () => {
           </div>
         )}
       </section>
+
+      <NewPlaylistModal
+        uid={user?.uid}
+        open={newPlaylistOpen}
+        onClose={() => setNewPlaylistOpen(false)}
+      />
     </div>
   )
 }

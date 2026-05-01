@@ -1312,6 +1312,197 @@
   border-color: #3a3633;
 }
 
+/* Modal */
+.podcast-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 34, 48, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.podcast-modal {
+  background: #f3f0e6;
+  border: 0.5px solid #d6d3c8;
+  border-radius: 4px;
+  width: min(440px, 92vw);
+  padding: 1.75rem;
+  box-shadow: 0 24px 48px rgba(28, 34, 48, 0.18);
+}
+
+.podcast-modal-title {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-style: italic;
+  font-size: 1.4rem;
+  color: #1c2230;
+  margin: 0 0 1.25rem 0;
+}
+
+.podcast-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.podcast-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.podcast-modal-field-label {
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #78716c;
+}
+
+.podcast-modal-input {
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.95rem;
+  padding: 0.55rem 0.75rem;
+  border: 0.5px solid #d6d3c8;
+  border-radius: 2px;
+  background: #faf8f1;
+  color: #1c2230;
+  outline: none;
+  resize: vertical;
+}
+
+.podcast-modal-input:focus {
+  border-color: #1c2230;
+}
+
+.podcast-modal-error {
+  color: #7a3b3b;
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.podcast-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Add-to-playlist menu */
+.podcast-episode-detail-wrapper {
+  position: relative;
+}
+
+.podcast-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% - 0.5rem);
+  background: #faf8f1;
+  border: 0.5px solid #d6d3c8;
+  border-radius: 4px;
+  padding: 0.6rem;
+  width: 240px;
+  z-index: 30;
+  box-shadow: 0 12px 24px rgba(28, 34, 48, 0.12);
+}
+
+.podcast-menu-heading {
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin: 0 0 0.5rem;
+}
+
+.podcast-menu-empty {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: #78716c;
+  margin: 0 0 0.4rem;
+}
+
+.podcast-menu-list {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.podcast-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0.5rem 0.6rem;
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: #1c2230;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.podcast-menu-item:hover {
+  background: rgba(28, 34, 48, 0.06);
+}
+
+.podcast-menu-item-create {
+  border-top: 0.5px solid #d6d3c8;
+  margin-top: 0.4rem;
+  padding-top: 0.7rem;
+  font-style: normal;
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #1c2230;
+}
+
+.podcast-menu-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.podcast-menu-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+[data-theme='dark'] .podcast-modal,
+[data-theme='dark'] .podcast-menu {
+  background: #2a2724;
+  border-color: #3a3633;
+}
+
+[data-theme='dark'] .podcast-modal-title,
+[data-theme='dark'] .podcast-menu-item,
+[data-theme='dark'] .podcast-menu-item-create {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .podcast-modal-field-label,
+[data-theme='dark'] .podcast-menu-heading,
+[data-theme='dark'] .podcast-menu-empty {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .podcast-modal-input {
+  background: #1c1917;
+  border-color: #3a3633;
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .podcast-menu-item-create {
+  border-color: #3a3633;
+}
+
 /* Dark mode — keep parity with rest of app */
 [data-theme='dark'] .podcast-page {
   background: #1c1917;

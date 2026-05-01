@@ -1095,6 +1095,109 @@
   color: #fafaf9;
 }
 
+/* Discover */
+.podcast-search-form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  max-width: 600px;
+  margin: 1rem auto 3rem;
+}
+
+.podcast-search-input {
+  flex: 1;
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 1rem;
+  padding: 0.7rem 1rem;
+  border: 0.5px solid #d6d3c8;
+  border-radius: 2px;
+  background: #faf8f1;
+  color: #1c2230;
+  outline: none;
+  transition: border-color 160ms ease;
+}
+
+.podcast-search-input::placeholder {
+  font-style: italic;
+  color: #a8a29e;
+}
+
+.podcast-search-input:focus {
+  border-color: #1c2230;
+}
+
+.podcast-category-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 800px) {
+  .podcast-category-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 540px) {
+  .podcast-category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.podcast-category-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2.5rem 1rem;
+  background: #faf8f1;
+  border: 0.5px solid #d6d3c8;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease, border-color 160ms ease;
+}
+
+.podcast-category-tile:hover {
+  background: #1c2230;
+  border-color: #1c2230;
+}
+
+.podcast-category-tile:hover .podcast-category-tile-label {
+  color: #f3f0e6;
+}
+
+.podcast-category-tile-label {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-style: italic;
+  font-size: 1.15rem;
+  color: #1c2230;
+  transition: color 160ms ease;
+}
+
+[data-theme='dark'] .podcast-search-input {
+  background: #2a2724;
+  border-color: #3a3633;
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .podcast-category-tile {
+  background: #2a2724;
+  border-color: #3a3633;
+}
+
+[data-theme='dark'] .podcast-category-tile-label {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .podcast-category-tile:hover {
+  background: #fafaf9;
+  border-color: #fafaf9;
+}
+
+[data-theme='dark'] .podcast-category-tile:hover .podcast-category-tile-label {
+  color: #1c1917;
+}
+
 /* Dark mode — keep parity with rest of app */
 [data-theme='dark'] .podcast-page {
   background: #1c1917;

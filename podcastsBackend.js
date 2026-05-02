@@ -165,12 +165,14 @@ export const searchSpotifyPodcasts = async ({ query, language, market = DEFAULT_
   // Split the multi-type call into two single-type calls. Spotify's /search
   // with type=show,episode + client_credentials returns a misleading
   // "Invalid limit" 400; single-type calls are the documented happy path.
+  // Spotify rejects limit >= 10 on podcast search with client_credentials —
+  // 9 is the highest reliably-accepted value.
   const [showsResp, episodesResp] = await Promise.all([
-    spotifyApiFetch('/search', { q: query, type: 'show', market, limit: 20 }).catch((err) => {
+    spotifyApiFetch('/search', { q: query, type: 'show', market, limit: 9 }).catch((err) => {
       console.warn('Spotify show search failed', err.status || '', err.message)
       return null
     }),
-    spotifyApiFetch('/search', { q: query, type: 'episode', market, limit: 20 }).catch((err) => {
+    spotifyApiFetch('/search', { q: query, type: 'episode', market, limit: 9 }).catch((err) => {
       console.warn('Spotify episode search failed', err.status || '', err.message)
       return null
     }),

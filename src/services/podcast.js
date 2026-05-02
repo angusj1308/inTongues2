@@ -144,6 +144,48 @@ export const createPlaylist = async (uid, { name, description }) => {
   return docRef.id
 }
 
+// Episode progress: stored at users/{uid}/podcastEpisodeStates/{episodeId}.
+// `subscribeEpisodeStates` already reads this for Continue Listening, so the
+// Library tile updates automatically once the player writes here.
+export const saveEpisodeProgress = async (
+  uid,
+  episodeId,
+  { progressMs = 0, durationMs = 0, coverUrl = '', title = '', showName = '', showId = '', played = false } = {},
+) => {
+  if (!uid || !episodeId) return
+  await setDoc(
+    doc(episodeStatesCol(uid), episodeId),
+    {
+      episodeId,
+      progressMs: Math.max(0, Math.round(progressMs)),
+      durationMs: Math.max(0, Math.round(durationMs)),
+      lastPlayedAt: serverTimestamp(),
+      played: !!played,
+      coverUrl,
+      title,
+      showName,
+      showId,
+    },
+    { merge: true },
+  )
+}
+
+export const markEpisodePlayed = async (uid, episodeId, durationMs = 0, meta = {}) => {
+  if (!uid || !episodeId) return
+  await saveEpisodeProgress(uid, episodeId, {
+    progressMs: durationMs,
+    durationMs,
+    played: true,
+    ...meta,
+  })
+}
+
+export const fetchEpisodeProgress = async (uid, episodeId) => {
+  if (!uid || !episodeId) return null
+  const snap = await getDoc(doc(episodeStatesCol(uid), episodeId))
+  return snap.exists() ? snap.data() : null
+}
+
 export const addEpisodeToPlaylist = async (uid, playlistId, episodeId) => {
   if (!uid || !playlistId || !episodeId) return
   const ref = doc(playlistsCol(uid), playlistId)

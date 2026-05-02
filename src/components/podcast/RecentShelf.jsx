@@ -22,7 +22,7 @@ const statusFor = (state) => {
   return formatRelativeDay(lastPlayedAt)
 }
 
-const RecentShelf = ({ episodes = [] }) => {
+const RecentShelf = ({ episodes = [], onPlay }) => {
   if (!episodes.length) return null
 
   return (
@@ -35,6 +35,7 @@ const RecentShelf = ({ episodes = [] }) => {
             episode={ep}
             variant="tile"
             status={statusFor(ep)}
+            onPlay={onPlay}
           />
         ))}
       </div>

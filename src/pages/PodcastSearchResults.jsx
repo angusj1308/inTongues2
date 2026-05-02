@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
-import { searchPodcasts, fetchShow } from '../services/podcast'
+import { searchPodcasts, fetchShow, fetchShowEpisodes } from '../services/podcast'
 import PodcastShell from '../components/podcast/PodcastShell'
 import SearchResultRow, {
   SearchResultRowSkeleton,
@@ -127,20 +127,45 @@ const PodcastSearchResultsPage = () => {
     const parentShowId = String(
       episode.itunesCollectionId || episode.spotifyShowId || '',
     )
-    if (parentShowId) {
-      const parent = await fetchShow(parentShowId)
-      if (parent && parent.available === false) {
-        setUnavailableEpisode({
-          showTitle: episode.showTitle || parent.title || '',
-        })
-        return
-      }
+    // Search-result episodes don't carry an audioUrl directly (iTunes search
+    // doesn't return it). Resolve via the show's RSS-backed episode list,
+    // matching by episode id.
+    if (!parentShowId) return
+    let parent = null
+    try {
+      parent = await fetchShow(parentShowId)
+    } catch (err) {
+      console.error('Show lookup failed', err)
     }
-    // Audio player wiring is a separate task — log for now per brief.
-    // eslint-disable-next-line no-console
-    console.log('[podcast] play episode', {
-      episodeId: episodeIdOf(episode),
-      showId: parentShowId,
+    if (parent && parent.available === false) {
+      setUnavailableEpisode({
+        showTitle: episode.showTitle || parent.title || '',
+      })
+      return
+    }
+    const epId = episodeIdOf(episode)
+    let { episodes } = await fetchShowEpisodes(parentShowId)
+    let resolved = episodes.find((ep) => String(ep.id) === String(epId))
+    // Episode IDs from iTunes search and RSS feed often differ; fall back to
+    // matching by title.
+    if (!resolved && episode.title) {
+      resolved = episodes.find((ep) => ep.title === episode.title)
+    }
+    // Last resort: play the most recent episode from the feed.
+    if (!resolved && episodes.length) resolved = episodes[0]
+    if (!resolved?.audioUrl) {
+      setUnavailableEpisode({ showTitle: episode.showTitle || parent?.title || '' })
+      return
+    }
+    navigate(`/podcasts/play/${encodeURIComponent(resolved.id)}`, {
+      state: {
+        episode: {
+          ...resolved,
+          showId: parentShowId,
+          showName: episode.showTitle || parent?.title || resolved.showName || '',
+          coverUrl: resolved.coverUrl || episode.coverArtUrl || parent?.coverUrl || '',
+        },
+      },
     })
   }
 

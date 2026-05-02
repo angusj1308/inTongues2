@@ -2034,3 +2034,124 @@
   color: #fafaf9;
   border-color: #3a3633;
 }
+
+/* Podcast player */
+.media-podcast-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 520px;
+  margin: 1.5rem auto 0;
+  text-align: center;
+}
+
+.media-podcast-player .media-cover {
+  border-radius: 4px;
+  box-shadow: 0 16px 32px rgba(28, 34, 48, 0.12);
+}
+
+.media-podcast-player-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.media-podcast-scrubber {
+  width: 100%;
+  max-width: 480px;
+  appearance: none;
+  height: 2px;
+  background: #d6d3c8;
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.media-podcast-scrubber::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1c2230;
+  cursor: pointer;
+  border: 0;
+}
+
+.media-podcast-scrubber::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1c2230;
+  cursor: pointer;
+  border: 0;
+}
+
+.media-podcast-times {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 480px;
+  font-size: 0.7rem;
+  color: #78716c;
+  letter-spacing: 0.05em;
+  margin-top: -0.75rem;
+}
+
+.media-podcast-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.media-podcast-play {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #1c2230;
+  color: #f3f0e6;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 160ms ease, transform 120ms ease;
+}
+
+.media-podcast-play:hover {
+  background: #2a3346;
+}
+
+.media-podcast-play:active {
+  transform: scale(0.96);
+}
+
+.media-podcast-secondary {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+[data-theme='dark'] .media-podcast-scrubber {
+  background: #3a3633;
+}
+
+[data-theme='dark'] .media-podcast-scrubber::-webkit-slider-thumb,
+[data-theme='dark'] .media-podcast-scrubber::-moz-range-thumb {
+  background: #fafaf9;
+}
+
+[data-theme='dark'] .media-podcast-times {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .media-podcast-play {
+  background: #fafaf9;
+  color: #1c1917;
+}
+
+[data-theme='dark'] .media-podcast-play:hover {
+  background: #ebe9e6;
+}

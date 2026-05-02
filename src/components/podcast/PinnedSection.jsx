@@ -19,7 +19,7 @@ import EpisodeRow from './EpisodeRow'
 import PinButton from './PinButton'
 import { reorderPins, unpinByRef } from '../../services/podcast'
 
-const SortablePinnedRow = ({ pin, episodes, tagLabel, onUnpin }) => {
+const SortablePinnedRow = ({ pin, episodes, tagLabel, onUnpin, onPlay }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: pin.id,
   })
@@ -53,8 +53,14 @@ const SortablePinnedRow = ({ pin, episodes, tagLabel, onUnpin }) => {
             episodes.map((ep) => (
               <EpisodeRow
                 key={ep.id}
-                episode={{ ...ep, coverUrl: ep.coverUrl || pin.coverUrl }}
+                episode={{
+                  ...ep,
+                  coverUrl: ep.coverUrl || pin.coverUrl,
+                  showId: ep.showId || (pin.kind === 'show' ? pin.refId : ''),
+                  showName: ep.showName || pin.title,
+                }}
                 variant="pinned-tile"
+                onPlay={onPlay}
               />
             ))
           )}
@@ -67,7 +73,7 @@ const SortablePinnedRow = ({ pin, episodes, tagLabel, onUnpin }) => {
   )
 }
 
-const PinnedSection = ({ uid, pins, followedShows, playlists }) => {
+const PinnedSection = ({ uid, pins, followedShows, playlists, onPlay }) => {
   const showsById = useMemo(() => {
     const map = new Map()
     followedShows.forEach((s) => map.set(s.id, s))
@@ -125,6 +131,7 @@ const PinnedSection = ({ uid, pins, followedShows, playlists }) => {
                   episodes={episodes}
                   tagLabel={tagLabel}
                   onUnpin={() => unpinByRef(uid, pin.refId)}
+                  onPlay={onPlay}
                 />
               )
             })}

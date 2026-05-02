@@ -672,6 +672,14 @@ textarea {
   background-color: var(--hlt-color);
 }
 
+/* Dark mode: highlighter pastels won't read on dark page bg, so the colour
+   moves from the word's background onto the text itself. Same hue/intensity
+   per status as in light mode — only the surface flips. */
+.reader-themed[data-reader-tone='dark'] .reader-word--highlighted {
+  background-color: transparent;
+  color: var(--hlt-color);
+}
+
 .reader-sentence {
   display: inline;
   transition: opacity 0.2s ease, filter 0.2s ease;

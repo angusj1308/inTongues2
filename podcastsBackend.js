@@ -1,20 +1,28 @@
 // Podcast search and resolution backend.
 //
-// Architecture:
-//   1. Spotify Web API for search (best Spanish-language coverage).
-//   2. iTunes Search API to resolve an RSS feed URL from the Spotify show
-//      (Apple has the most complete RSS coverage).
-//   3. rss-parser to read the public feed and extract MP3 enclosure URLs
-//      that the audio pipeline will eventually transcribe.
+// Architecture: iTunes Search API for catalogue + rss-parser for episode feeds.
 //
-// Spotify auth here uses the client-credentials flow (no user required) so
-// public podcast search works regardless of whether the visitor has linked
-// their Spotify account.
+// iTunes Search is keyless and free, has comprehensive Spanish-language
+// coverage, and returns the RSS feed URL directly on every show result. That
+// eliminates the previous Spotify-then-iTunes resolution step.
 
-import crypto from 'crypto'
 import Parser from 'rss-parser'
 
-const DEFAULT_MARKET = 'MX' // Spanish-speaking market with broad Latin American + EU Spanish coverage.
+const DEFAULT_COUNTRY = 'MX'
+
+const LANGUAGE_TO_COUNTRY = {
+  es: 'MX',
+  fr: 'FR',
+  it: 'IT',
+  de: 'DE',
+  pt: 'BR',
+  en: 'US',
+}
+
+export const countryForLanguage = (language) => {
+  const code = String(language || '').toLowerCase().slice(0, 2)
+  return LANGUAGE_TO_COUNTRY[code] || DEFAULT_COUNTRY
+}
 
 // --- Tiny TTL cache --------------------------------------------------------
 
@@ -43,72 +51,34 @@ export const cached = async (key, ttlSeconds, fn) => {
 
 export const cacheKey = (parts) => parts.map((p) => String(p ?? '')).join('|')
 
-// --- Spotify app token (client_credentials) --------------------------------
+// --- iTunes ID validation --------------------------------------------------
 
-let appTokenCache = { token: '', expiresAt: 0 }
+// iTunes collectionIds are positive integers, typically 9-12 digits.
+const ITUNES_ID_PATTERN = /^[0-9]{6,15}$/
 
-const getSpotifyAppToken = async () => {
-  const now = Date.now()
-  if (appTokenCache.token && appTokenCache.expiresAt - 60_000 > now) {
-    return appTokenCache.token
-  }
-  // Read env at call time: this module is imported before dotenv.config()
-  // runs in server.js, so capturing these at module scope yields undefined.
-  const clientId = process.env.SPOTIFY_CLIENT_ID
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
-  if (!clientId || !clientSecret) {
-    throw new Error('Spotify credentials not configured.')
-  }
-  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: 'grant_type=client_credentials',
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Spotify token failed (${res.status}): ${text.slice(0, 200)}`)
-  }
-  const json = await res.json()
-  appTokenCache = {
-    token: json.access_token,
-    expiresAt: now + (json.expires_in || 3600) * 1000,
-  }
-  return appTokenCache.token
-}
-
-const SPOTIFY_ID_PATTERN = /^[A-Za-z0-9]{22}$/
-
-export class InvalidSpotifyIdError extends Error {
+export class InvalidItunesIdError extends Error {
   constructor(id) {
-    super(`Invalid Spotify ID: ${String(id).slice(0, 60)}`)
-    this.code = 'INVALID_SPOTIFY_ID'
+    super(`Invalid iTunes collection ID: ${String(id).slice(0, 60)}`)
+    this.code = 'INVALID_ITUNES_ID'
     this.status = 400
   }
 }
 
-const spotifyApiFetch = async (path, params = {}) => {
-  const token = await getSpotifyAppToken()
-  const url = new URL(`https://api.spotify.com/v1${path}`)
+export const isValidItunesId = (id) => ITUNES_ID_PATTERN.test(String(id || ''))
+
+// --- iTunes API ------------------------------------------------------------
+
+const ITUNES_BASE = 'https://itunes.apple.com'
+
+const itunesFetch = async (path, params = {}) => {
+  const url = new URL(`${ITUNES_BASE}${path}`)
   Object.entries(params).forEach(([k, v]) => {
-    if (v == null || v === '') return
-    let value = v
-    // Spotify accepts limit between 1 and 50 on /search and most list endpoints.
-    // Clamp defensively so a stray value can't trigger 400 "Invalid limit".
-    if (k === 'limit') {
-      const n = Number.parseInt(String(v), 10)
-      if (Number.isNaN(n)) return
-      value = String(Math.max(1, Math.min(50, n)))
-    }
-    url.searchParams.set(k, String(value))
+    if (v != null && v !== '') url.searchParams.set(k, String(v))
   })
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  const res = await fetch(url)
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    const err = new Error(`Spotify ${res.status}: ${text.slice(0, 200)}`)
+    const err = new Error(`iTunes ${res.status}: ${text.slice(0, 200)}`)
     err.status = res.status
     throw err
   }
@@ -117,109 +87,223 @@ const spotifyApiFetch = async (path, params = {}) => {
 
 // --- Sanitisers ------------------------------------------------------------
 
-const pickShowImage = (show) => show?.images?.[0]?.url || ''
+const pickShowImage = (raw) =>
+  raw?.artworkUrl600 || raw?.artworkUrl100 || raw?.artworkUrl60 || ''
 
-const sanitizeSpotifyShow = (show) => {
-  if (!show) return null
+const sanitizeItunesShow = (raw, { description = '' } = {}) => {
+  if (!raw) return null
   return {
-    spotifyShowId: show.id,
-    title: show.name || '',
-    author: show.publisher || '',
-    description: show.description || '',
-    coverArtUrl: pickShowImage(show),
-    categories: [], // Spotify doesn't expose category on the show object publicly.
-    episodeCount: show.total_episodes || 0,
-    language: Array.isArray(show.languages) ? (show.languages[0] || '').toLowerCase().slice(0, 2) : '',
+    itunesCollectionId: String(raw.collectionId || raw.trackId || ''),
+    title: raw.collectionName || raw.trackName || '',
+    author: raw.artistName || '',
+    description,
+    coverArtUrl: pickShowImage(raw),
+    categories: [raw.primaryGenreName, ...(raw.genres || [])].filter(
+      (g, i, arr) => g && arr.indexOf(g) === i,
+    ),
+    episodeCount: raw.trackCount || 0,
+    language: '', // iTunes doesn't return show language directly; filled from RSS where available.
+    feedUrl: raw.feedUrl || '',
     type: 'show',
   }
 }
 
-const sanitizeSpotifyEpisode = (ep, parentShow) => {
-  if (!ep) return null
-  const show = ep.show || parentShow || null
-  const language = (() => {
-    if (Array.isArray(ep.languages) && ep.languages.length) return ep.languages[0]
-    if (ep.language) return ep.language
-    if (Array.isArray(show?.languages) && show.languages.length) return show.languages[0]
-    return ''
-  })()
+const sanitizeItunesEpisode = (raw) => {
+  if (!raw) return null
+  const releaseTs = raw.releaseDate
+    ? Math.floor(new Date(raw.releaseDate).getTime() / 1000)
+    : null
   return {
-    spotifyEpisodeId: ep.id,
-    spotifyShowId: show?.id || null,
-    title: ep.name || '',
-    showTitle: show?.name || '',
-    showPublisher: show?.publisher || '',
-    description: ep.description || '',
-    coverArtUrl: ep.images?.[0]?.url || pickShowImage(show),
-    publishDate: ep.release_date ? Math.floor(new Date(ep.release_date).getTime() / 1000) : null,
-    duration: typeof ep.duration_ms === 'number' ? Math.round(ep.duration_ms / 1000) : 0,
-    language: (language || '').toLowerCase().slice(0, 2),
+    itunesEpisodeId: String(raw.trackId || ''),
+    itunesCollectionId: String(raw.collectionId || ''),
+    title: raw.trackName || '',
+    showTitle: raw.collectionName || '',
+    showPublisher: raw.artistName || '',
+    description: raw.description || raw.shortDescription || '',
+    coverArtUrl: pickShowImage(raw),
+    publishDate: releaseTs,
+    duration: typeof raw.trackTimeMillis === 'number' ? Math.round(raw.trackTimeMillis / 1000) : 0,
+    audioUrl: raw.episodeUrl || raw.previewUrl || '',
+    language: '',
     type: 'episode',
   }
 }
 
 // --- Search ----------------------------------------------------------------
 
-export const searchSpotifyPodcasts = async ({ query, language, market = DEFAULT_MARKET } = {}) => {
+export const searchITunesPodcasts = async ({ query, language, country } = {}) => {
   if (!query?.trim()) return []
-  // Split the multi-type call into two single-type calls. Spotify's /search
-  // with type=show,episode + client_credentials returns a misleading
-  // "Invalid limit" 400; single-type calls are the documented happy path.
-  // Spotify rejects limit >= 10 on podcast search with client_credentials —
-  // 9 is the highest reliably-accepted value.
+  const c = country || countryForLanguage(language)
+
   const [showsResp, episodesResp] = await Promise.all([
-    spotifyApiFetch('/search', { q: query, type: 'show', market, limit: 9 }).catch((err) => {
-      console.warn('Spotify show search failed', err.status || '', err.message)
+    itunesFetch('/search', {
+      term: query,
+      media: 'podcast',
+      entity: 'podcast',
+      limit: 25,
+      country: c,
+    }).catch((err) => {
+      console.warn('iTunes show search failed', err.status || '', err.message)
       return null
     }),
-    spotifyApiFetch('/search', { q: query, type: 'episode', market, limit: 9 }).catch((err) => {
-      console.warn('Spotify episode search failed', err.status || '', err.message)
+    itunesFetch('/search', {
+      term: query,
+      media: 'podcast',
+      entity: 'podcastEpisode',
+      limit: 25,
+      country: c,
+    }).catch((err) => {
+      console.warn('iTunes episode search failed', err.status || '', err.message)
       return null
     }),
   ])
 
-  const targetLang = (language || '').toLowerCase().slice(0, 2)
+  const showResults = (showsResp?.results || [])
+    .filter((r) => r.wrapperType === 'track' || r.kind === 'podcast' || r.collectionId)
+    .map((r) => sanitizeItunesShow(r))
+    .filter(Boolean)
 
-  const showItems = (showsResp?.shows?.items || []).filter(Boolean)
-  const filteredShows = targetLang
-    ? showItems.filter((s) => {
-        const langs = (s.languages || []).map((l) => l.toLowerCase().slice(0, 2))
-        return langs.length === 0 || langs.includes(targetLang)
-      })
-    : showItems
+  const episodeResults = (episodesResp?.results || [])
+    .filter((r) => r.wrapperType === 'podcastEpisode' || r.kind === 'podcast-episode' || r.trackId)
+    .map((r) => sanitizeItunesEpisode(r))
+    .filter(Boolean)
 
-  const episodeItems = (episodesResp?.episodes?.items || []).filter(Boolean)
-  const filteredEpisodes = targetLang
-    ? episodeItems.filter((e) => {
-        const langs = (e.languages || []).map((l) => l.toLowerCase().slice(0, 2))
-        if (langs.length === 0 && e.language) langs.push(e.language.toLowerCase().slice(0, 2))
-        return langs.length === 0 || langs.includes(targetLang)
-      })
-    : episodeItems
-
-  // Preserve Spotify's relevance order: shows first then episodes, both in
-  // their returned order. Use index-based rank to interleave by relative rank.
+  // Preserve API-returned ordering (relevance), interleaving by relative rank.
   const ranked = []
-  filteredShows.forEach((s, i) => ranked.push({ rank: i, sanitized: sanitizeSpotifyShow(s) }))
-  filteredEpisodes.forEach((e, i) => ranked.push({ rank: i, sanitized: sanitizeSpotifyEpisode(e) }))
+  showResults.forEach((s, i) => ranked.push({ rank: i, sanitized: s }))
+  episodeResults.forEach((e, i) => ranked.push({ rank: i, sanitized: e }))
   ranked.sort((a, b) => a.rank - b.rank)
-  return ranked.map((r) => r.sanitized).filter(Boolean)
+  return ranked.map((r) => r.sanitized)
 }
 
-export const fetchSpotifyShow = async (spotifyShowId, { market = DEFAULT_MARKET } = {}) => {
-  if (!spotifyShowId) return null
-  // Reject anything that isn't a Spotify base62 ID (22 alphanumeric chars).
-  // Stale follows from the prior Podcast Index integration carry numeric feed
-  // IDs; routing to those would otherwise hit "Invalid base62 id" from Spotify.
-  if (!SPOTIFY_ID_PATTERN.test(String(spotifyShowId))) {
-    throw new InvalidSpotifyIdError(spotifyShowId)
+export const lookupItunesShow = async (collectionId) => {
+  if (!collectionId) return null
+  if (!isValidItunesId(collectionId)) {
+    throw new InvalidItunesIdError(collectionId)
   }
-  const data = await spotifyApiFetch(`/shows/${encodeURIComponent(spotifyShowId)}`, { market })
-  return sanitizeSpotifyShow(data)
+  const data = await itunesFetch('/lookup', { id: collectionId, entity: 'podcast' })
+  const result = Array.isArray(data?.results)
+    ? data.results.find((r) => String(r.collectionId) === String(collectionId)) || data.results[0]
+    : null
+  return sanitizeItunesShow(result)
 }
 
-// --- iTunes RSS resolution -------------------------------------------------
+// --- RSS parsing -----------------------------------------------------------
 
+const rssParser = new Parser({
+  customFields: {
+    item: [
+      ['itunes:duration', 'itunesDuration'],
+      ['itunes:image', 'itunesImage'],
+      ['itunes:episode', 'itunesEpisodeNumber'],
+      ['itunes:season', 'itunesSeason'],
+      ['podcast:transcript', 'podcastTranscript', { keepArray: true }],
+    ],
+    feed: [
+      ['itunes:image', 'itunesImage'],
+      ['language', 'language'],
+      ['itunes:summary', 'itunesSummary'],
+    ],
+  },
+})
+
+const parseItunesDuration = (raw) => {
+  if (!raw && raw !== 0) return 0
+  if (typeof raw === 'number') return Math.round(raw)
+  const s = String(raw).trim()
+  if (/^\d+$/.test(s)) return parseInt(s, 10)
+  const parts = s.split(':').map((p) => parseInt(p, 10) || 0)
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  if (parts.length === 2) return parts[0] * 60 + parts[1]
+  return 0
+}
+
+const pickItemImage = (item, feed) => {
+  if (item.itunesImage?.href) return item.itunesImage.href
+  if (item.itunesImage && typeof item.itunesImage === 'object' && item.itunesImage.$?.href) {
+    return item.itunesImage.$.href
+  }
+  if (feed?.itunesImage?.href) return feed.itunesImage.href
+  if (feed?.image?.url) return feed.image.url
+  return ''
+}
+
+// Surface the Podcasting 2.0 <podcast:transcript> tag if present so the
+// front-end / transcription pipeline can skip Scribe when authors already
+// publish a transcript.
+const pickTranscriptUrl = (item) => {
+  const list = item?.podcastTranscript
+  if (!Array.isArray(list) || !list.length) return ''
+  // rss-parser exposes the attribute bag at $; common attrs: url, type, language.
+  const preferred = list.find((t) => {
+    const attrs = t?.$ || t
+    const type = (attrs?.type || '').toLowerCase()
+    return type.includes('vtt') || type.includes('srt') || type.includes('json')
+  })
+  const chosen = preferred || list[0]
+  const attrs = chosen?.$ || chosen
+  return attrs?.url || ''
+}
+
+const sanitizeRssEpisode = (item, feed) => {
+  if (!item) return null
+  const publishDate = item.isoDate
+    ? Math.floor(new Date(item.isoDate).getTime() / 1000)
+    : item.pubDate
+      ? Math.floor(new Date(item.pubDate).getTime() / 1000)
+      : null
+  const audioUrl =
+    (item.enclosure && item.enclosure.url) ||
+    (Array.isArray(item.enclosures) ? item.enclosures[0]?.url : '') ||
+    ''
+  return {
+    episodeId: item.guid || item.link || `${publishDate || Math.random()}-${item.title}`,
+    title: item.title || '',
+    showTitle: feed?.title || '',
+    description: item.contentSnippet || item.content || item.summary || '',
+    coverArtUrl: pickItemImage(item, feed),
+    publishDate,
+    duration: parseItunesDuration(item.itunesDuration),
+    audioUrl,
+    transcriptUrl: pickTranscriptUrl(item),
+    language: (feed?.language || '').toLowerCase().slice(0, 2),
+    type: 'episode',
+  }
+}
+
+export const parseRssFeed = async (feedUrl, { max = 50 } = {}) => {
+  if (!feedUrl) return { episodes: [], feedTitle: '', feedDescription: '', feedLanguage: '' }
+  let feed
+  try {
+    feed = await rssParser.parseURL(feedUrl)
+  } catch (err) {
+    console.warn('RSS parse failed', feedUrl, err.message)
+    return { episodes: [], parseError: true }
+  }
+  const items = Array.isArray(feed?.items) ? feed.items : []
+  const episodes = items
+    .map((item) => {
+      try {
+        return sanitizeRssEpisode(item, feed)
+      } catch (err) {
+        console.warn('Skipping malformed RSS item', err.message)
+        return null
+      }
+    })
+    .filter((ep) => ep && ep.audioUrl)
+    .slice(0, max)
+  return {
+    episodes,
+    feedTitle: feed?.title || '',
+    feedDescription: feed?.description || feed?.itunesSummary || '',
+    feedLanguage: (feed?.language || '').toLowerCase().slice(0, 2),
+  }
+}
+
+// --- Migration helper ------------------------------------------------------
+
+// Given a stale Spotify show id with its title/publisher, find the iTunes
+// collectionId that best matches. Used by the one-time migration script.
 const stripDiacritics = (s) =>
   String(s || '')
     .normalize('NFD')
@@ -250,135 +334,23 @@ const publishersMatch = (a, b) => {
   return na.includes(nb) || nb.includes(na)
 }
 
-// resolveRssFeed: Spotify show -> { feedUrl, itunesId } | null
-// Cached indefinitely (effectively long TTL) — RSS feeds rarely change provider.
-const RESOLVE_TTL = 60 * 60 * 24 * 30 // 30 days
-
-export const resolveRssFeed = async ({ spotifyShowId, title, publisher } = {}) => {
+export const findItunesShowByTitle = async ({ title, publisher } = {}) => {
   if (!title?.trim()) return null
-  const tag = cacheKey(['rss-resolve', spotifyShowId || '', title.toLowerCase().slice(0, 60)])
-  return cached(tag, RESOLVE_TTL, async () => {
-    const url = new URL('https://itunes.apple.com/search')
-    url.searchParams.set('term', title)
-    url.searchParams.set('media', 'podcast')
-    url.searchParams.set('limit', '5')
-    let resp
-    try {
-      resp = await fetch(url)
-    } catch (err) {
-      console.warn('iTunes search request failed', err.message)
-      return null
-    }
-    if (!resp.ok) return null
-    const json = await resp.json().catch(() => null)
-    const results = Array.isArray(json?.results) ? json.results : []
-    if (!results.length) return null
-
-    const titleMatches = results.filter((r) =>
-      titlesMatch(r.collectionName || r.trackName, title),
-    )
-    if (!titleMatches.length) return null
-
-    let chosen = null
-    if (publisher) {
-      chosen = titleMatches.find((r) => publishersMatch(r.artistName, publisher))
-    }
-    // If publisher missing or no match, accept top title-matched result whose
-    // artist is at least non-empty — otherwise we have no signal of authenticity.
-    if (!chosen) {
-      const topByTitle = titleMatches[0]
-      // No publisher available to verify against — accept only if iTunes provides
-      // an artistName at all (Apple normally does for legitimate feeds).
-      if (!publisher && topByTitle.artistName) chosen = topByTitle
-    }
-    if (!chosen?.feedUrl) return null
-    return { feedUrl: chosen.feedUrl, itunesId: chosen.collectionId || null }
+  const data = await itunesFetch('/search', {
+    term: title,
+    media: 'podcast',
+    entity: 'podcast',
+    limit: 5,
   })
-}
-
-// --- RSS parsing -----------------------------------------------------------
-
-const rssParser = new Parser({
-  customFields: {
-    item: [
-      ['itunes:duration', 'itunesDuration'],
-      ['itunes:image', 'itunesImage'],
-      ['itunes:episode', 'itunesEpisodeNumber'],
-      ['itunes:season', 'itunesSeason'],
-    ],
-    feed: [
-      ['itunes:image', 'itunesImage'],
-      ['language', 'language'],
-    ],
-  },
-})
-
-const parseItunesDuration = (raw) => {
-  if (!raw && raw !== 0) return 0
-  if (typeof raw === 'number') return Math.round(raw)
-  const s = String(raw).trim()
-  if (/^\d+$/.test(s)) return parseInt(s, 10)
-  const parts = s.split(':').map((p) => parseInt(p, 10) || 0)
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-  if (parts.length === 2) return parts[0] * 60 + parts[1]
-  return 0
-}
-
-const pickItemImage = (item, feed) => {
-  if (item.itunesImage?.href) return item.itunesImage.href
-  if (item.itunesImage && typeof item.itunesImage === 'object' && item.itunesImage.$?.href) {
-    return item.itunesImage.$.href
+  const results = Array.isArray(data?.results) ? data.results : []
+  const titleMatches = results.filter((r) =>
+    titlesMatch(r.collectionName || r.trackName, title),
+  )
+  if (!titleMatches.length) return null
+  let chosen = null
+  if (publisher) {
+    chosen = titleMatches.find((r) => publishersMatch(r.artistName, publisher))
   }
-  if (feed?.itunesImage?.href) return feed.itunesImage.href
-  if (feed?.image?.url) return feed.image.url
-  return ''
-}
-
-const sanitizeRssEpisode = (item, feed) => {
-  if (!item) return null
-  const publishDate = item.isoDate
-    ? Math.floor(new Date(item.isoDate).getTime() / 1000)
-    : item.pubDate
-      ? Math.floor(new Date(item.pubDate).getTime() / 1000)
-      : null
-  const audioUrl =
-    (item.enclosure && item.enclosure.url) ||
-    (Array.isArray(item.enclosures) ? item.enclosures[0]?.url : '') ||
-    ''
-  return {
-    episodeId: item.guid || item.link || `${publishDate || Math.random()}-${item.title}`,
-    title: item.title || '',
-    showTitle: feed?.title || '',
-    description: item.contentSnippet || item.content || item.summary || '',
-    coverArtUrl: pickItemImage(item, feed),
-    publishDate,
-    duration: parseItunesDuration(item.itunesDuration),
-    audioUrl,
-    language: (feed?.language || '').toLowerCase().slice(0, 2),
-    type: 'episode',
-  }
-}
-
-export const parseRssFeed = async (feedUrl, { max = 50 } = {}) => {
-  if (!feedUrl) return { episodes: [] }
-  let feed
-  try {
-    feed = await rssParser.parseURL(feedUrl)
-  } catch (err) {
-    console.warn('RSS parse failed', feedUrl, err.message)
-    return { episodes: [], parseError: true }
-  }
-  const items = Array.isArray(feed?.items) ? feed.items : []
-  const episodes = items
-    .map((item) => {
-      try {
-        return sanitizeRssEpisode(item, feed)
-      } catch (err) {
-        console.warn('Skipping malformed RSS item', err.message)
-        return null
-      }
-    })
-    .filter((ep) => ep && ep.audioUrl)
-    .slice(0, max)
-  return { episodes }
+  if (!chosen) chosen = titleMatches[0]
+  return sanitizeItunesShow(chosen)
 }

@@ -59,8 +59,8 @@ const SearchResultRow = ({
   if (!result) return null
   const isShow = result.type === 'show'
   const id = isShow
-    ? String(result.spotifyShowId ?? result.feedId ?? '')
-    : String(result.spotifyEpisodeId ?? result.episodeId ?? '')
+    ? String(result.itunesCollectionId ?? result.spotifyShowId ?? result.feedId ?? '')
+    : String(result.itunesEpisodeId ?? result.spotifyEpisodeId ?? result.episodeId ?? '')
 
   const openTarget = () => {
     if (isShow) navigate(`/podcasts/show/${id}`)

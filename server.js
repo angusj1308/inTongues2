@@ -26,13 +26,13 @@ import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 import { generateStory, callClaude, executePhase1, executePhase2, executePhase3, executePhase4Chapter } from './novelGenerator.js'
 import { rollSkeleton } from './storyBlueprints.js'
 import {
-  searchSpotifyPodcasts,
-  fetchSpotifyShow,
-  resolveRssFeed,
+  searchITunesPodcasts,
+  lookupItunesShow,
   parseRssFeed,
   cached,
   cacheKey,
-  InvalidSpotifyIdError,
+  countryForLanguage,
+  InvalidItunesIdError,
 } from './podcastsBackend.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
@@ -2408,10 +2408,11 @@ app.get('/api/podcasts/search', async (req, res) => {
   if (!queryTerm) return res.json({ results: [] })
 
   const language = normalizeLanguage(req.query.lang)
-  const cacheTag = cacheKey(['podcast-search', queryTerm.toLowerCase(), language])
+  const country = countryForLanguage(language)
+  const cacheTag = cacheKey(['podcast-search', queryTerm.toLowerCase(), country])
   try {
     const data = await cached(cacheTag, 60 * 60, async () => {
-      const results = await searchSpotifyPodcasts({ query: queryTerm, language })
+      const results = await searchITunesPodcasts({ query: queryTerm, language, country })
       return { results }
     })
     res.json(data)
@@ -2421,40 +2422,38 @@ app.get('/api/podcasts/search', async (req, res) => {
   }
 })
 
-app.get('/api/podcasts/show/:spotifyShowId', async (req, res) => {
-  const spotifyShowId = String(req.params.spotifyShowId || '').trim()
-  if (!spotifyShowId) return res.status(400).json({ error: 'spotifyShowId required' })
+app.get('/api/podcasts/show/:itunesCollectionId', async (req, res) => {
+  const itunesCollectionId = String(req.params.itunesCollectionId || '').trim()
+  if (!itunesCollectionId) return res.status(400).json({ error: 'itunesCollectionId required' })
 
   try {
-    const show = await cached(cacheKey(['podcast-show', spotifyShowId]), 6 * 60 * 60, () =>
-      fetchSpotifyShow(spotifyShowId),
+    const data = await cached(
+      cacheKey(['podcast-show', itunesCollectionId]),
+      6 * 60 * 60,
+      async () => {
+        const show = await lookupItunesShow(itunesCollectionId)
+        if (!show) return null
+        if (!show.feedUrl) {
+          return { ...show, available: false, unavailableReason: 'feed_missing' }
+        }
+        // Pull richer metadata + episode count from the feed itself.
+        const parsed = await parseRssFeed(show.feedUrl, { max: 50 })
+        if (parsed.parseError) {
+          return { ...show, available: false, unavailableReason: 'feed_unreachable' }
+        }
+        return {
+          ...show,
+          description: show.description || parsed.feedDescription || '',
+          language: parsed.feedLanguage || show.language || '',
+          episodeCount: show.episodeCount || parsed.episodes.length || 0,
+          available: true,
+        }
+      },
     )
-    if (!show) return res.status(404).json({ error: 'Show not found' })
-
-    const resolved = await resolveRssFeed({
-      spotifyShowId,
-      title: show.title,
-      publisher: show.author,
-    })
-
-    if (!resolved?.feedUrl) {
-      return res.json({
-        ...show,
-        feedUrl: null,
-        itunesId: null,
-        available: false,
-        unavailableReason: 'spotify_exclusive',
-      })
-    }
-
-    res.json({
-      ...show,
-      feedUrl: resolved.feedUrl,
-      itunesId: resolved.itunesId,
-      available: true,
-    })
+    if (!data) return res.status(404).json({ error: 'Show not found' })
+    res.json(data)
   } catch (err) {
-    if (err instanceof InvalidSpotifyIdError) {
+    if (err instanceof InvalidItunesIdError) {
       return res.status(400).json({ error: err.message, code: err.code })
     }
     console.error('Podcast show fetch error', err)
@@ -2462,31 +2461,26 @@ app.get('/api/podcasts/show/:spotifyShowId', async (req, res) => {
   }
 })
 
-app.get('/api/podcasts/show/:spotifyShowId/episodes', async (req, res) => {
-  const spotifyShowId = String(req.params.spotifyShowId || '').trim()
-  if (!spotifyShowId) return res.status(400).json({ error: 'spotifyShowId required' })
+app.get('/api/podcasts/show/:itunesCollectionId/episodes', async (req, res) => {
+  const itunesCollectionId = String(req.params.itunesCollectionId || '').trim()
+  if (!itunesCollectionId) return res.status(400).json({ error: 'itunesCollectionId required' })
 
   try {
     const data = await cached(
-      cacheKey(['podcast-episodes', spotifyShowId]),
+      cacheKey(['podcast-episodes', itunesCollectionId]),
       30 * 60,
       async () => {
-        const show = await fetchSpotifyShow(spotifyShowId)
+        const show = await lookupItunesShow(itunesCollectionId)
         if (!show) return null
-        const resolved = await resolveRssFeed({
-          spotifyShowId,
-          title: show.title,
-          publisher: show.author,
-        })
-        if (!resolved?.feedUrl) {
+        if (!show.feedUrl) {
           return {
             available: false,
-            unavailableReason: 'spotify_exclusive',
+            unavailableReason: 'feed_missing',
             episodes: [],
             nextCursor: null,
           }
         }
-        const parsed = await parseRssFeed(resolved.feedUrl, { max: 50 })
+        const parsed = await parseRssFeed(show.feedUrl, { max: 50 })
         if (parsed.parseError) {
           return {
             available: false,
@@ -2501,7 +2495,7 @@ app.get('/api/podcasts/show/:spotifyShowId/episodes', async (req, res) => {
     if (!data) return res.status(404).json({ error: 'Show not found' })
     res.json(data)
   } catch (err) {
-    if (err instanceof InvalidSpotifyIdError) {
+    if (err instanceof InvalidItunesIdError) {
       return res.status(400).json({
         error: err.message,
         code: err.code,

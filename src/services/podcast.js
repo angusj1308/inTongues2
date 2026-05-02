@@ -187,12 +187,12 @@ export const fetchCategoryShows = async ({ category, language, limit: max = 25 }
 }
 
 // Adapt the backend-sanitised show/episode shape to the props the show page
-// component expects (id/title/host/coverUrl/...). Field names accept both
-// the Spotify-era keys (spotifyShowId, etc.) and the older ones for safety.
+// component expects (id/title/host/coverUrl/...). Field names accept the
+// current iTunes keys plus older Spotify-era keys for transitional safety.
 const adaptShow = (raw) => {
   if (!raw) return null
   return {
-    id: String(raw.spotifyShowId ?? raw.feedId ?? raw.id ?? ''),
+    id: String(raw.itunesCollectionId ?? raw.spotifyShowId ?? raw.feedId ?? raw.id ?? ''),
     title: raw.title || '',
     host: raw.author || raw.host || '',
     description: raw.description || '',
@@ -213,12 +213,17 @@ const adaptEpisode = (raw) => {
     : raw.publishedAt || null
   const durationMs = typeof raw.duration === 'number' ? raw.duration * 1000 : raw.durationMs || 0
   return {
-    id: String(raw.spotifyEpisodeId ?? raw.episodeId ?? raw.id ?? ''),
-    showId: raw.spotifyShowId ? String(raw.spotifyShowId) : raw.feedId ? String(raw.feedId) : '',
+    id: String(
+      raw.itunesEpisodeId ?? raw.spotifyEpisodeId ?? raw.episodeId ?? raw.id ?? '',
+    ),
+    showId: String(
+      raw.itunesCollectionId ?? raw.spotifyShowId ?? raw.feedId ?? '',
+    ),
     title: raw.title || '',
     description: raw.description || '',
     coverUrl: raw.coverArtUrl || raw.coverUrl || '',
     audioUrl: raw.audioUrl || '',
+    transcriptUrl: raw.transcriptUrl || '',
     publishedAt,
     durationMs,
     showName: raw.showTitle || raw.showName || '',

@@ -87,8 +87,8 @@ const PodcastSearchResultsPage = () => {
       // same set, so de-dupe against what we already have.
       const idOf = (r) =>
         r.type === 'show'
-          ? `s:${r.spotifyShowId ?? r.feedId ?? ''}`
-          : `e:${r.spotifyEpisodeId ?? r.episodeId ?? ''}`
+          ? `s:${r.itunesCollectionId ?? r.spotifyShowId ?? r.feedId ?? ''}`
+          : `e:${r.itunesEpisodeId ?? r.spotifyEpisodeId ?? r.episodeId ?? ''}`
       const seen = new Set(results.map(idOf))
       const novel = more.filter((r) => !seen.has(idOf(r)))
       if (novel.length === 0) {
@@ -104,8 +104,9 @@ const PodcastSearchResultsPage = () => {
     }
   }
 
-  const showIdOf = (r) => String(r.spotifyShowId ?? r.feedId ?? '')
-  const episodeIdOf = (r) => String(r.spotifyEpisodeId ?? r.episodeId ?? '')
+  const showIdOf = (r) => String(r.itunesCollectionId ?? r.spotifyShowId ?? r.feedId ?? '')
+  const episodeIdOf = (r) =>
+    String(r.itunesEpisodeId ?? r.spotifyEpisodeId ?? r.episodeId ?? '')
 
   const handleFollow = (result) => {
     follow({
@@ -123,7 +124,9 @@ const PodcastSearchResultsPage = () => {
   }
 
   const handlePlayEpisode = async (episode) => {
-    const parentShowId = String(episode.spotifyShowId || '')
+    const parentShowId = String(
+      episode.itunesCollectionId || episode.spotifyShowId || '',
+    )
     if (parentShowId) {
       const parent = await fetchShow(parentShowId)
       if (parent && parent.available === false) {
@@ -137,7 +140,7 @@ const PodcastSearchResultsPage = () => {
     // eslint-disable-next-line no-console
     console.log('[podcast] play episode', {
       episodeId: episodeIdOf(episode),
-      spotifyShowId: parentShowId,
+      showId: parentShowId,
     })
   }
 

@@ -267,6 +267,54 @@ const AudioPlayer = () => {
           words: bucket,
         })
       }
+
+      // Group sentence-level segments into paragraph-level ones so the
+      // transcript wraps as flowing paragraphs instead of one-line-per-
+      // sentence fragments. Cinema's yt-dlp captions are already paragraph-
+      // shaped (4-8s blocks), so they only flow through the renderer below;
+      // Scribe's per-sentence segmentation needs this second pass to match
+      // that visual rhythm.
+      //
+      // Boundary heuristics:
+      //   - PARA_GAP_S: silence between sentences that signals a real
+      //     paragraph break (topic change, speaker turn, breath cluster).
+      //   - PARA_MAX_WORDS: hard cap so monologue without natural pauses
+      //     still chunks into readable wrapping blocks.
+      // Tune by ear if needed.
+      if (segments.length > 1) {
+        const PARA_GAP_S = 1.2
+        const PARA_MAX_WORDS = 80
+        const paragraphs = []
+        let current = null
+        for (const seg of segments) {
+          if (!current) {
+            current = {
+              start: seg.start,
+              end: seg.end,
+              text: seg.text,
+              words: [...seg.words],
+            }
+            continue
+          }
+          const gap = seg.start - current.end
+          const wouldOverflow = current.words.length + seg.words.length > PARA_MAX_WORDS
+          if (gap > PARA_GAP_S || wouldOverflow) {
+            paragraphs.push(current)
+            current = {
+              start: seg.start,
+              end: seg.end,
+              text: seg.text,
+              words: [...seg.words],
+            }
+          } else {
+            current.end = seg.end
+            current.text = `${current.text} ${seg.text}`
+            current.words.push(...seg.words)
+          }
+        }
+        if (current) paragraphs.push(current)
+        if (paragraphs.length) return paragraphs
+      }
       if (segments.length) return segments
     }
 

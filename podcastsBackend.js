@@ -162,16 +162,23 @@ const sanitizeSpotifyEpisode = (ep, parentShow) => {
 
 export const searchSpotifyPodcasts = async ({ query, language, market = DEFAULT_MARKET } = {}) => {
   if (!query?.trim()) return []
-  const data = await spotifyApiFetch('/search', {
-    q: query,
-    type: 'show,episode',
-    market,
-    limit: 20,
-  })
+  // Split the multi-type call into two single-type calls. Spotify's /search
+  // with type=show,episode + client_credentials returns a misleading
+  // "Invalid limit" 400; single-type calls are the documented happy path.
+  const [showsResp, episodesResp] = await Promise.all([
+    spotifyApiFetch('/search', { q: query, type: 'show', market, limit: 20 }).catch((err) => {
+      console.warn('Spotify show search failed', err.status || '', err.message)
+      return null
+    }),
+    spotifyApiFetch('/search', { q: query, type: 'episode', market, limit: 20 }).catch((err) => {
+      console.warn('Spotify episode search failed', err.status || '', err.message)
+      return null
+    }),
+  ])
 
   const targetLang = (language || '').toLowerCase().slice(0, 2)
 
-  const showItems = (data?.shows?.items || []).filter(Boolean)
+  const showItems = (showsResp?.shows?.items || []).filter(Boolean)
   const filteredShows = targetLang
     ? showItems.filter((s) => {
         const langs = (s.languages || []).map((l) => l.toLowerCase().slice(0, 2))
@@ -179,7 +186,7 @@ export const searchSpotifyPodcasts = async ({ query, language, market = DEFAULT_
       })
     : showItems
 
-  const episodeItems = (data?.episodes?.items || []).filter(Boolean)
+  const episodeItems = (episodesResp?.episodes?.items || []).filter(Boolean)
   const filteredEpisodes = targetLang
     ? episodeItems.filter((e) => {
         const langs = (e.languages || []).map((l) => l.toLowerCase().slice(0, 2))

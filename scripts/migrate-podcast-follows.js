@@ -15,6 +15,14 @@
 //
 // Usage:
 //   node scripts/migrate-podcast-follows.js [--dry-run] [--uid=<single-uid>]
+//   node scripts/migrate-podcast-follows.js --purge-orphaned [--dry-run] [--uid=<single-uid>]
+//   node scripts/migrate-podcast-follows.js --purge-stale [--dry-run] [--uid=<single-uid>]
+//
+// --purge-orphaned: delete follows already marked { orphaned: true } and any
+//                   pin docs pointing at them. Run this AFTER a normal pass.
+// --purge-stale:    delete every follow whose doc ID isn't a valid iTunes
+//                   collectionId (numeric 6-15 digits). Use this if you'd
+//                   rather skip migration and just nuke pre-iTunes follows.
 //
 // Requires serviceAccountKey.json at the repo root.
 
@@ -34,6 +42,8 @@ const flag = (name, fallback = null) => {
 
 const DRY_RUN = !!flag('dry-run')
 const SINGLE_UID = flag('uid', null)
+const PURGE_ORPHANED = !!flag('purge-orphaned')
+const PURGE_STALE = !!flag('purge-stale')
 
 // --- Firebase Admin init ---------------------------------------------------
 
@@ -126,6 +136,41 @@ const migrateOneFollow = async (uid, doc) => {
   return { status: 'migrated', oldId, newId, title, pinsRewritten: pinsSnap.size }
 }
 
+const purgeOneFollow = async (uid, doc, { onlyIfOrphaned }) => {
+  const data = doc.data() || {}
+  const oldId = doc.id
+  if (onlyIfOrphaned && !data.orphaned) return null
+  if (!onlyIfOrphaned && isValidItunesId(oldId)) return null
+  if (DRY_RUN) {
+    return { status: 'would-purge', oldId, title: data.title || '' }
+  }
+  // Delete pin docs that point at this follow.
+  const pinsSnap = await db
+    .collection('users')
+    .doc(uid)
+    .collection('podcastPins')
+    .where('refId', '==', oldId)
+    .get()
+  const batch = db.batch()
+  pinsSnap.forEach((pin) => batch.delete(pin.ref))
+  if (!pinsSnap.empty) await batch.commit()
+  await doc.ref.delete()
+  return { status: 'purged', oldId, title: data.title || '', pinsRemoved: pinsSnap.size }
+}
+
+const purgeUser = async (uid, mode) => {
+  const followsSnap = await db.collection('users').doc(uid).collection('podcastFollows').get()
+  if (followsSnap.empty) return { uid, total: 0, results: [] }
+  const results = []
+  for (const doc of followsSnap.docs) {
+    const r = await purgeOneFollow(uid, doc, {
+      onlyIfOrphaned: mode === 'orphaned',
+    })
+    if (r) results.push(r)
+  }
+  return { uid, total: followsSnap.size, results }
+}
+
 const migrateUser = async (uid) => {
   const followsSnap = await db.collection('users').doc(uid).collection('podcastFollows').get()
   if (followsSnap.empty) return { uid, total: 0, results: [] }
@@ -138,7 +183,8 @@ const migrateUser = async (uid) => {
 }
 
 const run = async () => {
-  console.log(`Migration starting${DRY_RUN ? ' (dry run)' : ''}…`)
+  const mode = PURGE_ORPHANED ? 'orphaned' : PURGE_STALE ? 'stale' : 'migrate'
+  console.log(`Mode: ${mode}${DRY_RUN ? ' (dry run)' : ''}`)
 
   let userIds = []
   if (SINGLE_UID) {
@@ -152,13 +198,16 @@ const run = async () => {
     usersProcessed: 0,
     migrated: 0,
     orphaned: 0,
+    purged: 0,
     skipped: 0,
     wouldMigrate: 0,
     wouldOrphan: 0,
+    wouldPurge: 0,
   }
 
   for (const uid of userIds) {
-    const { total, results } = await migrateUser(uid)
+    const { total, results } =
+      mode === 'migrate' ? await migrateUser(uid) : await purgeUser(uid, mode)
     if (total === 0) continue
     summary.usersProcessed += 1
     console.log(`\nUser ${uid}: ${total} followed show(s)`)
@@ -166,8 +215,10 @@ const run = async () => {
       console.log(`  [${r.status}] ${r.oldId}${r.newId ? ` → ${r.newId}` : ''}${r.title ? ` — ${r.title}` : ''}`)
       if (r.status === 'migrated') summary.migrated += 1
       else if (r.status === 'orphaned') summary.orphaned += 1
+      else if (r.status === 'purged') summary.purged += 1
       else if (r.status === 'would-migrate') summary.wouldMigrate += 1
       else if (r.status === 'would-orphan') summary.wouldOrphan += 1
+      else if (r.status === 'would-purge') summary.wouldPurge += 1
       else summary.skipped += 1
     }
   }

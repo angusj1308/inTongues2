@@ -1994,3 +1994,43 @@
 [data-theme='dark'] .media-unavailable-text {
   color: #fafaf9;
 }
+
+/* Unfollow × on show tiles (visible on hover) */
+.media-show-tile-remove {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(243, 240, 230, 0.85);
+  color: #1c2230;
+  border: 0.5px solid #d6d3c8;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 160ms ease, background 160ms ease, color 160ms ease;
+  backdrop-filter: blur(2px);
+  padding: 0;
+}
+
+.media-show-tile:hover .media-show-tile-remove,
+.media-show-tile-remove:focus-visible {
+  opacity: 1;
+}
+
+.media-show-tile-remove:hover {
+  background: #7a3b3b;
+  color: #f3f0e6;
+  border-color: #7a3b3b;
+}
+
+[data-theme='dark'] .media-show-tile-remove {
+  background: rgba(28, 25, 23, 0.85);
+  color: #fafaf9;
+  border-color: #3a3633;
+}

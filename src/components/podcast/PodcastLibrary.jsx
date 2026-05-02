@@ -21,6 +21,7 @@ const PodcastLibrary = () => {
     episodeStates,
     playlists,
     pinnedRefs: pinnedRefIds,
+    unfollow,
   } = usePodcastSubscriptions()
   const [pinError, setPinError] = useState('')
   const [newPlaylistOpen, setNewPlaylistOpen] = useState(false)
@@ -177,6 +178,11 @@ const PodcastLibrary = () => {
                 isPinned={pinnedRefIds.has(show.id)}
                 onTogglePin={handleTogglePinShow}
                 pinDisabled={!pinnedRefIds.has(show.id) && pins.length >= MAX_PINS}
+                onUnfollow={(s) => {
+                  if (window.confirm(`Unfollow ${s.title || 'this show'}?`)) {
+                    unfollow(s.id)
+                  }
+                }}
               />
             ))}
           </div>

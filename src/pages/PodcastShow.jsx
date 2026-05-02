@@ -17,7 +17,7 @@ const SORT_OPTIONS = [
 const PodcastShowPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, episodeStates, playlists, isFollowed, isPinned, follow, unfollow } =
+  const { user, followedShows, episodeStates, playlists, isFollowed, isPinned, follow, unfollow } =
     usePodcastSubscriptions()
   const [show, setShow] = useState(null)
   const [episodes, setEpisodes] = useState([])
@@ -88,7 +88,40 @@ const PodcastShowPage = () => {
         {loading && !show ? (
           <p className="media-placeholder">Loading…</p>
         ) : !show ? (
-          <p className="media-placeholder">Show not found.</p>
+          (() => {
+            const stale = followedShows.find((s) => s.id === id)
+            if (followed && stale) {
+              return (
+                <div className="media-unavailable">
+                  <p className="media-unavailable-text">
+                    "{stale.title || 'This show'}" is no longer reachable in our catalogue
+                    (likely a stale follow from an older catalogue source). You can remove it
+                    from My Shows below.
+                  </p>
+                  <div className="media-unavailable-actions">
+                    <button
+                      type="button"
+                      className="media-secondary-button ui-text"
+                      onClick={async () => {
+                        await unfollow(id)
+                        navigate('/podcasts')
+                      }}
+                    >
+                      Remove from My Shows
+                    </button>
+                    <button
+                      type="button"
+                      className="media-text-button ui-text"
+                      onClick={() => navigate('/podcasts')}
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )
+            }
+            return <p className="media-placeholder">Show not found.</p>
+          })()
         ) : (
           <>
             <header className="media-show-header">

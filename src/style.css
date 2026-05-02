@@ -72,9 +72,16 @@
 }
 
 .transcript-flow-track {
+  /* Hyperlegible-tuned typography lifted from the cinema floating-panel
+     override (was scoped to .is-dark .floating-panel-content). Promoted to
+     the base rule so the audio player's transcript pane matches cinema's
+     readability without requiring its own override. Cinema's more-specific
+     rule below still applies — identical values, no visible change there. */
   padding: 8px 14px;
-  line-height: 1.8;
-  font-size: 1.05rem;
+  font-family: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.7;
   word-wrap: break-word;
   overflow-wrap: break-word;
 }

@@ -96,16 +96,19 @@ const PodcastLibrary = () => {
         item
     }
     if (!resolved?.audioUrl) return
-    navigate(`/podcasts/play/${encodeURIComponent(resolved.id || episodeId)}`, {
-      state: {
-        episode: {
-          ...resolved,
-          showId,
-          showName: item.showName || resolved.showName || '',
-          coverUrl: resolved.coverUrl || item.coverUrl || '',
+    navigate(
+      `/listen/${encodeURIComponent(resolved.id || episodeId)}?source=podcast`,
+      {
+        state: {
+          episode: {
+            ...resolved,
+            showId,
+            showName: item.showName || resolved.showName || '',
+            coverUrl: resolved.coverUrl || item.coverUrl || '',
+          },
         },
       },
-    })
+    )
   }
 
   const handleTogglePinShow = async (show) => {

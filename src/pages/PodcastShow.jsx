@@ -217,16 +217,19 @@ const PodcastShowPage = () => {
                             variant="detail"
                             onAddToPlaylist={() => setAddMenuFor(ep.id)}
                             onPlay={(target) =>
-                              navigate(`/podcasts/play/${encodeURIComponent(target.id)}`, {
-                                state: {
-                                  episode: {
-                                    ...target,
-                                    showId: id,
-                                    showName: show.title,
-                                    coverUrl: target.coverUrl || show.coverUrl,
+                              navigate(
+                                `/listen/${encodeURIComponent(target.id)}?source=podcast`,
+                                {
+                                  state: {
+                                    episode: {
+                                      ...target,
+                                      showId: id,
+                                      showName: show.title,
+                                      coverUrl: target.coverUrl || show.coverUrl,
+                                    },
                                   },
                                 },
-                              })
+                              )
                             }
                           />
                           {addMenuFor === ep.id && (

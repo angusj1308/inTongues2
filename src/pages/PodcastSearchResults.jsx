@@ -157,7 +157,7 @@ const PodcastSearchResultsPage = () => {
       setUnavailableEpisode({ showTitle: episode.showTitle || parent?.title || '' })
       return
     }
-    navigate(`/podcasts/play/${encodeURIComponent(resolved.id)}`, {
+    navigate(`/listen/${encodeURIComponent(resolved.id)}?source=podcast`, {
       state: {
         episode: {
           ...resolved,

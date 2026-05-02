@@ -20,7 +20,6 @@ import SpotifyCollectionPage from './pages/SpotifyCollectionPage'
 import { PodcastsLibraryPage, PodcastsDiscoverPage } from './pages/Podcasts'
 import PodcastShowPage from './pages/PodcastShow'
 import PodcastEpisodePage from './pages/PodcastEpisode'
-import PodcastPlayer from './pages/PodcastPlayer'
 import PodcastSearchResultsPage from './pages/PodcastSearchResults'
 import PodcastCategoryResultsPage from './pages/PodcastCategoryResults'
 import { MusicLibraryPage, MusicDiscoverPage } from './pages/Music'
@@ -229,14 +228,6 @@ const App = () => {
         element={
           <ProtectedRoute>
             <PodcastEpisodePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/podcasts/play/:episodeId"
-        element={
-          <ProtectedRoute>
-            <PodcastPlayer />
           </ProtectedRoute>
         }
       />

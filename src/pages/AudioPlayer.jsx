@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { collection, doc, getDoc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
@@ -126,6 +126,8 @@ const AudioPlayer = () => {
   const searchParams = new URLSearchParams(location.search)
   const source = searchParams.get('source')
   const isSpotify = source === 'spotify'
+  const isPodcast = source === 'podcast'
+  const podcastEpisodeFromState = location.state?.episode || null
 
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(true)
@@ -509,6 +511,59 @@ const AudioPlayer = () => {
       return
     }
 
+    if (isPodcast) {
+      // Podcast mode: episode metadata arrives via location.state from the
+      // Play call site. Persisted state in users/{uid}/podcastEpisodeStates
+      // hydrates the missing pieces on a refresh / deep link.
+      ;(async () => {
+        let ep = podcastEpisodeFromState
+        if (!ep) {
+          try {
+            const stateSnap = await getDoc(
+              doc(db, 'users', user.uid, 'podcastEpisodeStates', id),
+            )
+            if (stateSnap.exists()) ep = stateSnap.data() || null
+          } catch (err) {
+            console.warn('podcast progress lookup failed', err)
+          }
+        }
+        if (!ep || !(ep.audioUrl || ep.audioURL)) {
+          setError('This podcast episode is no longer available.')
+          setStoryMeta({
+            title: ep?.title || '',
+            language: '',
+            audioStatus: '',
+            fullAudioUrl: '',
+            spotifyUri: '',
+            type: 'podcast',
+            mediaType: 'audio',
+          })
+          setLoading(false)
+          return
+        }
+        const cover = ep.coverUrl || ep.coverArtUrl || ''
+        setStoryMeta({
+          title: ep.title || 'Podcast episode',
+          language: ep.language || '',
+          audioStatus: 'ready',
+          fullAudioUrl: ep.audioUrl || ep.audioURL || '',
+          spotifyUri: '',
+          type: 'podcast',
+          mediaType: 'audio',
+          voiceId: '',
+          coverImageUrl: cover,
+          coverImageUrlSquare: cover,
+          coverColor: '',
+          // Eyebrow rendered above the title in the existing player layout.
+          subtitle: ep.showName || '',
+          showId: ep.showId || '',
+        })
+        setPages([])
+        setLoading(false)
+      })()
+      return
+    }
+
     const loadStoryMeta = async () => {
       try {
         const baseDoc = isSpotify
@@ -567,14 +622,14 @@ const AudioPlayer = () => {
     }
 
     loadStoryMeta()
-  }, [id, isSpotify, user])
+  }, [id, isSpotify, isPodcast, podcastEpisodeFromState, user])
 
   // Lazy backfill for older books — if the story doc loaded without a square
   // cover or extracted colour, hit the idempotent endpoint so the gradient
   // shows up the first time someone opens it. Endpoint short-circuits if both
   // fields are already set.
   useEffect(() => {
-    if (!user || !id || isSpotify) return
+    if (!user || !id || isSpotify || isPodcast) return
     if (storyMeta.coverImageUrlSquare && storyMeta.coverColor) return
     if (!storyMeta.coverImageUrl) return // need a portrait to start from
     let cancelled = false
@@ -709,6 +764,12 @@ const AudioPlayer = () => {
       setLoading(false)
       return
     }
+    if (isPodcast) {
+      // Podcast mode: no pages/transcript. Loading state is settled by the
+      // metadata effect once the episode is hydrated.
+      setPages([])
+      return
+    }
 
     const loadPages = async () => {
       setLoading(true)
@@ -765,10 +826,10 @@ const AudioPlayer = () => {
     }
 
     loadPages()
-  }, [id, isSpotify, user])
+  }, [id, isSpotify, isPodcast, user])
 
   useEffect(() => {
-    if (!user || !id || isSpotify) {
+    if (!user || !id || isSpotify || isPodcast) {
       setTranscriptDoc({ wordTimestamps: [], sentenceSegments: [], segments: [] })
       return undefined
     }
@@ -1406,6 +1467,47 @@ const AudioPlayer = () => {
     }
   }, [isSpotify, storyMeta.fullAudioUrl])
 
+  // Podcast: mark episode played on end so Library's Continue Listening drops it.
+  useEffect(() => {
+    if (!isPodcast || !user?.uid || !id) return undefined
+    const audio = audioRef.current
+    if (!audio) return undefined
+    const onEnded = async () => {
+      try {
+        const dur = Math.round((audio.duration || durationSeconds || 0) * 1000)
+        await setDoc(
+          doc(db, 'users', user.uid, 'podcastEpisodeStates', id),
+          {
+            episodeId: id,
+            progressMs: dur,
+            durationMs: dur,
+            played: true,
+            lastPlayedAt: serverTimestamp(),
+            title: storyMeta.title || '',
+            showName: storyMeta.subtitle || '',
+            showId: storyMeta.showId || '',
+            coverUrl: storyMeta.coverImageUrl || '',
+          },
+          { merge: true },
+        )
+      } catch (err) {
+        console.debug('Mark played failed:', err)
+      }
+    }
+    audio.addEventListener('ended', onEnded)
+    return () => audio.removeEventListener('ended', onEnded)
+  }, [
+    isPodcast,
+    id,
+    user?.uid,
+    durationSeconds,
+    storyMeta.title,
+    storyMeta.subtitle,
+    storyMeta.showId,
+    storyMeta.coverImageUrl,
+    storyMeta.fullAudioUrl,
+  ])
+
   useEffect(() => {
     if (!isSpotify) return
 
@@ -1450,6 +1552,22 @@ const AudioPlayer = () => {
     if (!id || !durationSeconds || durationSeconds <= 0) return
 
     const stored = getStoredPosition(id)
+    // For podcasts, fall back to the persisted Firestore progress doc (which
+    // is what Continue Listening reads) when no localStorage entry exists.
+    if (
+      isPodcast &&
+      (!stored?.timestamp || !Number.isFinite(stored.timestamp)) &&
+      podcastEpisodeFromState?.progressMs
+    ) {
+      const seconds = podcastEpisodeFromState.progressMs / 1000
+      if (seconds > 3 && seconds < durationSeconds - 1) {
+        const audio = audioRef.current
+        if (audio) audio.currentTime = seconds
+        setProgressSeconds(seconds)
+        hasRestoredPositionRef.current = true
+        return
+      }
+    }
     if (!stored?.timestamp || !Number.isFinite(stored.timestamp)) return
 
     // Clamp to valid range
@@ -1468,7 +1586,7 @@ const AudioPlayer = () => {
     }
 
     setProgressSeconds(restoredTime)
-  }, [durationSeconds, getStoredPosition, id, isSpotify])
+  }, [durationSeconds, getStoredPosition, id, isPodcast, isSpotify, podcastEpisodeFromState])
 
   // Save position to localStorage and Firestore when it changes (debounced)
   useEffect(() => {
@@ -1481,10 +1599,32 @@ const AudioPlayer = () => {
       // Also save progress to Firestore for stats tracking
       if (user?.uid) {
         try {
-          const collectionName = isSpotify ? 'spotifyItems' : 'stories'
-          const docRef = doc(db, 'users', user.uid, collectionName, id)
-          const progress = Math.min(100, Math.round((progressSeconds / durationSeconds) * 100))
-          await updateDoc(docRef, { progress, duration: durationSeconds })
+          if (isPodcast) {
+            // Mirror saveEpisodeProgress so the Library's Continue Listening
+            // tile picks this up.
+            const docRef = doc(db, 'users', user.uid, 'podcastEpisodeStates', id)
+            const dur = Math.round((durationSeconds || 0) * 1000)
+            await setDoc(
+              docRef,
+              {
+                episodeId: id,
+                progressMs: Math.round(progressSeconds * 1000),
+                durationMs: dur,
+                lastPlayedAt: serverTimestamp(),
+                played: durationSeconds > 0 && progressSeconds >= durationSeconds - 1,
+                title: storyMeta.title || '',
+                showName: storyMeta.subtitle || '',
+                showId: storyMeta.showId || '',
+                coverUrl: storyMeta.coverImageUrl || '',
+              },
+              { merge: true },
+            )
+          } else {
+            const collectionName = isSpotify ? 'spotifyItems' : 'stories'
+            const docRef = doc(db, 'users', user.uid, collectionName, id)
+            const progress = Math.min(100, Math.round((progressSeconds / durationSeconds) * 100))
+            await updateDoc(docRef, { progress, duration: durationSeconds })
+          }
         } catch (err) {
           // Silently fail - this is non-critical
           console.debug('Failed to save listening progress:', err)
@@ -1493,7 +1633,19 @@ const AudioPlayer = () => {
     }, 2000) // Debounce 2 seconds for Firestore
 
     return () => clearTimeout(timeoutId)
-  }, [durationSeconds, id, isSpotify, progressSeconds, savePosition, user?.uid])
+  }, [
+    durationSeconds,
+    id,
+    isPodcast,
+    isSpotify,
+    progressSeconds,
+    savePosition,
+    storyMeta.coverImageUrl,
+    storyMeta.showId,
+    storyMeta.subtitle,
+    storyMeta.title,
+    user?.uid,
+  ])
 
   // Sync global position when intensive sentence changes
   useEffect(() => {

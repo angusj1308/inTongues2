@@ -80,11 +80,30 @@ const getSpotifyAppToken = async () => {
   return appTokenCache.token
 }
 
+const SPOTIFY_ID_PATTERN = /^[A-Za-z0-9]{22}$/
+
+export class InvalidSpotifyIdError extends Error {
+  constructor(id) {
+    super(`Invalid Spotify ID: ${String(id).slice(0, 60)}`)
+    this.code = 'INVALID_SPOTIFY_ID'
+    this.status = 400
+  }
+}
+
 const spotifyApiFetch = async (path, params = {}) => {
   const token = await getSpotifyAppToken()
   const url = new URL(`https://api.spotify.com/v1${path}`)
   Object.entries(params).forEach(([k, v]) => {
-    if (v != null && v !== '') url.searchParams.set(k, String(v))
+    if (v == null || v === '') return
+    let value = v
+    // Spotify accepts limit between 1 and 50 on /search and most list endpoints.
+    // Clamp defensively so a stray value can't trigger 400 "Invalid limit".
+    if (k === 'limit') {
+      const n = Number.parseInt(String(v), 10)
+      if (Number.isNaN(n)) return
+      value = String(Math.max(1, Math.min(50, n)))
+    }
+    url.searchParams.set(k, String(value))
   })
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
   if (!res.ok) {
@@ -180,6 +199,12 @@ export const searchSpotifyPodcasts = async ({ query, language, market = DEFAULT_
 
 export const fetchSpotifyShow = async (spotifyShowId, { market = DEFAULT_MARKET } = {}) => {
   if (!spotifyShowId) return null
+  // Reject anything that isn't a Spotify base62 ID (22 alphanumeric chars).
+  // Stale follows from the prior Podcast Index integration carry numeric feed
+  // IDs; routing to those would otherwise hit "Invalid base62 id" from Spotify.
+  if (!SPOTIFY_ID_PATTERN.test(String(spotifyShowId))) {
+    throw new InvalidSpotifyIdError(spotifyShowId)
+  }
   const data = await spotifyApiFetch(`/shows/${encodeURIComponent(spotifyShowId)}`, { market })
   return sanitizeSpotifyShow(data)
 }

@@ -32,6 +32,7 @@ import {
   parseRssFeed,
   cached,
   cacheKey,
+  InvalidSpotifyIdError,
 } from './podcastsBackend.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
@@ -2453,6 +2454,9 @@ app.get('/api/podcasts/show/:spotifyShowId', async (req, res) => {
       available: true,
     })
   } catch (err) {
+    if (err instanceof InvalidSpotifyIdError) {
+      return res.status(400).json({ error: err.message, code: err.code })
+    }
     console.error('Podcast show fetch error', err)
     res.status(502).json({ error: 'Show fetch failed' })
   }
@@ -2497,6 +2501,15 @@ app.get('/api/podcasts/show/:spotifyShowId/episodes', async (req, res) => {
     if (!data) return res.status(404).json({ error: 'Show not found' })
     res.json(data)
   } catch (err) {
+    if (err instanceof InvalidSpotifyIdError) {
+      return res.status(400).json({
+        error: err.message,
+        code: err.code,
+        episodes: [],
+        nextCursor: null,
+        available: false,
+      })
+    }
     console.error('Podcast episodes fetch error', err)
     res
       .status(502)

@@ -803,6 +803,8 @@ const ActiveMode = ({
                     onResync={handleTranscriptResync}
                     syncToken={syncToken}
                     contentExpressions={contentExpressions}
+                    flowMode
+                    currentTime={playbackPositionSeconds}
                   />
                 </div>
               </div>

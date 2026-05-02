@@ -7611,6 +7611,13 @@ pre {
   min-height: calc(100dvh - 168px);
 }
 
+/* Drop the cover + title down toward the vertical centre of the column.
+   Pairs with `.player-surface { margin-top: auto }` so the auto-margins
+   share the leftover space evenly above and below. */
+.listening-lab-page .extensive-shell .player-visual-stage {
+  margin-top: auto;
+}
+
 .listening-lab-page .extensive-shell .player-surface {
   margin-top: auto;
   background: transparent;

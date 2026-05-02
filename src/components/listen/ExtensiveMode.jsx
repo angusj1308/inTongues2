@@ -98,6 +98,7 @@ const ExtensiveMode = ({
   storyMeta,
   isPlaying,
   playbackPositionSeconds,
+  transcriptCurrentTime,
   playbackDurationSeconds,
   onPlayPause,
   onSeek,
@@ -773,7 +774,7 @@ const ExtensiveMode = ({
               syncToken={syncToken}
               contentExpressions={contentExpressions}
               flowMode
-              currentTime={playbackPositionSeconds}
+              currentTime={transcriptCurrentTime ?? playbackPositionSeconds}
             />
           ) : null}
         </div>

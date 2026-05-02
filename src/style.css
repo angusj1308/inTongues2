@@ -113,22 +113,49 @@
   justify-content: center;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(28, 34, 48, 0.55);
   cursor: pointer;
   border-radius: 6px;
   transition: color 120ms ease, background 120ms ease;
 }
 
 .transcript-flow-tracking-toggle:hover {
+  color: rgba(28, 34, 48, 0.95);
+  background: rgba(28, 34, 48, 0.06);
+}
+
+.transcript-flow-tracking-toggle.is-active {
+  color: rgba(28, 34, 48, 0.9);
+}
+
+.transcript-flow-tracking-toggle.is-active:hover {
+  color: rgba(28, 34, 48, 1);
+}
+
+/* On dark backdrops (cinema's floating panel, dark theme) flip back to
+   white so the eye stays visible. */
+.floating-transcript-panel.is-dark .transcript-flow-tracking-toggle,
+.transcript-panel--dark .transcript-flow-tracking-toggle,
+[data-theme='dark'] .transcript-flow-tracking-toggle {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.floating-transcript-panel.is-dark .transcript-flow-tracking-toggle:hover,
+.transcript-panel--dark .transcript-flow-tracking-toggle:hover,
+[data-theme='dark'] .transcript-flow-tracking-toggle:hover {
   color: rgba(255, 255, 255, 0.9);
   background: rgba(255, 255, 255, 0.08);
 }
 
-.transcript-flow-tracking-toggle.is-active {
+.floating-transcript-panel.is-dark .transcript-flow-tracking-toggle.is-active,
+.transcript-panel--dark .transcript-flow-tracking-toggle.is-active,
+[data-theme='dark'] .transcript-flow-tracking-toggle.is-active {
   color: rgba(255, 255, 255, 0.85);
 }
 
-.transcript-flow-tracking-toggle.is-active:hover {
+.floating-transcript-panel.is-dark .transcript-flow-tracking-toggle.is-active:hover,
+.transcript-panel--dark .transcript-flow-tracking-toggle.is-active:hover,
+[data-theme='dark'] .transcript-flow-tracking-toggle.is-active:hover {
   color: rgba(255, 255, 255, 1);
 }
 

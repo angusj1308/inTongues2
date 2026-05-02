@@ -7550,18 +7550,13 @@ pre {
   position: relative;
   height: 100dvh;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--cover-color, #e7e5e4) 0%, #ffffff 70%);
+  background: #F5F5F2;
   color: #0f172a;
   isolation: isolate;
-  transition: background 0.3s ease;
 }
 
 [data-theme='dark'] .listening-lab-page {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--cover-color, #2a2724), #000 40%) 0%,
-    #1a1a1a 70%
-  );
+  background: var(--reader-bg, #1c1a17);
   color: var(--reader-text, #e8e0d4);
 }
 

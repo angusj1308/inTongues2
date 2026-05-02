@@ -555,9 +555,14 @@ const AudioPlayer = () => {
           return
         }
         const cover = ep.coverUrl || ep.coverArtUrl || ''
+        // Prefer the episode's own language (RSS feed gives a 2-letter code
+        // which resolveSupportedLanguageLabel handles); fall back to the
+        // user's currently-selected target language so vocab still loads
+        // even if the episode somehow lacks a code.
+        const episodeLanguage = ep.language || profile?.lastUsedLanguage || ''
         setStoryMeta({
           title: ep.title || 'Podcast episode',
-          language: ep.language || '',
+          language: episodeLanguage,
           audioStatus: 'ready',
           fullAudioUrl: ep.audioUrl || ep.audioURL || '',
           spotifyUri: '',

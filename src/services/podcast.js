@@ -268,6 +268,11 @@ const adaptEpisode = (raw) => {
     transcriptUrl: raw.transcriptUrl || '',
     publishedAt,
     durationMs,
+    // Carry the RSS feed's 2-letter language code through so AudioPlayer can
+    // resolve it to a user-facing label and load the right vocab list.
+    // Without this, podcasts would always launch with an empty vocab and
+    // the "Show word status" toggle would have no per-word colour to apply.
+    language: raw.language || '',
     showName: raw.showTitle || raw.showName || '',
   }
 }

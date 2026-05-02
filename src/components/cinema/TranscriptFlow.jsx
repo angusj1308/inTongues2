@@ -108,7 +108,14 @@ const findActiveWordIdx = (words, time) => {
     else hi = mid - 1
   }
   if (time < words[lo].end) return lo
-  return words.length - 1
+  // We're past `words[lo].end`. With Scribe-style word timings (real silence
+  // between words), `time` lands in a between-words gap dozens of times per
+  // minute; returning words.length - 1 here would teleport activeIdx to the
+  // last word and strobe every tp-future word back to tp-past until the next
+  // real word starts. Keep `lo` — "the most recently-started word is still
+  // active". Cinema's gap-free synthesised timings only hit this branch when
+  // lo === words.length - 1 already, so its behaviour is bit-identical.
+  return lo
 }
 
 const TranscriptFlow = ({

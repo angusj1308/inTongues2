@@ -87,16 +87,17 @@
 
 /* Karaoke-style past/active/future tracking in the transcript flow.
    Matches the subtitle eye toggle: pure opacity change, no background
-   chip. Active word is just brighter. */
-.cinema-page .floating-panel-content .reader-word--tp-past {
+   chip. Active word is just brighter. Scoped to TranscriptFlow's wrapper
+   so it applies in cinema, audiobooks, and podcasts identically. */
+.transcript-flow-window .reader-word--tp-past {
   opacity: 0.5;
 }
 
-.cinema-page .floating-panel-content .reader-word--tp-future {
+.transcript-flow-window .reader-word--tp-future {
   opacity: 0.7;
 }
 
-.cinema-page .floating-panel-content .reader-word--tp-active {
+.transcript-flow-window .reader-word--tp-active {
   opacity: 1 !important;
 }
 

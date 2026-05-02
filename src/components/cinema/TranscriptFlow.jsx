@@ -126,6 +126,11 @@ const TranscriptFlow = ({
   onSelectionTranslate,
   showWordStatus = false,
   currentTime = 0,
+  // Optional sample-accurate time getter. When provided, the rAF loop reads
+  // it every frame instead of relying on the 100 ms-polled `currentTime`
+  // prop. Lets short Scribe words (<100 ms) be tracked accurately on the
+  // audio side; cinema can keep passing only `currentTime` if it prefers.
+  getCurrentTime,
   isSynced = true,
   onUserScroll,
   syncToken = 0,
@@ -138,6 +143,7 @@ const TranscriptFlow = ({
   const clearProgrammaticTimerRef = useRef(null)
   const activeWordElRef = useRef(null)
   const currentTimeRef = useRef(currentTime)
+  const getCurrentTimeRef = useRef(getCurrentTime)
 
   // Cached ref setters so the callback identity stays stable across
   // re-renders. Inline `ref={(el) => …}` creates a new function every
@@ -180,6 +186,22 @@ const TranscriptFlow = ({
   useEffect(() => {
     currentTimeRef.current = currentTime
   }, [currentTime])
+
+  useEffect(() => {
+    getCurrentTimeRef.current = getCurrentTime
+  }, [getCurrentTime])
+
+  // Single source of truth for "what time is it right now?" used by the rAF
+  // loop and the unsynced-effect alike. Prefers the sample-accurate getter
+  // when supplied, falls back to the 100 ms-polled prop otherwise.
+  const readNow = useCallback(() => {
+    const fn = getCurrentTimeRef.current
+    if (typeof fn === 'function') {
+      const value = fn()
+      if (typeof value === 'number' && Number.isFinite(value)) return value
+    }
+    return currentTimeRef.current
+  }, [])
 
   // Build the flat flow of entries. Words-only list used for scroll lookup.
   const entries = useMemo(() => buildFlowEntries(segments), [segments])
@@ -406,7 +428,7 @@ const TranscriptFlow = ({
       return
     }
     lastAppliedIdxRef.current = -1
-    const idx = findActiveWordIdx(words, currentTimeRef.current)
+    const idx = findActiveWordIdx(words, readNow())
     trackedActiveIdxRef.current = idx
     applyTrackingClasses(idx)
   }, [trackingEnabled, words, showWordStatus, vocabEntries, applyTrackingClasses])
@@ -470,7 +492,7 @@ const TranscriptFlow = ({
         rafId = requestAnimationFrame(tick)
         return
       }
-      const time = currentTimeRef.current
+      const time = readNow()
       updateActiveWord(time)
 
       if (trackingEnabled) {

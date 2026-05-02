@@ -340,17 +340,18 @@ const AudioPlayer = () => {
   const playbackPositionSeconds = progressSeconds
   const playbackDurationSeconds = durationSeconds
 
-  // HTML5 <audio>.currentTime reports the decoder playhead, which sits ahead
-  // of what the listener actually hears by the browser's output-buffer
-  // latency (~150-300 ms). YouTube's IFrame API ships a clock that's already
-  // synced to the rendered output, so cinema doesn't need this. Subtract a
-  // small constant only in podcast mode so the active-word highlight lands
-  // on the word the listener is hearing, not the one the decoder has just
-  // moved on to. Tune by ear if needed.
-  const PODCAST_AUDIO_LATENCY_S = 0.25
-  const transcriptCurrentTime = isPodcast
-    ? Math.max(0, playbackPositionSeconds - PODCAST_AUDIO_LATENCY_S)
-    : playbackPositionSeconds
+  // Sample-accurate per-frame time getter for the transcript flow's rAF
+  // loop. Reading audioRef.current.currentTime here every animation frame
+  // (~60 Hz) lets us track Scribe words shorter than the 100 ms `setInterval`
+  // poll could resolve. Spotify path doesn't use audioRef, so it falls back
+  // to `playbackPositionSeconds` via the existing currentTime prop.
+  const getTranscriptCurrentTime = useCallback(() => {
+    if (isSpotify) return null
+    const audio = audioRef.current
+    if (!audio) return null
+    const t = audio.currentTime
+    return Number.isFinite(t) ? t : null
+  }, [isSpotify])
 
   const activeChunks = useMemo(() => {
     const formatChunkTime = (seconds) =>
@@ -2445,7 +2446,7 @@ const AudioPlayer = () => {
                         storyMeta={storyMeta}
                         isPlaying={isPlaying}
                         playbackPositionSeconds={playbackPositionSeconds}
-                        transcriptCurrentTime={transcriptCurrentTime}
+                        getTranscriptCurrentTime={getTranscriptCurrentTime}
                         playbackDurationSeconds={playbackDurationSeconds}
                         onPlayPause={togglePlay}
                         onSeek={handleSeekTo}
@@ -2485,7 +2486,7 @@ const AudioPlayer = () => {
                         canMoveToNextChunk={canMoveToNextChunk}
                         isPlaying={isPlaying}
                         playbackPositionSeconds={playbackPositionSeconds}
-                        transcriptCurrentTime={transcriptCurrentTime}
+                        getTranscriptCurrentTime={getTranscriptCurrentTime}
                         playbackDurationSeconds={playbackDurationSeconds}
                         scrubSeconds={scrubSeconds}
                         onPlayPause={togglePlay}

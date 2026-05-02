@@ -87,6 +87,7 @@ const ActiveMode = ({
   isPlaying = false,
   playbackPositionSeconds = 0,
   transcriptCurrentTime,
+  getTranscriptCurrentTime,
   playbackDurationSeconds = 0,
   scrubSeconds = 10,
   onPlayPause,
@@ -806,6 +807,7 @@ const ActiveMode = ({
                     contentExpressions={contentExpressions}
                     flowMode
                     currentTime={transcriptCurrentTime ?? playbackPositionSeconds}
+                    getCurrentTime={getTranscriptCurrentTime}
                   />
                 </div>
               </div>

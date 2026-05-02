@@ -99,6 +99,7 @@ const ExtensiveMode = ({
   isPlaying,
   playbackPositionSeconds,
   transcriptCurrentTime,
+  getTranscriptCurrentTime,
   playbackDurationSeconds,
   onPlayPause,
   onSeek,
@@ -775,6 +776,7 @@ const ExtensiveMode = ({
               contentExpressions={contentExpressions}
               flowMode
               currentTime={transcriptCurrentTime ?? playbackPositionSeconds}
+              getCurrentTime={getTranscriptCurrentTime}
             />
           ) : null}
         </div>

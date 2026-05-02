@@ -81,13 +81,41 @@ export const STATUS_OPACITY = {
 // would clash. Inside the reader we use a textbook-highlighter system: each
 // colour holds one hue across N/U → R → F, dropping saturation toward the
 // page colour as the status becomes more familiar.
+//
+// Dark mode uses a separate set per palette: in dark we paint the colour
+// onto the word's text (not background), so the saturation curve has to
+// stay readable on the dark page rather than fade into it.
 export const READER_PALETTES = {
-  yellow: { label: 'Yellow', new: '#F5D547', recognised: '#F5E27A', familiar: '#F8EDB0' },
-  pink: { label: 'Pink', new: '#F48FB1', recognised: '#F7B8CD', familiar: '#FAD9E3' },
-  green: { label: 'Green', new: '#9CCC65', recognised: '#BFD89C', familiar: '#DCE8C7' },
-  orange: { label: 'Orange', new: '#FFA94D', recognised: '#FFC78A', familiar: '#FFDDB8' },
-  blue: { label: 'Blue', new: '#7EC4F2', recognised: '#A8D5F2', familiar: '#CFE4F2' },
-  purple: { label: 'Purple', new: '#B39DDB', recognised: '#C9BBE3', familiar: '#DED4EC' },
+  yellow: {
+    label: 'Yellow',
+    light: { new: '#F5D547', recognised: '#F5E27A', familiar: '#F8EDB0' },
+    dark: { new: '#F5D547', recognised: '#F6DD63', familiar: '#F5E27A' },
+  },
+  pink: {
+    label: 'Pink',
+    light: { new: '#F48FB1', recognised: '#F7B8CD', familiar: '#FAD9E3' },
+    dark: { new: '#F48FB1', recognised: '#F5A3BF', familiar: '#F7B8CD' },
+  },
+  green: {
+    label: 'Green',
+    light: { new: '#9CCC65', recognised: '#BFD89C', familiar: '#DCE8C7' },
+    dark: { new: '#9CCC65', recognised: '#ADD080', familiar: '#BFD89C' },
+  },
+  orange: {
+    label: 'Orange',
+    light: { new: '#FFA94D', recognised: '#FFC78A', familiar: '#FFDDB8' },
+    dark: { new: '#FFA94D', recognised: '#FFB86B', familiar: '#FFC78A' },
+  },
+  blue: {
+    label: 'Blue',
+    light: { new: '#7EC4F2', recognised: '#A8D5F2', familiar: '#CFE4F2' },
+    dark: { new: '#7EC4F2', recognised: '#92CCF2', familiar: '#A8D5F2' },
+  },
+  purple: {
+    label: 'Purple',
+    light: { new: '#B39DDB', recognised: '#C9BBE3', familiar: '#DED4EC' },
+    dark: { new: '#B39DDB', recognised: '#BEABDF', familiar: '#C9BBE3' },
+  },
 }
 
 export const READER_PALETTE_ORDER = ['yellow', 'pink', 'green', 'orange', 'blue', 'purple']

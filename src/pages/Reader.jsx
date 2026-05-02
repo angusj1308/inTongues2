@@ -1797,6 +1797,8 @@ const Reader = ({ initialMode }) => {
 
   const currentPaletteName = profile?.readerHighlightPalette || DEFAULT_READER_PALETTE
   const currentPalette = resolveReaderPalette(currentPaletteName)
+  const currentPaletteShade =
+    activeTheme?.tone === 'dark' ? currentPalette.dark : currentPalette.light
   const [palettePopoverOpen, setPalettePopoverOpen] = useState(false)
   const palettePopoverRef = useRef(null)
 
@@ -2198,9 +2200,11 @@ const Reader = ({ initialMode }) => {
         '--reader-font-size': activeFont.fontSize ?? '1rem',
         // Reader-only highlight palette — overrides the document-root vars
         // set by AuthProvider (which stay tuned for the listener/cinema).
-        '--hlt-new': currentPalette.new,
-        '--hlt-recognised': currentPalette.recognised,
-        '--hlt-familiar': currentPalette.familiar,
+        // Light/dark variants per palette so the dark-mode treatment (colour
+        // on the text instead of the bg) stays legible on the dark page.
+        '--hlt-new': currentPaletteShade.new,
+        '--hlt-recognised': currentPaletteShade.recognised,
+        '--hlt-familiar': currentPaletteShade.familiar,
       }}
       data-reader-tone={activeTheme.tone}
       data-reader-theme={activeTheme.id}
@@ -2301,13 +2305,14 @@ const Reader = ({ initialMode }) => {
                   >
                     <span
                       className="palette-circle"
-                      style={{ background: currentPalette.new }}
+                      style={{ background: currentPaletteShade.new }}
                     />
                   </button>
                   {palettePopoverOpen && (
                     <div className="reader-palette-popover" role="listbox" aria-label="Highlighter colour">
                       {READER_PALETTE_ORDER.map((name) => {
                         const palette = resolveReaderPalette(name)
+                        const shade = activeTheme?.tone === 'dark' ? palette.dark : palette.light
                         const isActive = name === currentPaletteName
                         return (
                           <button
@@ -2321,7 +2326,7 @@ const Reader = ({ initialMode }) => {
                           >
                             <span
                               className="reader-palette-swatch-circle"
-                              style={{ background: palette.new }}
+                              style={{ background: shade.new }}
                             />
                           </button>
                         )

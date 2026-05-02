@@ -1535,20 +1535,28 @@ const AudioPlayer = () => {
     }
   }, [isSpotify, storyMeta.fullAudioUrl])
 
-  // Higher-frequency progress poll while playing. HTML5 `timeupdate` fires
-  // ~4 Hz; the cinema/YouTube path polls at 10 Hz, which keeps TranscriptFlow's
-  // rAF lerp from briefly catching up to its target between updates and
-  // stalling. Mirror that cadence here so the audio transcript glides the
-  // same way the cinema transcript does.
+  // Progress poll while playing. The transcript flow now reads
+  // audio.currentTime sample-accurately on its own rAF tick (via the
+  // getTranscriptCurrentTime callback), so this poll only feeds React state
+  // for the scrubber UI and the persistence debouncer — both fine at 1 Hz.
+  // The previous 10 Hz cadence was triggering a parent re-render every
+  // 100 ms, which invalidated styles across the ~16k-node transcript tree
+  // and forced layout on every rAF read. 1 Hz is plenty for the displayed
+  // timer; the integer-second guard avoids redundant React commits.
   useEffect(() => {
     if (isSpotify) return undefined
     if (!isPlaying) return undefined
     const audio = audioRef.current
     if (!audio) return undefined
+    let lastWhole = -1
     const interval = setInterval(() => {
       if (!audio) return
-      setProgressSeconds(audio.currentTime || 0)
-    }, 100)
+      const now = audio.currentTime || 0
+      const whole = Math.floor(now)
+      if (whole === lastWhole) return
+      lastWhole = whole
+      setProgressSeconds(now)
+    }, 250)
     return () => clearInterval(interval)
   }, [isPlaying, isSpotify, storyMeta.fullAudioUrl])
 

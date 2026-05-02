@@ -225,11 +225,26 @@ const TranscriptFlow = ({
   // stay empty after the first commit and the rAF loop would have no DOM
   // elements to measure. We let refs repopulate naturally as words mount.
 
-  // Render the flow as inline spans with <br /> separators between
-  // terminal-punctuation segment boundaries. Each word is a WordTokenListening
-  // so click / selection / colour behaviour stays identical.
+  // Render the flow as paragraph-sized blocks. Each paragraph wrapper carries
+  // `content-visibility: auto` (CSS), so the browser skips layout/paint for
+  // paragraphs outside the viewport. On a long podcast (~16k inline nodes),
+  // this turns the 16k-wide layout problem into a ~700-wide one — only the
+  // visible paragraphs (plus a small render buffer the browser manages) pay
+  // the cost. Cinema's behaviour is identical: short transcripts have ~1
+  // paragraph anyway, the CSS optimisation is a no-op there.
   const renderedFlow = useMemo(() => {
-    const nodes = []
+    const paragraphs = []
+    let currentBlock = []
+
+    const flushParagraph = (key) => {
+      if (currentBlock.length === 0) return
+      paragraphs.push(
+        <div key={`para-${key}`} className="transcript-flow-paragraph">
+          {currentBlock}
+        </div>,
+      )
+      currentBlock = []
+    }
 
     // Pre-compute expression match ranges across the flat word sequence so
     // a multi-word expression like "por favor" renders as a single token.
@@ -267,11 +282,11 @@ const TranscriptFlow = ({
     entries.forEach((entry, entryIdx) => {
       if (entry.type === 'break') {
         if (!entry.soft) {
-          nodes.push(<span key={`brk-${entryIdx}`} className="transcript-flow-break" />)
+          // Hard break = paragraph boundary. Close the current paragraph
+          // wrapper; the visual gap is now provided by paragraph margin.
+          flushParagraph(entryIdx)
         } else {
-          nodes.push(
-            <span key={`brk-${entryIdx}`}> </span>,
-          )
+          currentBlock.push(<span key={`brk-${entryIdx}`}> </span>)
         }
         return
       }
@@ -286,7 +301,7 @@ const TranscriptFlow = ({
         if (!phrase) return
         const startIdx = phrase.startIdx
         const endIdx = phrase.endIdx
-        nodes.push(
+        currentBlock.push(
           <WordTokenListening
             key={`w-${entryIdx}`}
             text={phrase.text}
@@ -297,14 +312,14 @@ const TranscriptFlow = ({
             ref={getPhraseRefSetter(startIdx, endIdx)}
           />,
         )
-        nodes.push(<span key={`sp-${entryIdx}`}> </span>)
+        currentBlock.push(<span key={`sp-${entryIdx}`}> </span>)
         return
       }
 
       const word = words[idx]
       if (!isWordToken(word.text)) {
         // Pure punctuation token — render as plain span, no status
-        nodes.push(<span key={`p-${entryIdx}`}>{word.text}</span>)
+        currentBlock.push(<span key={`p-${entryIdx}`}>{word.text}</span>)
         return
       }
 
@@ -312,7 +327,7 @@ const TranscriptFlow = ({
       const entry2 = vocabEntries[normalised]
       const status = getDisplayStatus(entry2?.status)
 
-      nodes.push(
+      currentBlock.push(
         <WordTokenListening
           key={`w-${entryIdx}`}
           text={word.text}
@@ -323,10 +338,11 @@ const TranscriptFlow = ({
           ref={getWordRefSetter(idx)}
         />,
       )
-      nodes.push(<span key={`sp-${entryIdx}`}> </span>)
+      currentBlock.push(<span key={`sp-${entryIdx}`}> </span>)
     })
 
-    return nodes
+    flushParagraph('end')
+    return paragraphs
   }, [entries, words, expressions, vocabEntries, language, showWordStatus, getWordRefSetter, getPhraseRefSetter])
 
   // Delegated click handler. Replaces the 2000-per-word onClick listeners
@@ -439,6 +455,22 @@ const TranscriptFlow = ({
   // mount and whenever the container resizes, since line wrapping is
   // layout-dependent.
   const linesRef = useRef([])
+  // Layout metrics that only change on resize / line recompute. Caching them
+  // here lets the rAF tick avoid forcing a synchronous layout pass every
+  // frame — only `scrollTop` is read live.
+  const layoutMetricsRef = useRef({ clientHeight: 0, scrollHeight: 0, maxScroll: 0 })
+  const refreshLayoutMetrics = useCallback(() => {
+    const container = containerRef.current
+    const track = trackRef.current
+    if (!container || !track) return
+    const clientHeight = container.clientHeight
+    const scrollHeight = track.scrollHeight
+    layoutMetricsRef.current = {
+      clientHeight,
+      scrollHeight,
+      maxScroll: Math.max(0, scrollHeight - clientHeight),
+    }
+  }, [])
   const recomputeLines = useCallback(() => {
     const lines = []
     let current = null
@@ -459,20 +491,27 @@ const TranscriptFlow = ({
       lines[i].nextStartTime = next ? next.startTime : lines[i].startTime + 1
     }
     linesRef.current = lines
-  }, [words])
+    refreshLayoutMetrics()
+  }, [words, refreshLayoutMetrics])
 
   useEffect(() => {
     // Run after paint so offsetTop is populated.
-    const timer = setTimeout(recomputeLines, 50)
+    const timer = setTimeout(() => {
+      recomputeLines()
+      refreshLayoutMetrics()
+    }, 50)
     return () => clearTimeout(timer)
-  }, [recomputeLines])
+  }, [recomputeLines, refreshLayoutMetrics])
 
   useEffect(() => {
     if (!containerRef.current || typeof ResizeObserver === 'undefined') return undefined
-    const ro = new ResizeObserver(() => recomputeLines())
+    const ro = new ResizeObserver(() => {
+      recomputeLines()
+      refreshLayoutMetrics()
+    })
     ro.observe(containerRef.current)
     return () => ro.disconnect()
-  }, [recomputeLines])
+  }, [recomputeLines, refreshLayoutMetrics])
 
   // Line-anchored scroll. We don't care about individual words — we
   // interpolate scroll position over a whole line's time span, then
@@ -518,11 +557,17 @@ const TranscriptFlow = ({
         const span = Math.max(0.001, line.nextStartTime - line.startTime)
         const progress = Math.max(0, Math.min(1, (time - line.startTime) / span))
         const interpY = line.y + (line.nextY - line.y) * progress
-        const rawTarget = interpY - container.clientHeight * 0.4
-        const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
+        // Layout metrics are cached and refreshed only on resize / line
+        // recompute. Reading them every rAF tick used to force a synchronous
+        // layout pass through the full inline-flow tree (~16k DOM nodes on a
+        // long podcast); on a short cinema transcript it was free, but at
+        // podcast scale it dominated the frame budget.
+        const { clientHeight, maxScroll } = layoutMetricsRef.current
+        const rawTarget = interpY - clientHeight * 0.4
         const target = Math.max(0, Math.min(maxScroll, rawTarget))
 
         // Gentle lerp for extra smoothness on top of the continuous target.
+        // `scrollTop` still has to be read live — it's the lerp's input.
         const current = container.scrollTop
         const next = current + (target - current) * 0.1
 

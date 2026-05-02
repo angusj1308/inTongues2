@@ -85,6 +85,21 @@
   height: 0.6em;
 }
 
+/* Paragraph wrapper for the flowing transcript. `content-visibility: auto`
+   tells the browser it can skip layout/paint for offscreen paragraphs;
+   `contain-intrinsic-size` is the placeholder size used while skipped, so
+   total scroll height stays stable. On a long podcast this drops the
+   live-laid-out DOM from ~16k inline nodes to ~the few paragraphs in view. */
+.transcript-flow-track .transcript-flow-paragraph {
+  display: block;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
+
+.transcript-flow-track .transcript-flow-paragraph + .transcript-flow-paragraph {
+  margin-top: 0.6em;
+}
+
 /* Karaoke-style past/active/future tracking in the transcript flow.
    Matches the subtitle eye toggle: pure opacity change, no background
    chip. Active word is just brighter. Scoped to TranscriptFlow's wrapper

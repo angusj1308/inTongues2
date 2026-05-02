@@ -89,32 +89,32 @@ export const READER_PALETTES = {
   yellow: {
     label: 'Yellow',
     light: { new: '#F5D547', recognised: '#F5E27A', familiar: '#F8EDB0' },
-    dark: { new: '#F5D547', recognised: '#F6DD63', familiar: '#F5E27A' },
+    dark: { new: '#FFE94A', recognised: '#F5D547', familiar: '#F5E27A' },
   },
   pink: {
     label: 'Pink',
     light: { new: '#F48FB1', recognised: '#F7B8CD', familiar: '#FAD9E3' },
-    dark: { new: '#F48FB1', recognised: '#F5A3BF', familiar: '#F7B8CD' },
+    dark: { new: '#FF6B9E', recognised: '#F48FB1', familiar: '#F7B8CD' },
   },
   green: {
     label: 'Green',
     light: { new: '#9CCC65', recognised: '#BFD89C', familiar: '#DCE8C7' },
-    dark: { new: '#9CCC65', recognised: '#ADD080', familiar: '#BFD89C' },
+    dark: { new: '#7EC845', recognised: '#9CCC65', familiar: '#BFD89C' },
   },
   orange: {
     label: 'Orange',
     light: { new: '#FFA94D', recognised: '#FFC78A', familiar: '#FFDDB8' },
-    dark: { new: '#FFA94D', recognised: '#FFB86B', familiar: '#FFC78A' },
+    dark: { new: '#FF8A1F', recognised: '#FFA94D', familiar: '#FFC78A' },
   },
   blue: {
     label: 'Blue',
     light: { new: '#7EC4F2', recognised: '#A8D5F2', familiar: '#CFE4F2' },
-    dark: { new: '#7EC4F2', recognised: '#92CCF2', familiar: '#A8D5F2' },
+    dark: { new: '#4FB0F5', recognised: '#7EC4F2', familiar: '#A8D5F2' },
   },
   purple: {
     label: 'Purple',
     light: { new: '#B39DDB', recognised: '#C9BBE3', familiar: '#DED4EC' },
-    dark: { new: '#B39DDB', recognised: '#BEABDF', familiar: '#C9BBE3' },
+    dark: { new: '#9678D4', recognised: '#B39DDB', familiar: '#C9BBE3' },
   },
 }
 

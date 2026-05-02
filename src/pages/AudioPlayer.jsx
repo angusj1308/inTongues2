@@ -889,6 +889,48 @@ const AudioPlayer = () => {
     }
   }, [id, isSpotify, user])
 
+  // Podcast transcripts via ElevenLabs Scribe. Kicks off on mount with the
+  // resolved RSS audioUrl; backend caches per-episode so re-opens are cheap.
+  useEffect(() => {
+    if (!isPodcast) return undefined
+    if (!id || !storyMeta.fullAudioUrl) return undefined
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('http://localhost:4000/api/podcasts/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            episodeId: id,
+            audioUrl: storyMeta.fullAudioUrl,
+            language: storyMeta.language || '',
+          }),
+        })
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          console.warn('Podcast transcribe failed', res.status, text.slice(0, 160))
+          return
+        }
+        const data = await res.json()
+        if (cancelled) return
+        const wordTimestamps = Array.isArray(data?.wordTimestamps) ? data.wordTimestamps : []
+        const sentenceSegments = Array.isArray(data?.sentenceSegments)
+          ? data.sentenceSegments
+          : []
+        setTranscriptDoc({
+          wordTimestamps,
+          sentenceSegments,
+          segments: sentenceSegments,
+        })
+      } catch (err) {
+        console.error('Podcast transcribe request error', err)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isPodcast, id, storyMeta.fullAudioUrl, storyMeta.language])
+
   useEffect(() => {
     if (!user || !storyLanguage) {
       setVocabEntries({})

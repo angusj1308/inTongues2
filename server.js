@@ -36,6 +36,7 @@ import {
 } from './podcastsBackend.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
+import crypto from 'crypto'
 
 // Non-import statements must come after all imports
 const require = createRequire(import.meta.url)
@@ -2508,6 +2509,164 @@ app.get('/api/podcasts/show/:itunesCollectionId/episodes', async (req, res) => {
     res
       .status(502)
       .json({ error: 'Episodes fetch failed', episodes: [], nextCursor: null, available: false })
+  }
+})
+
+// Podcast transcripts via ElevenLabs Scribe ----------------------------------
+//
+// Cached at podcastTranscripts/{sha1(episodeId)}. First request transcribes
+// and stores; later requests return the cached doc immediately.
+
+const sha1Hex = (input) =>
+  crypto.createHash('sha1').update(String(input || '')).digest('hex')
+
+const buildSentencesFromScribeWords = (scribeWords = []) => {
+  // Scribe returns { text, start, end, type } where type is 'word' or 'spacing'.
+  // Drop spacing entries and rebuild the punctuated stream.
+  const words = scribeWords
+    .filter((w) => w && w.type !== 'spacing' && (w.text || '').trim().length > 0)
+    .map((w) => ({
+      text: String(w.text),
+      start: typeof w.start === 'number' ? w.start : 0,
+      end: typeof w.end === 'number' ? w.end : 0,
+    }))
+
+  // Group on sentence-final punctuation. Scribe's word `text` already carries
+  // trailing punctuation, so /[.!?…。！？]\s*$/ catches sentence ends across
+  // languages we support.
+  const segments = []
+  let bucket = []
+  for (const w of words) {
+    bucket.push(w)
+    if (/[.!?…。！？]\s*$/.test(w.text)) {
+      segments.push({
+        start: bucket[0].start,
+        end: bucket[bucket.length - 1].end,
+        text: bucket.map((b) => b.text).join(' '),
+        words: bucket,
+      })
+      bucket = []
+    }
+  }
+  if (bucket.length) {
+    segments.push({
+      start: bucket[0].start,
+      end: bucket[bucket.length - 1].end,
+      text: bucket.map((b) => b.text).join(' '),
+      words: bucket,
+    })
+  }
+
+  return { wordTimestamps: words, sentenceSegments: segments }
+}
+
+const transcribePodcastWithScribe = async ({ audioUrl, languageCode }) => {
+  const apiKey = process.env.ELEVENLABS_API_KEY
+  if (!apiKey) throw new Error('ELEVENLABS_API_KEY not configured')
+  if (!audioUrl) throw new Error('audioUrl required')
+
+  // Stream the MP3 into memory. Typical podcast episodes are 20-100 MB; that
+  // fits well within Node's default heap and avoids managing temp files.
+  const audioRes = await fetch(audioUrl)
+  if (!audioRes.ok) {
+    throw new Error(`Audio fetch failed (${audioRes.status})`)
+  }
+  const audioBuf = Buffer.from(await audioRes.arrayBuffer())
+  const contentType = audioRes.headers.get('content-type') || 'audio/mpeg'
+
+  const form = new FormData()
+  form.set(
+    'file',
+    new Blob([audioBuf], { type: contentType }),
+    `episode.${contentType.includes('mp4') ? 'm4a' : 'mp3'}`,
+  )
+  form.set('model_id', 'scribe_v1')
+  if (languageCode) form.set('language_code', languageCode)
+  form.set('timestamps_granularity', 'word')
+  form.set('diarize', 'false')
+
+  const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+    method: 'POST',
+    headers: { 'xi-api-key': apiKey },
+    body: form,
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Scribe ${res.status}: ${text.slice(0, 200)}`)
+  }
+  const data = await res.json()
+  const { wordTimestamps, sentenceSegments } = buildSentencesFromScribeWords(
+    Array.isArray(data?.words) ? data.words : [],
+  )
+  return {
+    wordTimestamps,
+    sentenceSegments,
+    text: data?.text || '',
+    language: (data?.language_code || languageCode || '').toLowerCase().slice(0, 2),
+    languageProbability: data?.language_probability ?? null,
+  }
+}
+
+app.post('/api/podcasts/transcribe', async (req, res) => {
+  const { episodeId, audioUrl, language } = req.body || {}
+  if (!episodeId || !audioUrl) {
+    return res.status(400).json({ error: 'episodeId and audioUrl are required' })
+  }
+
+  const docId = sha1Hex(episodeId)
+  const docRef = firestore.collection('podcastTranscripts').doc(docId)
+
+  try {
+    const cached = await docRef.get()
+    if (cached.exists) {
+      const data = cached.data() || {}
+      if (Array.isArray(data.wordTimestamps) && data.wordTimestamps.length) {
+        return res.json({
+          status: 'cached',
+          wordTimestamps: data.wordTimestamps,
+          sentenceSegments: data.sentenceSegments || [],
+          text: data.text || '',
+          language: data.language || '',
+        })
+      }
+    }
+  } catch (err) {
+    console.warn('Transcript cache lookup failed', err.message)
+  }
+
+  try {
+    const result = await transcribePodcastWithScribe({
+      audioUrl,
+      languageCode: language ? String(language).toLowerCase().slice(0, 2) : null,
+    })
+    try {
+      await docRef.set(
+        {
+          episodeId,
+          audioUrl,
+          source: 'scribe',
+          wordTimestamps: result.wordTimestamps,
+          sentenceSegments: result.sentenceSegments,
+          text: result.text,
+          language: result.language,
+          languageProbability: result.languageProbability,
+          transcribedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      )
+    } catch (err) {
+      console.warn('Transcript cache write failed', err.message)
+    }
+    res.json({
+      status: 'fresh',
+      wordTimestamps: result.wordTimestamps,
+      sentenceSegments: result.sentenceSegments,
+      text: result.text,
+      language: result.language,
+    })
+  } catch (err) {
+    console.error('Podcast transcribe error', err)
+    res.status(502).json({ error: err.message || 'Transcribe failed' })
   }
 })
 

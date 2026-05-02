@@ -1522,6 +1522,23 @@ const AudioPlayer = () => {
     }
   }, [isSpotify, storyMeta.fullAudioUrl])
 
+  // Higher-frequency progress poll while playing. HTML5 `timeupdate` fires
+  // ~4 Hz; the cinema/YouTube path polls at 10 Hz, which keeps TranscriptFlow's
+  // rAF lerp from briefly catching up to its target between updates and
+  // stalling. Mirror that cadence here so the audio transcript glides the
+  // same way the cinema transcript does.
+  useEffect(() => {
+    if (isSpotify) return undefined
+    if (!isPlaying) return undefined
+    const audio = audioRef.current
+    if (!audio) return undefined
+    const interval = setInterval(() => {
+      if (!audio) return
+      setProgressSeconds(audio.currentTime || 0)
+    }, 100)
+    return () => clearInterval(interval)
+  }, [isPlaying, isSpotify, storyMeta.fullAudioUrl])
+
   // Podcast: mark episode played on end so Library's Continue Listening drops it.
   useEffect(() => {
     if (!isPodcast || !user?.uid || !id) return undefined

@@ -195,6 +195,34 @@
   background: none;
 }
 
+/* Same status palette for any TranscriptFlow surface (audiobook /
+   podcast). Cinema keeps its scoped rules above; this set covers the
+   audio player's transcript pane where the rules wouldn't otherwise
+   apply. Text-colour, not background, so it reads on a light backdrop. */
+.transcript-flow-window .reader-word--highlighted[data-word-status='new'],
+.transcript-flow-window .reader-word--highlighted[data-word-status='unknown'] {
+  color: var(--hlt-new);
+  background: none;
+}
+
+.transcript-flow-window .reader-word--highlighted[data-word-status='recognised'] {
+  color: var(--hlt-recognised);
+  background: none;
+}
+
+.transcript-flow-window .reader-word--highlighted[data-word-status='familiar'] {
+  color: var(--hlt-familiar);
+  background: none;
+}
+
+.transcript-flow-window .reader-word--highlighted[data-word-status='known'] {
+  /* "Known" words drop to muted text — the user has marked them mastered,
+     so they shouldn't draw attention. */
+  color: inherit;
+  opacity: 0.55;
+  background: none;
+}
+
 /* Palette toggle circle in the cinema header — no ring, uses the
    cinema palette's new/unknown colour so it tracks the strongest
    status tone across terracotta/sage/slate. */

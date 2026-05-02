@@ -2560,19 +2560,26 @@ const buildSentencesFromScribeWords = (scribeWords = []) => {
   return { wordTimestamps: words, sentenceSegments: segments }
 }
 
-const transcribePodcastWithScribe = async ({ audioUrl, languageCode }) => {
+const transcribePodcastWithScribe = async ({ audioUrl, languageCode, episodeId }) => {
+  const tag = `[scribe ${String(episodeId || '').slice(0, 24)}]`
   const apiKey = process.env.ELEVENLABS_API_KEY
   if (!apiKey) throw new Error('ELEVENLABS_API_KEY not configured')
   if (!audioUrl) throw new Error('audioUrl required')
 
   // Stream the MP3 into memory. Typical podcast episodes are 20-100 MB; that
   // fits well within Node's default heap and avoids managing temp files.
+  console.log(`${tag} downloading audio: ${audioUrl}`)
+  const dlStart = Date.now()
   const audioRes = await fetch(audioUrl)
   if (!audioRes.ok) {
+    console.error(`${tag} audio fetch failed: ${audioRes.status}`)
     throw new Error(`Audio fetch failed (${audioRes.status})`)
   }
   const audioBuf = Buffer.from(await audioRes.arrayBuffer())
   const contentType = audioRes.headers.get('content-type') || 'audio/mpeg'
+  const sizeMb = (audioBuf.length / 1024 / 1024).toFixed(1)
+  const dlMs = Date.now() - dlStart
+  console.log(`${tag} downloaded ${sizeMb} MB (${contentType}) in ${dlMs}ms`)
 
   const form = new FormData()
   form.set(
@@ -2585,24 +2592,35 @@ const transcribePodcastWithScribe = async ({ audioUrl, languageCode }) => {
   form.set('timestamps_granularity', 'word')
   form.set('diarize', 'false')
 
+  console.log(
+    `${tag} POST elevenlabs.io/v1/speech-to-text (model=scribe_v1, lang=${languageCode || 'auto'})`,
+  )
+  const sttStart = Date.now()
   const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
     method: 'POST',
     headers: { 'xi-api-key': apiKey },
     body: form,
   })
+  const sttMs = Date.now() - sttStart
   if (!res.ok) {
     const text = await res.text().catch(() => '')
+    console.error(`${tag} Scribe ${res.status} after ${sttMs}ms: ${text.slice(0, 200)}`)
     throw new Error(`Scribe ${res.status}: ${text.slice(0, 200)}`)
   }
   const data = await res.json()
-  const { wordTimestamps, sentenceSegments } = buildSentencesFromScribeWords(
-    Array.isArray(data?.words) ? data.words : [],
+  const wordsRaw = Array.isArray(data?.words) ? data.words : []
+  const { wordTimestamps, sentenceSegments } = buildSentencesFromScribeWords(wordsRaw)
+  const detectedLang = (data?.language_code || languageCode || '').toLowerCase().slice(0, 2)
+  console.log(
+    `${tag} Scribe OK in ${sttMs}ms — ${wordTimestamps.length} words, ${sentenceSegments.length} sentences, lang=${detectedLang}${
+      data?.language_probability != null ? ` (p=${data.language_probability.toFixed(2)})` : ''
+    }`,
   )
   return {
     wordTimestamps,
     sentenceSegments,
     text: data?.text || '',
-    language: (data?.language_code || languageCode || '').toLowerCase().slice(0, 2),
+    language: detectedLang,
     languageProbability: data?.language_probability ?? null,
   }
 }
@@ -2613,6 +2631,10 @@ app.post('/api/podcasts/transcribe', async (req, res) => {
     return res.status(400).json({ error: 'episodeId and audioUrl are required' })
   }
 
+  const tag = `[scribe ${String(episodeId).slice(0, 24)}]`
+  const reqStart = Date.now()
+  console.log(`${tag} request received (lang hint=${language || 'none'})`)
+
   const docId = sha1Hex(episodeId)
   const docRef = firestore.collection('podcastTranscripts').doc(docId)
 
@@ -2621,6 +2643,9 @@ app.post('/api/podcasts/transcribe', async (req, res) => {
     if (cached.exists) {
       const data = cached.data() || {}
       if (Array.isArray(data.wordTimestamps) && data.wordTimestamps.length) {
+        console.log(
+          `${tag} cache HIT — ${data.wordTimestamps.length} words (${Date.now() - reqStart}ms)`,
+        )
         return res.json({
           status: 'cached',
           wordTimestamps: data.wordTimestamps,
@@ -2630,14 +2655,16 @@ app.post('/api/podcasts/transcribe', async (req, res) => {
         })
       }
     }
+    console.log(`${tag} cache MISS — running Scribe…`)
   } catch (err) {
-    console.warn('Transcript cache lookup failed', err.message)
+    console.warn(`${tag} cache lookup failed: ${err.message}`)
   }
 
   try {
     const result = await transcribePodcastWithScribe({
       audioUrl,
       languageCode: language ? String(language).toLowerCase().slice(0, 2) : null,
+      episodeId,
     })
     try {
       await docRef.set(
@@ -2654,9 +2681,11 @@ app.post('/api/podcasts/transcribe', async (req, res) => {
         },
         { merge: true },
       )
+      console.log(`${tag} cached to Firestore (podcastTranscripts/${docId})`)
     } catch (err) {
-      console.warn('Transcript cache write failed', err.message)
+      console.warn(`${tag} cache write failed: ${err.message}`)
     }
+    console.log(`${tag} done in ${Date.now() - reqStart}ms`)
     res.json({
       status: 'fresh',
       wordTimestamps: result.wordTimestamps,
@@ -2665,7 +2694,7 @@ app.post('/api/podcasts/transcribe', async (req, res) => {
       language: result.language,
     })
   } catch (err) {
-    console.error('Podcast transcribe error', err)
+    console.error(`${tag} transcribe error after ${Date.now() - reqStart}ms:`, err.message)
     res.status(502).json({ error: err.message || 'Transcribe failed' })
   }
 })

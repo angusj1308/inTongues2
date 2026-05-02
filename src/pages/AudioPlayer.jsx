@@ -895,7 +895,14 @@ const AudioPlayer = () => {
     if (!isPodcast) return undefined
     if (!id || !storyMeta.fullAudioUrl) return undefined
     let cancelled = false
+    const tag = `[scribe ${String(id).slice(0, 24)}]`
     ;(async () => {
+      const reqStart = Date.now()
+      console.log(`${tag} requesting transcript`, {
+        episodeId: id,
+        audioUrl: storyMeta.fullAudioUrl,
+        language: storyMeta.language || 'auto',
+      })
       try {
         const res = await fetch('http://localhost:4000/api/podcasts/transcribe', {
           method: 'POST',
@@ -908,22 +915,28 @@ const AudioPlayer = () => {
         })
         if (!res.ok) {
           const text = await res.text().catch(() => '')
-          console.warn('Podcast transcribe failed', res.status, text.slice(0, 160))
+          console.warn(`${tag} failed ${res.status} (${Date.now() - reqStart}ms):`, text.slice(0, 160))
           return
         }
         const data = await res.json()
-        if (cancelled) return
+        if (cancelled) {
+          console.log(`${tag} cancelled before response landed`)
+          return
+        }
         const wordTimestamps = Array.isArray(data?.wordTimestamps) ? data.wordTimestamps : []
         const sentenceSegments = Array.isArray(data?.sentenceSegments)
           ? data.sentenceSegments
           : []
+        console.log(
+          `${tag} got ${data?.status || 'response'} (${Date.now() - reqStart}ms): ${wordTimestamps.length} words, ${sentenceSegments.length} sentences, lang=${data?.language || '?'}`,
+        )
         setTranscriptDoc({
           wordTimestamps,
           sentenceSegments,
           segments: sentenceSegments,
         })
       } catch (err) {
-        console.error('Podcast transcribe request error', err)
+        console.error(`${tag} request error after ${Date.now() - reqStart}ms`, err)
       }
     })()
     return () => {

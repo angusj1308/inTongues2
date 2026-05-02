@@ -74,3 +74,24 @@ export const STATUS_OPACITY = {
   familiar: 0.16,
   known: 0.0,
 }
+
+// Reader-only highlighter palettes. The listener and cinema continue to use
+// the original PALETTES (terracotta / sage / slate) above — those work on
+// dark video and dark frosted surfaces, where saturated highlighter yellows
+// would clash. Inside the reader we use a textbook-highlighter system: each
+// colour holds one hue across N/U → R → F, dropping saturation toward the
+// page colour as the status becomes more familiar.
+export const READER_PALETTES = {
+  yellow: { label: 'Yellow', new: '#F5D547', recognised: '#F5E27A', familiar: '#F8EDB0' },
+  pink: { label: 'Pink', new: '#F48FB1', recognised: '#F7B8CD', familiar: '#FAD9E3' },
+  green: { label: 'Green', new: '#9CCC65', recognised: '#BFD89C', familiar: '#DCE8C7' },
+  orange: { label: 'Orange', new: '#FFA94D', recognised: '#FFC78A', familiar: '#FFDDB8' },
+  blue: { label: 'Blue', new: '#7EC4F2', recognised: '#A8D5F2', familiar: '#CFE4F2' },
+  purple: { label: 'Purple', new: '#B39DDB', recognised: '#C9BBE3', familiar: '#DED4EC' },
+}
+
+export const READER_PALETTE_ORDER = ['yellow', 'pink', 'green', 'orange', 'blue', 'purple']
+export const DEFAULT_READER_PALETTE = 'yellow'
+
+export const resolveReaderPalette = (name) =>
+  READER_PALETTES[name] || READER_PALETTES[DEFAULT_READER_PALETTE]

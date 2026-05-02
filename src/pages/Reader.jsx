@@ -25,9 +25,9 @@ import { normalizeLanguageCode } from '../utils/language'
 import {
   HIGHLIGHT_COLOR,
   STATUS_OPACITY,
-  PALETTE_ORDER,
-  DEFAULT_PALETTE,
-  resolvePalette,
+  READER_PALETTE_ORDER,
+  DEFAULT_READER_PALETTE,
+  resolveReaderPalette,
 } from '../constants/highlightColors'
 
 const themeOptions = [
@@ -1795,16 +1795,29 @@ const Reader = ({ initialMode }) => {
     setReaderFont(fontOptions[nextIndex].id)
   }
 
-  const currentPaletteName = profile?.highlightPalette || DEFAULT_PALETTE
-  const currentPalette = resolvePalette(currentPaletteName)
+  const currentPaletteName = profile?.readerHighlightPalette || DEFAULT_READER_PALETTE
+  const currentPalette = resolveReaderPalette(currentPaletteName)
+  const [palettePopoverOpen, setPalettePopoverOpen] = useState(false)
+  const palettePopoverRef = useRef(null)
 
-  const cyclePalette = () => {
-    const idx = PALETTE_ORDER.indexOf(currentPaletteName)
-    const next = PALETTE_ORDER[(idx === -1 ? 0 : idx + 1) % PALETTE_ORDER.length]
-    updateProfile({ highlightPalette: next }).catch((err) => {
-      console.error('Failed to update palette:', err)
+  const selectPalette = (name) => {
+    setPalettePopoverOpen(false)
+    if (name === currentPaletteName) return
+    updateProfile({ readerHighlightPalette: name }).catch((err) => {
+      console.error('Failed to update reader palette:', err)
     })
   }
+
+  useEffect(() => {
+    if (!palettePopoverOpen) return undefined
+    const onPointerDown = (event) => {
+      if (!palettePopoverRef.current) return
+      if (palettePopoverRef.current.contains(event.target)) return
+      setPalettePopoverOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [palettePopoverOpen])
 
   const handleModeSelect = (modeId) => {
     // Active/extensive → intensive: jump to sentence closest to viewport top
@@ -2183,9 +2196,15 @@ const Reader = ({ initialMode }) => {
         '--reader-font-family': activeFont.fontFamily,
         '--reader-font-weight': activeFont.fontWeight,
         '--reader-font-size': activeFont.fontSize ?? '1rem',
+        // Reader-only highlight palette — overrides the document-root vars
+        // set by AuthProvider (which stay tuned for the listener/cinema).
+        '--hlt-new': currentPalette.new,
+        '--hlt-recognised': currentPalette.recognised,
+        '--hlt-familiar': currentPalette.familiar,
       }}
       data-reader-tone={activeTheme.tone}
       data-reader-theme={activeTheme.id}
+      data-reader-palette={currentPaletteName}
     >
       <div className="reader-main-shell">
         <div className="reader-hover-shell">
@@ -2268,18 +2287,48 @@ const Reader = ({ initialMode }) => {
                   )}
                 </button>
 
-                <button
-                  className="reader-header-button icon-button reader-palette-trigger"
-                  type="button"
-                  aria-label={`Highlight palette: ${currentPalette.label}. Click to change.`}
-                  title={`Highlight: ${currentPalette.label}`}
-                  onClick={(e) => {
-                    cyclePalette()
-                    e.currentTarget.blur()
-                  }}
-                >
-                  <span className="palette-circle" />
-                </button>
+                <div className="reader-palette-popover-wrap" ref={palettePopoverRef}>
+                  <button
+                    className={`reader-header-button icon-button reader-palette-trigger ${palettePopoverOpen ? 'is-open' : ''}`}
+                    type="button"
+                    aria-label={`Highlight palette: ${currentPalette.label}. Click to change.`}
+                    aria-expanded={palettePopoverOpen}
+                    title={`Highlight: ${currentPalette.label}`}
+                    onClick={(e) => {
+                      setPalettePopoverOpen((prev) => !prev)
+                      e.currentTarget.blur()
+                    }}
+                  >
+                    <span
+                      className="palette-circle"
+                      style={{ background: currentPalette.new }}
+                    />
+                  </button>
+                  {palettePopoverOpen && (
+                    <div className="reader-palette-popover" role="listbox" aria-label="Highlighter colour">
+                      {READER_PALETTE_ORDER.map((name) => {
+                        const palette = resolveReaderPalette(name)
+                        const isActive = name === currentPaletteName
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            role="option"
+                            aria-selected={isActive}
+                            className={`reader-palette-swatch ${isActive ? 'is-active' : ''}`}
+                            title={palette.label}
+                            onClick={() => selectPalette(name)}
+                          >
+                            <span
+                              className="reader-palette-swatch-circle"
+                              style={{ background: palette.new }}
+                            />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   className="reader-header-button icon-button"

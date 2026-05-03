@@ -27732,18 +27732,48 @@ body:has(.cinema-page) {
   margin: 0 0 0.5rem;
 }
 
+.read-continue-eyebrow {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin: 0 0 0.65rem;
+}
+
+.read-continue-headline {
+  margin: 0 0 1.5rem;
+  line-height: 1.2;
+  display: block;
+}
+
+.read-continue-byline {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #a8a29e;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.read-continue-author-name {
+  color: #78716c;
+}
+
 .read-continue-title {
   font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.9rem;
   font-weight: 400;
   color: #0f172a;
-  margin: 0 0 1.5rem;
+  margin: 0;
   background: none;
   border: none;
   padding: 0;
   text-align: left;
   cursor: pointer;
   line-height: 1.15;
+  display: inline;
 }
 
 .read-continue-title:hover {
@@ -27813,6 +27843,15 @@ body:has(.cinema-page) {
 
 [data-theme='dark'] .read-continue-title {
   color: #fafaf9;
+}
+
+[data-theme='dark'] .read-continue-eyebrow,
+[data-theme='dark'] .read-continue-author-name {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .read-continue-byline {
+  color: #78716c;
 }
 
 [data-theme='dark'] .read-continue-progress-bar {

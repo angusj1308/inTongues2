@@ -1853,7 +1853,6 @@ const Dashboard = () => {
                         metaParts.push(`${pct}% read`)
                         return (
                           <section className="read-continue-section" aria-label="Continue reading">
-                            <h2 className="home-card-title">Continue Reading</h2>
                             <div className="read-continue-card">
                               <button
                                 type="button"
@@ -1868,14 +1867,21 @@ const Dashboard = () => {
                                 )}
                               </button>
                               <div className="read-continue-body">
-                                {cb.author && <p className="read-continue-author">{cb.author}</p>}
-                                <button
-                                  type="button"
-                                  className="read-continue-title"
-                                  onClick={() => handleOpenBook(cb)}
-                                >
-                                  {getStoryTitle(cb)}
-                                </button>
+                                <p className="read-continue-eyebrow">Continue Reading</p>
+                                <p className="read-continue-headline">
+                                  <button
+                                    type="button"
+                                    className="read-continue-title"
+                                    onClick={() => handleOpenBook(cb)}
+                                  >
+                                    {getStoryTitle(cb)}
+                                  </button>
+                                  {cb.author && (
+                                    <span className="read-continue-byline">
+                                      {' '}by <span className="read-continue-author-name">{cb.author}</span>
+                                    </span>
+                                  )}
+                                </p>
                                 <div className="read-continue-progress-row">
                                   <div className="read-continue-progress-bar" aria-hidden="true">
                                     <div

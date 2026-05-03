@@ -27637,6 +27637,15 @@ body:has(.cinema-page) {
   gap: 2.5rem;
 }
 
+/* Library shelf labels (Continue Reading, Recent, All Books) sit
+   beneath the sub-nav in hierarchy: smaller, lighter, quieter. */
+.read-library-page .home-card-title {
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.75rem;
+}
+
 /* Continue Reading — single-card hero at the top of My Library */
 .read-continue-section {
   display: flex;

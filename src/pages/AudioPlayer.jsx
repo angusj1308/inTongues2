@@ -25,7 +25,7 @@ import {
   DEFAULT_READER_PALETTE,
   resolveReaderPalette,
 } from '../constants/highlightColors'
-import { DEFAULT_READER_FONT, resolveReaderFont } from '../constants/readerFonts'
+import { READER_FONT_OPTIONS, DEFAULT_READER_FONT, resolveReaderFont } from '../constants/readerFonts'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
@@ -383,6 +383,16 @@ const AudioPlayer = () => {
     const next = PALETTE_ORDER[(idx === -1 ? 0 : idx + 1) % PALETTE_ORDER.length]
     updateProfile?.({ highlightPalette: next }).catch?.((err) => {
       console.error('Failed to update palette:', err)
+    })
+  }
+
+  const currentFontId = profile?.readerFont || DEFAULT_READER_FONT
+  const currentFont = resolveReaderFont(currentFontId)
+  const cycleFont = () => {
+    const idx = READER_FONT_OPTIONS.findIndex((opt) => opt.id === currentFontId)
+    const next = READER_FONT_OPTIONS[(idx === -1 ? 0 : idx + 1) % READER_FONT_OPTIONS.length]
+    updateProfile?.({ readerFont: next.id }).catch?.((err) => {
+      console.error('Failed to update reader font:', err)
     })
   }
 
@@ -2483,6 +2493,19 @@ const AudioPlayer = () => {
                       <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                     </svg>
                   )}
+                </button>
+                <button
+                  className="reader-header-button ui-text"
+                  type="button"
+                  aria-label={`Font: ${currentFont.label}`}
+                  title={`Font: ${currentFont.label}`}
+                  style={{ fontFamily: currentFont.fontFamily }}
+                  onClick={(e) => {
+                    cycleFont()
+                    e.currentTarget.blur()
+                  }}
+                >
+                  Aa
                 </button>
                 <button
                   className="reader-header-button icon-button reader-palette-trigger"

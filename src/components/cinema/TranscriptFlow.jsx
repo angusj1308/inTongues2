@@ -504,13 +504,34 @@ const TranscriptFlow = ({
   }, [recomputeLines, refreshLayoutMetrics])
 
   useEffect(() => {
-    if (!containerRef.current || typeof ResizeObserver === 'undefined') return undefined
+    if (typeof ResizeObserver === 'undefined') return undefined
+    if (!containerRef.current) return undefined
     const ro = new ResizeObserver(() => {
       recomputeLines()
       refreshLayoutMetrics()
     })
     ro.observe(containerRef.current)
+    // Also observe the track — when a webfont swaps in (Lora / Source Sans
+    // load asynchronously), the container box stays the same but the inner
+    // track reflows to a different height. Without this, recomputeLines
+    // doesn't re-run and the auto-scroll lerps to stale line offsets.
+    if (trackRef.current) ro.observe(trackRef.current)
     return () => ro.disconnect()
+  }, [recomputeLines, refreshLayoutMetrics])
+
+  // One extra recompute after webfonts finish loading. document.fonts.ready
+  // resolves once any pending @font-face downloads are settled; the
+  // ResizeObserver above usually catches the resulting reflow, but some
+  // browsers don't fire it for inner-only height changes — this is the belt.
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.fonts?.ready) return undefined
+    let cancelled = false
+    document.fonts.ready.then(() => {
+      if (cancelled) return
+      recomputeLines()
+      refreshLayoutMetrics()
+    })
+    return () => { cancelled = true }
   }, [recomputeLines, refreshLayoutMetrics])
 
   // Line-anchored scroll. We don't care about individual words — we

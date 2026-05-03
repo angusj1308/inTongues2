@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore'
 import { computePagesWithFontLoading } from '../utils/pagination'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
@@ -12,6 +12,7 @@ import DevelopmentGate from '../components/DevelopmentGate'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import GutenbergSearchPanel from '../components/read/GutenbergSearchPanel'
+import ReadSubNav from '../components/read/ReadSubNav'
 import { prefetchPopularBooks } from '../services/gutenberg'
 import ReviewModal from '../components/review/ReviewModal'
 import RoutineBuilder from '../components/home/RoutineBuilder'
@@ -24,9 +25,6 @@ import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
 import { rewriteProse, validateCoherence, repairCoherence, regenerateConcept, generateStoryProse } from '../services/generator'
-import generateIcon from '../assets/Generate.png'
-import importIcon from '../assets/import.png'
-import exploreIcon from '../assets/explore.png'
 
 // Target language translations for card headers
 const CARD_HEADERS = {
@@ -422,7 +420,14 @@ const Dashboard = () => {
   const { user, profile, setLastUsedLanguage } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const params = useParams()
+  const isReadRoute = location.pathname.startsWith('/read')
+  const READ_SUB_PAGES = ['library', 'discover', 'generate', 'import']
+  const readSubPage = isReadRoute && READ_SUB_PAGES.includes(params.subPage)
+    ? params.subPage
+    : (isReadRoute ? 'library' : null)
   const getInitialTab = () => {
+    if (isReadRoute) return 'read'
     const initialTab = location.state?.initialTab
     return initialTab && DASHBOARD_TABS.includes(initialTab) ? initialTab : 'home'
   }
@@ -432,10 +437,6 @@ const Dashboard = () => {
   const [libraryLoading, setLibraryLoading] = useState(true)
   const [libraryError, setLibraryError] = useState('')
 
-  // Modal states for Generate, Import, and Gutenberg
-  const [showGenerateModal, setShowGenerateModal] = useState(false)
-  const [showImportModal, setShowImportModal] = useState(false)
-  const [showGutenbergModal, setShowGutenbergModal] = useState(false)
   const [generatingBookId, setGeneratingBookId] = useState(null)
 
   // Review tab state
@@ -936,7 +937,7 @@ const Dashboard = () => {
   }
 
   const handleTabClick = (tab) => {
-    if (tab === activeTab) return
+    if (tab === activeTab && !(tab === 'read' && isReadRoute)) return
 
     const currentIndex = DASHBOARD_TABS.indexOf(activeTab)
     const nextIndex = DASHBOARD_TABS.indexOf(tab)
@@ -947,8 +948,57 @@ const Dashboard = () => {
       setSlideDirection('left')
     }
 
+    if (tab === 'read') {
+      navigate('/read/library')
+      setActiveTab('read')
+      return
+    }
+
+    if (isReadRoute) {
+      navigate('/dashboard', { state: { initialTab: tab } })
+      setActiveTab(tab)
+      return
+    }
+
     setActiveTab(tab)
   }
+
+  // Keep activeTab in sync if URL changes to or from a /read/* route
+  useEffect(() => {
+    if (isReadRoute && activeTab !== 'read') setActiveTab('read')
+  }, [isReadRoute, activeTab])
+
+  const handleGutenbergSelect = useCallback(async (book) => {
+    try {
+      const response = await fetch('http://localhost:4000/api/import-gutenberg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: user?.uid || '',
+          gutenbergId: book.id,
+          title: book.title || 'Untitled',
+          author: book.authorName || (book.authors?.[0]?.name || ''),
+          originalLanguage: book.languages?.[0] === 'en' ? 'English' : 'English',
+          outputLanguage: activeLanguage,
+          level: book.level || 'Beginner',
+          generateAudio: Boolean(book.generateAudio),
+          voiceGender: book.voiceGender || 'male',
+          epubUrl: book.epubUrl || null,
+          coverUrl: book.coverUrl || null,
+        }),
+      })
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '')
+        alert('Import from Project Gutenberg failed: ' + errText)
+        return
+      }
+      alert('Import started successfully. Your book will appear in the library.')
+      navigate('/read/library')
+    } catch (err) {
+      console.error('Failed to start Gutenberg import:', err)
+      alert('Failed to start Gutenberg import. Please try again.')
+    }
+  }, [user?.uid, activeLanguage, navigate])
 
   const handleAddActivity = async (activity) => {
     if (!user?.uid || !activeRoutineId) return
@@ -1729,56 +1779,33 @@ const Dashboard = () => {
                 <>
                   {libraryError ? <p className="error small">{libraryError}</p> : null}
 
-                  {/* Row 1: Three Action Cards */}
-                  <div className="home-grid-three">
-                    {/* Card 1: Generate */}
-                    <button
-                      className="home-card reading-action-card"
-                      onClick={() => setShowGenerateModal(true)}
-                    >
-                      <img src={generateIcon} alt="" className="reading-card-icon" />
-                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'generate')}</h3>
-                      <p className="reading-card-description">
-                        Generate study material in your target language, tailored to your level and interests.
-                      </p>
-                    </button>
+                  <ReadSubNav />
 
-                    {/* Divider */}
-                    <div className="home-grid-divider" />
+                  {readSubPage === 'discover' && (
+                    <div className="read-sub-page read-discover-page">
+                      <GutenbergSearchPanel
+                        activeLanguage={activeLanguage}
+                        onSelectBook={handleGutenbergSelect}
+                      />
+                    </div>
+                  )}
 
-                    {/* Card 2: Import */}
-                    <button
-                      className="home-card reading-action-card"
-                      onClick={() => setShowImportModal(true)}
-                    >
-                      <img src={importIcon} alt="" className="reading-card-icon" />
-                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'import')}</h3>
-                      <p className="reading-card-description">
-                        Import your own books and adapt them to your target language and level.
-                      </p>
-                    </button>
+                  {readSubPage === 'generate' && (
+                    <div className="read-sub-page read-form-page">
+                      <GenerateStoryPanel activeLanguage={activeLanguage} />
+                    </div>
+                  )}
 
-                    {/* Divider */}
-                    <div className="home-grid-divider" />
+                  {readSubPage === 'import' && (
+                    <div className="read-sub-page read-form-page">
+                      <ImportBookPanel activeLanguage={activeLanguage} />
+                    </div>
+                  )}
 
-                    {/* Card 3: Explore (Gutenberg) */}
-                    <button
-                      className="home-card reading-action-card"
-                      onClick={() => setShowGutenbergModal(true)}
-                    >
-                      <img src={exploreIcon} alt="" className="reading-card-icon" />
-                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'explore')}</h3>
-                      <p className="reading-card-description">
-                        Explore Gutenberg's vast library of classics, ready to be adapted to your level.
-                      </p>
-                    </button>
-                  </div>
-
-                  {/* Horizontal Divider */}
-                  <div className="home-row-divider" />
-
-                  {/* Row 2: Recent Books */}
-                  <div className="reading-shelf">
+                  {readSubPage === 'library' && (
+                    <div className="read-sub-page read-library-page">
+                      {/* Recent Books */}
+                      <div className="reading-shelf">
                     <div className="home-card-header">
                       <h3 className="home-card-title">{getCardHeader(activeLanguage, 'recent')}</h3>
                     </div>
@@ -2186,10 +2213,12 @@ const Dashboard = () => {
                     )}
                   </div>
 
-                  {/* Add Bookshelf */}
-                  <button className="add-bookshelf-btn">
-                    + Add bookshelf
-                  </button>
+                      {/* Add Bookshelf */}
+                      <button className="add-bookshelf-btn">
+                        + Add bookshelf
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -2407,63 +2436,6 @@ const Dashboard = () => {
         />
       )}
 
-      {/* Generate Story Modal */}
-      {showGenerateModal && (
-        <GenerateStoryPanel
-          activeLanguage={activeLanguage}
-          isModal
-          onClose={() => setShowGenerateModal(false)}
-        />
-      )}
-
-      {/* Import Book Modal */}
-      {showImportModal && (
-        <ImportBookPanel
-          activeLanguage={activeLanguage}
-          isModal
-          onClose={() => setShowImportModal(false)}
-        />
-      )}
-
-      {/* Gutenberg Search Modal */}
-      {showGutenbergModal && (
-        <GutenbergSearchPanel
-          activeLanguage={activeLanguage}
-          isModal
-          onClose={() => setShowGutenbergModal(false)}
-          onSelectBook={async (book) => {
-            setShowGutenbergModal(false)
-            try {
-              const response = await fetch('http://localhost:4000/api/import-gutenberg', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  uid: user?.uid || '',
-                  gutenbergId: book.id,
-                  title: book.title || 'Untitled',
-                  author: book.authorName || (book.authors?.[0]?.name || ''),
-                  originalLanguage: book.languages?.[0] === 'en' ? 'English' : 'English',
-                  outputLanguage: activeLanguage,
-                  level: book.level || 'Beginner',
-                  generateAudio: Boolean(book.generateAudio),
-                  voiceGender: book.voiceGender || 'male',
-                  epubUrl: book.epubUrl || null,
-                  coverUrl: book.coverUrl || null,
-                }),
-              })
-              if (!response.ok) {
-                const errText = await response.text().catch(() => '')
-                alert('Import from Project Gutenberg failed: ' + errText)
-                return
-              }
-              alert('Import started successfully. Your book will appear in the library.')
-            } catch (err) {
-              console.error('Failed to start Gutenberg import:', err)
-              alert('Failed to start Gutenberg import. Please try again.')
-            }
-          }}
-        />
-      )}
       </DashboardLayout>
     </>
   )

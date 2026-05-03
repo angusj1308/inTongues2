@@ -27579,3 +27579,71 @@ body:has(.cinema-page) {
   text-transform: none;
   letter-spacing: normal;
 }
+
+/* =====================================================================
+   Read tab sub-navigation (My Library / Discover / Generate / Import)
+   Persistent below the hero header; layered above the sub-page content.
+   ===================================================================== */
+.read-sub-nav {
+  display: flex;
+  gap: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0 1.25rem;
+  margin: 0 auto 1.5rem;
+  border-bottom: 1px solid #e7e5e4;
+  width: min(1320px, 100%);
+}
+
+.read-sub-nav-item {
+  font-family: var(--font-supporting);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #0f172a;
+  opacity: 0.45;
+  text-decoration: none;
+  padding: 0.35rem 0;
+  border-bottom: 2px solid transparent;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+
+.read-sub-nav-item:hover {
+  opacity: 0.8;
+}
+
+.read-sub-nav-item.is-active {
+  opacity: 1;
+  font-weight: 600;
+  border-bottom-color: #0f172a;
+}
+
+[data-theme='dark'] .read-sub-nav {
+  border-bottom-color: #44403c;
+}
+
+[data-theme='dark'] .read-sub-nav-item {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .read-sub-nav-item.is-active {
+  border-bottom-color: #fafaf9;
+}
+
+/* Sub-page shell: pure white surface */
+.read-sub-page {
+  background: #ffffff;
+  width: 100%;
+}
+
+/* Centred form pages (Generate, Import) */
+.read-form-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+.read-form-page .generate-story-panel,
+.read-form-page .import-book-panel {
+  padding: 0;
+}

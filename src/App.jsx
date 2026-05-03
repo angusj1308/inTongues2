@@ -95,6 +95,15 @@ const App = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/read" element={<Navigate to="/read/library" replace />} />
+      <Route
+        path="/read/:subPage"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/select-language"
         element={

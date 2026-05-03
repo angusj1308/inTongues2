@@ -27595,7 +27595,7 @@ body:has(.cinema-page) {
 
 .read-sub-nav-item {
   font-family: var(--font-supporting);
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   font-weight: 500;
   color: #0f172a;
   opacity: 0.45;

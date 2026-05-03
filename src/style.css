@@ -823,25 +823,35 @@ textarea {
   padding: 0.75rem 1rem 0;
   width: min(1320px, 100%);
   margin: 0 auto;
+}
+
+/* Full-bleed background + hairline rule for the sticky nav. The
+   pseudo extends edge-to-edge of the viewport while the row's grid
+   content stays constrained to 1320px. */
+.dashboard-header-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 50vw);
+  right: calc(50% - 50vw);
   background: var(--dashboard-surface-contrast, #ffffff);
   border-bottom: 1px solid transparent;
   transition: border-color 160ms ease;
+  z-index: -1;
+  pointer-events: none;
 }
 
-.dashboard-header-row.is-scrolled {
+.dashboard-header-row.is-scrolled::before {
   border-bottom-color: #e7e5e4;
 }
 
-[data-theme='dark'] .dashboard-header-row {
+[data-theme='dark'] .dashboard-header-row::before {
   background: #1c1917;
 }
 
-[data-theme='dark'] .dashboard-header-row.is-scrolled {
+[data-theme='dark'] .dashboard-header-row.is-scrolled::before {
   border-bottom-color: #44403c;
-}
-
-.dashboard-header-row::before {
-  content: '';
 }
 
 .dashboard-brand-section {

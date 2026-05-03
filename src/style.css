@@ -27739,7 +27739,14 @@ body:has(.cinema-page) {
   text-underline-offset: 4px;
 }
 
+.read-continue-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 .read-continue-progress-bar {
+  flex: 1;
   height: 2px;
   background: #e7e5e4;
   border-radius: 1px;
@@ -27762,7 +27769,6 @@ body:has(.cinema-page) {
 
 .read-continue-button {
   flex-shrink: 0;
-  align-self: center;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -27774,7 +27780,7 @@ body:has(.cinema-page) {
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  padding: 0.5rem 0;
+  padding: 0;
   cursor: pointer;
   transition: opacity 160ms ease, transform 160ms ease;
 }

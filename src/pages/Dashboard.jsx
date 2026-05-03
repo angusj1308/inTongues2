@@ -1876,21 +1876,23 @@ const Dashboard = () => {
                                 >
                                   {getStoryTitle(cb)}
                                 </button>
-                                <div className="read-continue-progress-bar" aria-hidden="true">
-                                  <div
-                                    className="read-continue-progress-fill"
-                                    style={{ width: `${pct}%` }}
-                                  />
+                                <div className="read-continue-progress-row">
+                                  <div className="read-continue-progress-bar" aria-hidden="true">
+                                    <div
+                                      className="read-continue-progress-fill"
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="read-continue-button"
+                                    onClick={() => handleOpenBook(cb)}
+                                  >
+                                    Resume <span className="read-continue-button-arrow" aria-hidden="true">→</span>
+                                  </button>
                                 </div>
                                 <p className="read-continue-meta">{metaParts.join(' · ')}</p>
                               </div>
-                              <button
-                                type="button"
-                                className="read-continue-button"
-                                onClick={() => handleOpenBook(cb)}
-                              >
-                                Resume <span className="read-continue-button-arrow" aria-hidden="true">→</span>
-                              </button>
                             </div>
                           </section>
                         )

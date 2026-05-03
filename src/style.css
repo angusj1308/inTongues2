@@ -99,8 +99,6 @@
    live-laid-out DOM from ~16k inline nodes to ~the few paragraphs in view. */
 .transcript-flow-track .transcript-flow-paragraph {
   display: block;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 96px;
 }
 
 .transcript-flow-track .transcript-flow-paragraph + .transcript-flow-paragraph {

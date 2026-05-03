@@ -826,10 +826,17 @@ textarea {
   margin: 0 auto;
 }
 
+/* Empty pseudo participates in grid auto-placement, occupying the
+   left 1fr column so <nav> lands in the centered auto column and
+   <div.dashboard-header-actions> lands in the right 1fr column. */
+.dashboard-header-row::before {
+  content: '';
+}
+
 /* Full-bleed background + hairline rule for the sticky nav. The
    pseudo extends edge-to-edge of the viewport while the row's grid
    content stays constrained to 1320px. */
-.dashboard-header-row::before {
+.dashboard-header-row::after {
   content: '';
   position: absolute;
   top: 0;
@@ -843,15 +850,15 @@ textarea {
   pointer-events: none;
 }
 
-.dashboard-header-row.is-scrolled::before {
+.dashboard-header-row.is-scrolled::after {
   border-bottom-color: #e7e5e4;
 }
 
-[data-theme='dark'] .dashboard-header-row::before {
+[data-theme='dark'] .dashboard-header-row::after {
   background: #1c1917;
 }
 
-[data-theme='dark'] .dashboard-header-row.is-scrolled::before {
+[data-theme='dark'] .dashboard-header-row.is-scrolled::after {
   border-bottom-color: #44403c;
 }
 

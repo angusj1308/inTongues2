@@ -51,9 +51,9 @@ const themeOptions = [
 
 const fontOptions = [
   {
-    id: 'eb-garamond',
-    label: 'EB Garamond',
-    fontFamily: "'EB Garamond', 'Times New Roman', serif",
+    id: 'lora',
+    label: 'Lora',
+    fontFamily: "'Lora', 'EB Garamond', 'Times New Roman', serif",
     fontWeight: 400,
     fontSize: '1.625rem',
   },

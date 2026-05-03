@@ -202,10 +202,44 @@
   background: none;
 }
 
-/* Same status palette for any TranscriptFlow surface (audiobook /
-   podcast). Cinema keeps its scoped rules above; this set covers the
-   audio player's transcript pane where the rules wouldn't otherwise
-   apply. Text-colour, not background, so it reads on a light backdrop. */
+/* Audio player extensive transcript: match the reader exactly. Light mode
+   paints the highlighter onto the word background; dark mode flips it onto
+   the text. Uses the reader's per-tone palette via CSS vars on the audio
+   page wrapper, so the hex values are identical to what the reader shows. */
+.listening-lab-page .transcript-flow-window .reader-word--highlighted[data-word-status='new'],
+.listening-lab-page .transcript-flow-window .reader-word--highlighted[data-word-status='unknown'] {
+  color: inherit;
+  background: var(--hlt-new);
+}
+
+.listening-lab-page .transcript-flow-window .reader-word--highlighted[data-word-status='recognised'] {
+  color: inherit;
+  background: var(--hlt-recognised);
+}
+
+.listening-lab-page .transcript-flow-window .reader-word--highlighted[data-word-status='familiar'] {
+  color: inherit;
+  background: var(--hlt-familiar);
+}
+
+[data-theme='dark'] .listening-lab-page .transcript-flow-window .reader-word--highlighted[data-word-status='new'],
+[data-theme='dark'] .listening-lab-page .transcript-flow-window .reader-word--highlighted[data-word-status='unknown'] {
+  color: var(--hlt-new);
+  background: none;
+}
+
+[data-theme='dark'] .listening-lab-page .transcript-flow-window .reader-word--highlighted[data-word-status='recognised'] {
+  color: var(--hlt-recognised);
+  background: none;
+}
+
+[data-theme='dark'] .listening-lab-page .transcript-flow-window .reader-word--highlighted[data-word-status='familiar'] {
+  color: var(--hlt-familiar);
+  background: none;
+}
+
+/* Other TranscriptFlow surfaces (e.g. cinema's floating panel) keep the
+   text-colour behaviour from before — those existed for dark video. */
 .transcript-flow-window .reader-word--highlighted[data-word-status='new'],
 .transcript-flow-window .reader-word--highlighted[data-word-status='unknown'] {
   color: var(--hlt-new);
@@ -9461,6 +9495,15 @@ body.active-pass-locked {
 .extensive-shell--split .extensive-pane-right .transcript-roller-window::before,
 .extensive-shell--split .extensive-pane-right .transcript-roller-window::after {
   display: none;
+}
+
+/* Match the reader's body type — Lora or Source Sans 3 (whichever the user
+   has selected in the reader), at the same size + weight, with the dark-mode
+   weight bump applied via the same --reader-font-weight var. */
+.listening-lab-page .extensive-shell--split .extensive-pane-right .transcript-flow-track,
+.listening-lab-page .extensive-shell--split .extensive-pane-right .transcript-flow-window {
+  font-family: var(--reader-font-family);
+  font-weight: var(--reader-font-weight, 400);
 }
 
 .extensive-pane-left,

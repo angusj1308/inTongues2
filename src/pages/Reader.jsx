@@ -29,6 +29,11 @@ import {
   DEFAULT_READER_PALETTE,
   resolveReaderPalette,
 } from '../constants/highlightColors'
+import {
+  READER_FONT_OPTIONS,
+  DEFAULT_READER_FONT,
+  resolveReaderFont,
+} from '../constants/readerFonts'
 
 const themeOptions = [
   {
@@ -49,22 +54,7 @@ const themeOptions = [
   },
 ]
 
-const fontOptions = [
-  {
-    id: 'lora',
-    label: 'Lora',
-    fontFamily: "'Lora', 'EB Garamond', 'Times New Roman', serif",
-    fontWeight: 400,
-    fontSize: '1.95rem',
-  },
-  {
-    id: 'source-sans-3',
-    label: 'Source Sans 3',
-    fontFamily: "'Source Sans 3', 'Atkinson Hyperlegible Next', 'Inter', system-ui, -apple-system, sans-serif",
-    fontWeight: 400,
-    fontSize: '1.95rem',
-  },
-]
+const fontOptions = READER_FONT_OPTIONS
 
 // Count words in text (for tracking words read)
 const countWords = (text) => {
@@ -189,7 +179,7 @@ const Reader = ({ initialMode }) => {
   const [fullAudioUrl, setFullAudioUrl] = useState('')
   const [hasFullAudio, setHasFullAudio] = useState(false)
   const [readerTheme, setReaderTheme] = useState('soft-white')
-  const [readerFont, setReaderFont] = useState('crimson-pro')
+  const [readerFont, setReaderFont] = useState(profile?.readerFont || DEFAULT_READER_FONT)
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
   const [readerMode, setReaderMode] = useState(
     () => initialMode || location.state?.readerMode || 'active'
@@ -1792,7 +1782,11 @@ const Reader = ({ initialMode }) => {
   const cycleFont = () => {
     const currentIndex = fontOptions.findIndex((option) => option.id === readerFont)
     const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % fontOptions.length
-    setReaderFont(fontOptions[nextIndex].id)
+    const nextId = fontOptions[nextIndex].id
+    setReaderFont(nextId)
+    updateProfile({ readerFont: nextId }).catch((err) => {
+      console.error('Failed to update reader font:', err)
+    })
   }
 
   const currentPaletteName = profile?.readerHighlightPalette || DEFAULT_READER_PALETTE

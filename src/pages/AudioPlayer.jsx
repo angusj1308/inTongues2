@@ -18,7 +18,14 @@ import ActiveMode from '../components/listen/ActiveMode'
 import TutorPanel from '../components/read/TutorPanel'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
-import { PALETTE_ORDER, DEFAULT_PALETTE, resolvePalette } from '../constants/highlightColors'
+import {
+  PALETTE_ORDER,
+  DEFAULT_PALETTE,
+  resolvePalette,
+  DEFAULT_READER_PALETTE,
+  resolveReaderPalette,
+} from '../constants/highlightColors'
+import { DEFAULT_READER_FONT, resolveReaderFont } from '../constants/readerFonts'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
@@ -2381,13 +2388,32 @@ const AudioPlayer = () => {
 
   const ambientColor = storyMeta.coverColor || ''
 
+  // Mirror the reader's palette + font on the audio player so the transcript
+  // looks identical (same hex per status, same body type). Reader persists
+  // both on the profile; we pick the light/dark shade based on the active
+  // theme and bump the weight by 100 in dark mode (same lift as the reader).
+  const readerPalette = resolveReaderPalette(profile?.readerHighlightPalette || DEFAULT_READER_PALETTE)
+  const readerPaletteShade = darkMode ? readerPalette.dark : readerPalette.light
+  const readerFont = resolveReaderFont(profile?.readerFont || DEFAULT_READER_FONT)
+  const readerFontWeight = darkMode ? readerFont.fontWeight + 100 : readerFont.fontWeight
+
+  const wrapperStyle = {
+    '--hlt-new': readerPaletteShade.new,
+    '--hlt-recognised': readerPaletteShade.recognised,
+    '--hlt-familiar': readerPaletteShade.familiar,
+    '--reader-font-family': readerFont.fontFamily,
+    '--reader-font-weight': readerFontWeight,
+    '--reader-font-size': readerFont.fontSize ?? '1rem',
+  }
+  if (ambientColor) wrapperStyle['--cover-color'] = ambientColor
+
   return (
     <div
       ref={listeningShellRef}
       className={`listening-lab-page listening-mode-${listeningMode} ${
         listeningMode === 'intensive' ? 'reader-intensive-active' : ''
       }`}
-      style={ambientColor ? { '--cover-color': ambientColor } : undefined}
+      style={wrapperStyle}
     >
       <div className="reader-main-shell">
         <div className="reader-hover-shell">

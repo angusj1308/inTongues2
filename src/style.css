@@ -1550,14 +1550,6 @@ textarea {
   color: #0f172a;
 }
 
-.dashboard-nav-button.dashboard-nav-gated {
-  opacity: 0.45;
-}
-
-.dashboard-nav-button.dashboard-nav-gated.active {
-  opacity: 1;
-}
-
 /* ========================================
    Development Gate (coming soon placeholder)
    ======================================== */

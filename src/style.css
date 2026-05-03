@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400&family=Atkinson+Hyperlegible+Next:wght@400..700&family=Crimson+Pro:wght@300;400;500&family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Libre+Franklin:wght@300;400;500;600&family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400&family=Atkinson+Hyperlegible+Next:wght@400..700&family=Crimson+Pro:wght@300;400;500&family=DM+Serif+Display:ital@0;1&family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Libre+Franklin:wght@300;400;500;600&family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
@@ -1024,7 +1024,7 @@ textarea {
   padding: 0 1.5rem;
   width: min(1320px, 100%);
   margin: 0 auto;
-  font-family: 'Garamond', serif;
+  font-family: 'DM Serif Display', 'Garamond', serif;
   color: inherit;
   flex-wrap: wrap;
 }
@@ -1037,7 +1037,7 @@ textarea {
   gap: 0.05rem;
   font-size: 4rem;
   font-weight: 300;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   color: inherit;
 }
 
@@ -1108,7 +1108,7 @@ textarea {
   border-radius: 999px;
   border: 1px solid #0f172a;
   background: #fff;
-  font-family: 'Garamond', serif;
+  font-family: 'DM Serif Display', 'Garamond', serif;
 }
 
 .menu-add {
@@ -1571,7 +1571,7 @@ textarea {
 }
 
 .development-gate-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 500;
   color: #0f172a;
@@ -1772,7 +1772,7 @@ textarea {
   font-size: 1.08rem;
   font-weight: 400;
   color: #0f172a;
-  font-family: 'Garamond', serif;
+  font-family: 'DM Serif Display', 'Garamond', serif;
 }
 
 .continue-card-progress {
@@ -1837,7 +1837,7 @@ textarea {
 }
 
 .book-tile-no-cover-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.1rem;
   font-weight: 500;
   color: #57534e;
@@ -1866,7 +1866,7 @@ textarea {
 }
 
 .book-tile-hover-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.1rem;
   font-weight: 500;
   color: #fff;
@@ -2058,7 +2058,7 @@ textarea {
 .listening-hub h3,
 .listening-hub .section-header h3,
 .listening-hub .section h3 {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
@@ -2102,7 +2102,7 @@ textarea {
 }
 
 .listen-card-title {
-  font-family: 'Garamond', serif;
+  font-family: 'DM Serif Display', 'Garamond', serif;
   font-size: 1.08rem;
   color: #0f172a;
   flex: 1;
@@ -2275,7 +2275,7 @@ textarea {
 }
 
 .spotify-collection-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.05rem;
   font-weight: 500;
   color: #0f172a;
@@ -2371,7 +2371,7 @@ textarea {
 }
 
 .spotify-tile-hover-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1rem;
   font-weight: 500;
   color: #fff;
@@ -2429,7 +2429,7 @@ textarea {
 }
 
 .spotify-track-title {
-  font-family: 'Garamond', serif;
+  font-family: 'DM Serif Display', 'Garamond', serif;
   font-size: 1rem;
   color: #0f172a;
 }
@@ -2566,7 +2566,7 @@ textarea {
 */
 
 .media-card-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.05rem;
   font-weight: 500;
   line-height: 1.3;
@@ -2765,7 +2765,7 @@ textarea {
 }
 
 .media-card-yt-hover-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1rem;
   font-weight: 500;
   color: #fff;
@@ -3263,7 +3263,7 @@ textarea {
 }
 
 .book-card-title {
-  font-family: 'Garamond', 'Times New Roman', serif;
+  font-family: 'DM Serif Display', 'Garamond', 'Times New Roman', serif;
   font-size: 1rem;
 }
 
@@ -3910,7 +3910,7 @@ textarea {
 }
 
 .reader-story-title {
-  font-family: 'Crimson Pro', Georgia, serif;
+  font-family: 'DM Serif Display', 'Crimson Pro', Georgia, serif;
   font-size: 2.5rem;
   font-weight: 400;
   text-align: center;
@@ -7436,7 +7436,7 @@ pre {
 }
 
 .login-brand {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 6rem;
   font-weight: 400;
   letter-spacing: -0.02em;
@@ -7455,7 +7455,7 @@ pre {
 }
 
 .login-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 600;
   color: #0f172a;
@@ -7650,7 +7650,7 @@ pre {
   cursor: pointer;
   text-align: left;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  font-family: 'Garamond', serif;
+  font-family: 'DM Serif Display', 'Garamond', serif;
 }
 
 .suggestion:hover {
@@ -9619,7 +9619,7 @@ body.active-pass-locked {
 }
 
 .active-story-title {
-  font-family: 'Garamond', 'Times New Roman', serif;
+  font-family: 'DM Serif Display', 'Garamond', 'Times New Roman', serif;
 }
 
 .active-title-divider,
@@ -13672,7 +13672,7 @@ body:has(.cinema-page) {
 }
 
 .review-deck-card-title {
-  font-family: 'Garamond', serif;
+  font-family: 'DM Serif Display', 'Garamond', serif;
   font-size: 1.1rem;
   line-height: 1.3;
   color: #0f172a;
@@ -17674,7 +17674,7 @@ body:has(.cinema-page) {
 }
 
 .import-modal-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 600;
   color: #0f172a;
@@ -17684,7 +17684,7 @@ body:has(.cinema-page) {
 }
 
 .generate-modal-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 600;
   color: #0f172a;
@@ -17818,7 +17818,7 @@ body:has(.cinema-page) {
 
 .import-input {
   padding: 0.65rem 0.85rem;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
   border: 1px solid #d6d3d1;
@@ -21886,7 +21886,7 @@ body:has(.cinema-page) {
 }
 
 .intensive-hub-item-title {
-  font-family: "EB Garamond", "Garamond", "Times New Roman", serif;
+  font-family: 'DM Serif Display', "EB Garamond", "Garamond", "Times New Roman", serif;
   font-size: 1rem;
   color: #0f172a;
   white-space: nowrap;
@@ -24388,7 +24388,7 @@ body:has(.cinema-page) {
 }
 
 .home-card-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
@@ -24526,7 +24526,7 @@ body:has(.cinema-page) {
 }
 
 .home-today-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1rem;
   font-weight: 600;
   color: #0f172a;
@@ -24906,7 +24906,7 @@ body:has(.cinema-page) {
 
 /* Section Title */
 .home-section-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
@@ -25315,7 +25315,7 @@ body:has(.cinema-page) {
 }
 
 .reading-continue-title-h {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.05rem;
   font-weight: 500;
   color: #0f172a;
@@ -25641,7 +25641,7 @@ body:has(.cinema-page) {
 }
 
 .reading-shelf-no-cover span {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 0.85rem;
   font-weight: 500;
   color: #57534e;
@@ -25671,7 +25671,7 @@ body:has(.cinema-page) {
 }
 
 .reading-shelf-hover-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.25rem;
   font-weight: 500;
   color: #fff;
@@ -25813,7 +25813,7 @@ body:has(.cinema-page) {
   border: 1px dashed #d6d3d1;
   border-radius: 0;
   color: #78716c;
-  font-family: 'EB Garamond', 'Crimson Pro', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', 'Crimson Pro', Georgia, serif;
   font-size: 0.95rem;
   font-weight: 400;
   letter-spacing: 0.03em;
@@ -26057,7 +26057,7 @@ body:has(.cinema-page) {
 }
 
 .routine-day-label {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 0.9rem;
   font-weight: 400;
   color: #78716c;
@@ -26376,7 +26376,7 @@ body:has(.cinema-page) {
 
 .settings-title {
   margin: 0;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
@@ -26457,7 +26457,7 @@ body:has(.cinema-page) {
 
 .settings-panel-title {
   margin: 0 0 0.5rem;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
@@ -26476,7 +26476,7 @@ body:has(.cinema-page) {
 
 .settings-section-title {
   margin: 0 0 1rem;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 0.85rem;
   font-weight: 600;
   color: #78716c;
@@ -26761,7 +26761,7 @@ body:has(.cinema-page) {
 }
 
 .gutenberg-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.75rem;
   font-weight: 600;
   color: #0f172a;
@@ -27040,7 +27040,7 @@ body:has(.cinema-page) {
 }
 
 .gutenberg-book-no-cover-small span {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 2.5rem;
   color: #78716c;
 }
@@ -27050,7 +27050,7 @@ body:has(.cinema-page) {
 }
 
 .gutenberg-book-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 0.95rem;
   font-weight: 600;
   color: #0f172a;
@@ -27162,7 +27162,7 @@ body:has(.cinema-page) {
 }
 
 .gutenberg-book-detail-title {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 600;
   color: #0f172a;

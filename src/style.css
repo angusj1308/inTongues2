@@ -1531,10 +1531,10 @@ textarea {
   border-radius: 0;
   background: transparent;
   color: #78716c;
-  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 450;
   font-size: 1.1rem;
-  text-transform: none;
+  text-transform: uppercase;
   letter-spacing: 0.05em;
   cursor: pointer;
   transition: color 0.15s ease;

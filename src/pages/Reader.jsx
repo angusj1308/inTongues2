@@ -58,9 +58,9 @@ const fontOptions = [
     fontSize: '1.625rem',
   },
   {
-    id: 'atkinson-hyperlegible',
-    label: 'Atkinson Hyperlegible',
-    fontFamily: "'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', 'Libre Franklin', 'Inter', system-ui, -apple-system, sans-serif",
+    id: 'source-sans-3',
+    label: 'Source Sans 3',
+    fontFamily: "'Source Sans 3', 'Atkinson Hyperlegible Next', 'Inter', system-ui, -apple-system, sans-serif",
     fontWeight: 400,
     fontSize: '1.35rem',
   },

@@ -100,15 +100,21 @@
    live-laid-out DOM from ~16k inline nodes to ~the few paragraphs in view. */
 .transcript-flow-track .transcript-flow-paragraph {
   display: block;
-  /* Skip layout/paint of off-screen paragraphs. Every paragraph also gets
-     an inline `contain-intrinsic-size` from JS based on its word count, so
-     the placeholder height stays close to the real laid-out height even
-     as the reader font / size changes. The fallback below is a one-line
-     baseline used only if the inline style is missing. */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 2.4em;
 }
 
+/* When the flow is virtualised (audio podcast / cinema), paragraphs are
+   absolutely-positioned children of the track. Their top is set inline
+   from the JS height model, so the natural inter-paragraph margin would
+   misalign them — the model bakes the gap into the measured height
+   instead. */
+.transcript-flow-track .transcript-flow-paragraph--virt {
+  margin: 0;
+  padding-bottom: 12px; /* the visual gap, included in the measured height */
+}
+
+/* Adjacent-sibling margin is a no-op for the virtualised, absolutely-
+   positioned paragraphs (their top is set inline) but stays here as a
+   default for any non-virtualised consumer of this class. */
 .transcript-flow-track .transcript-flow-paragraph + .transcript-flow-paragraph {
   margin-top: 0.6em;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { normaliseExpression } from '../../services/vocab'
 import WordTokenListening from '../listen/WordTokenListening'
 
@@ -22,17 +22,26 @@ const EyeIcon = ({ open }) => (
   </svg>
 )
 
-// Cinema transcript in "flow" mode: the whole transcript is one continuous
-// block of words that wraps to whatever width the panel currently is. The
-// auto-scroll is driven by word-level timing via requestAnimationFrame —
-// the scroll position interpolates between consecutive word positions so
-// the transcript glides under the viewport at the pace of the speaker
-// rather than snapping from segment to segment.
+// Real virtualisation. The transcript can be 8,000+ words on a long podcast;
+// rendering all of them at once turns into a 16k-DOM-node layout problem
+// that makes every style invalidation forced-reflow every word inline. Two
+// previous attempts used `content-visibility: auto` with a CSS placeholder
+// height — that lets the browser skip *paint* of off-screen content but the
+// DOM (and all its hit-testing / a11y / forced-layout cost) is still there,
+// AND the placeholder's stand-in size never matched real laid-out heights
+// once the reader fonts changed, so the auto-scroll lerp (which read
+// `offsetTop` of off-screen words) chased phantom positions.
 //
-// Sync / unsync / click-to-translate / selection-to-translate are all
-// preserved, same as the row-per-segment TranscriptRoller.
+// The fix here is structural: only the paragraphs in (or just above/below)
+// the viewport exist as DOM. Off-screen paragraphs are pure data in JS. The
+// scroll position is computed entirely from a JS height model, never from
+// `offsetTop` of off-screen elements — because off-screen elements don't
+// exist. The height model starts from a per-paragraph estimate (word count
+// × estimated words-per-line × line-height) and gets corrected to the real
+// height the first time each paragraph paints.
 
 const TERMINAL_PUNCTUATION = /[.!?…。！？]\s*$/
+const VISIBLE_BUFFER = 8 // paragraphs above/below the viewport to keep mounted
 
 const getDisplayStatus = (status) => {
   if (!status) return 'new'
@@ -42,9 +51,7 @@ const getDisplayStatus = (status) => {
 
 const isWordToken = (token) => /[\p{L}\p{N}]/u.test(token)
 
-// Flatten all segments into a single array of entries, each either a word
-// (with timing) or a boundary marker between segments (used to decide soft
-// paragraph breaks).
+// Flatten all segments into a single array of word/break entries.
 const buildFlowEntries = (segments) => {
   const entries = []
   segments.forEach((segment, segIdx) => {
@@ -62,31 +69,19 @@ const buildFlowEntries = (segments) => {
         segmentWords.push({ type: 'word', text, start, end, segIdx })
       }
     } else {
-      // Fallback: split segment text into tokens and distribute time evenly
       const tokens = (segment.text || '').split(/(\s+)/).filter(Boolean)
       const wordTokens = tokens.filter((t) => !/^\s+$/.test(t))
       const step = segDuration / Math.max(1, wordTokens.length)
       let cursor = segStart
       for (const token of tokens) {
         if (/^\s+$/.test(token)) continue
-        segmentWords.push({
-          type: 'word',
-          text: token,
-          start: cursor,
-          end: cursor + step,
-          segIdx,
-        })
+        segmentWords.push({ type: 'word', text: token, start: cursor, end: cursor + step, segIdx })
         cursor += step
       }
     }
 
     if (!segmentWords.length) return
-
     entries.push(...segmentWords)
-
-    // Soft paragraph break when the segment ended with terminal punctuation
-    // or between every segment if we want stronger visual rhythm. We go with
-    // terminal punctuation only — keeps related phrases on one run.
     const lastText = segmentWords[segmentWords.length - 1].text
     const isTerminal = TERMINAL_PUNCTUATION.test(lastText)
     entries.push({ type: 'break', soft: !isTerminal, segIdx })
@@ -94,9 +89,7 @@ const buildFlowEntries = (segments) => {
   return entries
 }
 
-// Find the active word index for a given time. Binary search — the rAF loop
-// calls this every frame and linear scan on a 2000-word transcript was the
-// largest remaining hot spot after the tracking-class fix.
+// Find the active word index for a given time. Binary search.
 const findActiveWordIdx = (words, time) => {
   if (!words.length) return -1
   if (time < words[0].start) return -1
@@ -108,14 +101,65 @@ const findActiveWordIdx = (words, time) => {
     else hi = mid - 1
   }
   if (time < words[lo].end) return lo
-  // We're past `words[lo].end`. With Scribe-style word timings (real silence
-  // between words), `time` lands in a between-words gap dozens of times per
-  // minute; returning words.length - 1 here would teleport activeIdx to the
-  // last word and strobe every tp-future word back to tp-past until the next
-  // real word starts. Keep `lo` — "the most recently-started word is still
-  // active". Cinema's gap-free synthesised timings only hit this branch when
-  // lo === words.length - 1 already, so its behaviour is bit-identical.
   return lo
+}
+
+// Group entries into per-paragraph slices, keyed by hard-break boundaries.
+// Each paragraph carries the slice of `entries` that renders inside it,
+// the global word-index range, and start/end times. wordCount drives the
+// initial height estimate before the paragraph mounts and gets measured.
+const buildParagraphs = (entries, words) => {
+  const paras = []
+  let currentEntries = []
+  let currentWordStart = -1
+  let currentWordEnd = -1
+  let currentTimeStart = Infinity
+  let currentTimeEnd = -Infinity
+  let wordCursor = 0
+
+  const flush = () => {
+    if (!currentEntries.length) return
+    if (currentWordStart < 0) {
+      // paragraph contains no real words (all-punctuation/break) — skip
+      currentEntries = []
+      currentTimeStart = Infinity
+      currentTimeEnd = -Infinity
+      return
+    }
+    paras.push({
+      index: paras.length,
+      entries: currentEntries,
+      wordStart: currentWordStart,
+      wordEnd: currentWordEnd,
+      wordCount: currentWordEnd - currentWordStart + 1,
+      startTime: currentTimeStart,
+      endTime: currentTimeEnd,
+    })
+    currentEntries = []
+    currentWordStart = -1
+    currentWordEnd = -1
+    currentTimeStart = Infinity
+    currentTimeEnd = -Infinity
+  }
+
+  for (const entry of entries) {
+    if (entry.type === 'break') {
+      if (!entry.soft) {
+        flush()
+      } else {
+        currentEntries.push(entry)
+      }
+      continue
+    }
+    const idx = wordCursor++
+    if (currentWordStart < 0) currentWordStart = idx
+    currentWordEnd = idx
+    if (entry.start < currentTimeStart) currentTimeStart = entry.start
+    if (entry.end > currentTimeEnd) currentTimeEnd = entry.end
+    currentEntries.push({ ...entry, idx })
+  }
+  flush()
+  return paras
 }
 
 const TranscriptFlow = ({
@@ -126,10 +170,6 @@ const TranscriptFlow = ({
   onSelectionTranslate,
   showWordStatus = false,
   currentTime = 0,
-  // Optional sample-accurate time getter. When provided, the rAF loop reads
-  // it every frame instead of relying on the 100 ms-polled `currentTime`
-  // prop. Lets short Scribe words (<100 ms) be tracked accurately on the
-  // audio side; cinema can keep passing only `currentTime` if it prefers.
   getCurrentTime,
   isSynced = true,
   onUserScroll,
@@ -138,18 +178,14 @@ const TranscriptFlow = ({
 }) => {
   const containerRef = useRef(null)
   const trackRef = useRef(null)
-  const wordRefs = useRef([]) // index → element
+  const wordRefs = useRef([]) // index → element (only populated for visible paragraphs)
   const programmaticScrollRef = useRef(false)
   const clearProgrammaticTimerRef = useRef(null)
-  const activeWordElRef = useRef(null)
   const currentTimeRef = useRef(currentTime)
   const getCurrentTimeRef = useRef(getCurrentTime)
 
-  // Cached ref setters so the callback identity stays stable across
-  // re-renders. Inline `ref={(el) => …}` creates a new function every
-  // render; React then fires the old one with null and the new one with
-  // the element — on a 2000-word transcript that's thousands of wasted
-  // invocations per re-render (e.g. when showWordStatus toggles).
+  // Cached ref setters — stable identity prevents thousands of unmount/mount
+  // ref callback churns when WordTokenListening re-renders.
   const wordRefSettersRef = useRef(new Map())
   const phraseRefSettersRef = useRef(new Map())
   const getWordRefSetter = useCallback((idx) => {
@@ -158,6 +194,9 @@ const TranscriptFlow = ({
     if (!setter) {
       setter = (el) => {
         if (el) wordRefs.current[idx] = el
+        else if (wordRefs.current[idx] && !wordRefs.current[idx].isConnected) {
+          wordRefs.current[idx] = null
+        }
       }
       cache.set(idx, setter)
     }
@@ -170,30 +209,21 @@ const TranscriptFlow = ({
     if (!setter) {
       setter = (el) => {
         if (!el) return
-        for (let k = startIdx; k <= endIdx; k++) {
-          wordRefs.current[k] = el
-        }
+        for (let k = startIdx; k <= endIdx; k++) wordRefs.current[k] = el
       }
       cache.set(key, setter)
     }
     return setter
   }, [])
+
   const [hasTopFade, setHasTopFade] = useState(false)
   const [hasBottomFade, setHasBottomFade] = useState(false)
   const [trackingEnabled, setTrackingEnabled] = useState(false)
   const trackedActiveIdxRef = useRef(-1)
 
-  useEffect(() => {
-    currentTimeRef.current = currentTime
-  }, [currentTime])
+  useEffect(() => { currentTimeRef.current = currentTime }, [currentTime])
+  useEffect(() => { getCurrentTimeRef.current = getCurrentTime }, [getCurrentTime])
 
-  useEffect(() => {
-    getCurrentTimeRef.current = getCurrentTime
-  }, [getCurrentTime])
-
-  // Single source of truth for "what time is it right now?" used by the rAF
-  // loop and the unsynced-effect alike. Prefers the sample-accurate getter
-  // when supplied, falls back to the 100 ms-polled prop otherwise.
   const readNow = useCallback(() => {
     const fn = getCurrentTimeRef.current
     if (typeof fn === 'function') {
@@ -203,13 +233,11 @@ const TranscriptFlow = ({
     return currentTimeRef.current
   }, [])
 
-  // Build the flat flow of entries. Words-only list used for scroll lookup.
+  // ===== Data model =====
   const entries = useMemo(() => buildFlowEntries(segments), [segments])
   const words = useMemo(() => entries.filter((e) => e.type === 'word'), [entries])
+  const paragraphs = useMemo(() => buildParagraphs(entries, words), [entries, words])
 
-  // Detected expression set (same as TranscriptRoller — multi-word phrases
-  // get the colour of the vocab entry). We match phrases at render time so
-  // the inline flow keeps them as a single WordTokenListening.
   const expressions = useMemo(() => {
     const userExpressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
@@ -220,360 +248,244 @@ const TranscriptFlow = ({
     return [...new Set([...userExpressions, ...detected])].sort((a, b) => b.length - a.length)
   }, [contentExpressions, vocabEntries])
 
-  // NOTE: don't reset wordRefs.current on every render. Ref callbacks only
-  // fire on mount / unmount; if we wiped the array each render, refs would
-  // stay empty after the first commit and the rAF loop would have no DOM
-  // elements to measure. We let refs repopulate naturally as words mount.
-
-  // Render the flow as paragraph-sized blocks. Each paragraph wrapper carries
-  // `content-visibility: auto` (CSS), so the browser skips layout/paint for
-  // paragraphs outside the viewport. On a long podcast (~16k inline nodes),
-  // this turns the 16k-wide layout problem into a ~700-wide one — only the
-  // visible paragraphs (plus a small render buffer the browser manages) pay
-  // the cost. Cinema's behaviour is identical: short transcripts have ~1
-  // paragraph anyway, the CSS optimisation is a no-op there.
-  const renderedFlow = useMemo(() => {
-    const paragraphs = []
-    let currentBlock = []
-    let currentBlockWordCount = 0
-
-    // Per-paragraph `contain-intrinsic-size` placeholder. We need this to
-    // be close to the real laid-out height — the original 96px constant
-    // was tuned for the smaller default font; once Lora/Source Sans at
-    // 1.95rem landed, real heights ballooned and the cached `offsetTop`
-    // values (used by the auto-scroll lerp) drifted. Estimating from word
-    // count keeps the placeholder within ~one line of reality across font
-    // sizes. ~12 words/line at 1.8 line-height + ~0.6em margin.
-    const estimateParagraphHeight = (wordCount) => {
-      const lines = Math.max(1, Math.ceil(wordCount / 12))
-      return `auto ${(lines * 1.8 + 0.6).toFixed(2)}em`
-    }
-
-    const flushParagraph = (key) => {
-      if (currentBlock.length === 0) return
-      paragraphs.push(
-        <div
-          key={`para-${key}`}
-          className="transcript-flow-paragraph"
-          style={{ containIntrinsicSize: estimateParagraphHeight(currentBlockWordCount) }}
-        >
-          {currentBlock}
-        </div>,
-      )
-      currentBlock = []
-      currentBlockWordCount = 0
-    }
-
-    // Pre-compute expression match ranges across the flat word sequence so
-    // a multi-word expression like "por favor" renders as a single token.
+  // Pre-compute global phrase consumption + spans so each paragraph render
+  // can look up phrase data O(1).
+  const { consumed, phraseByStart } = useMemo(() => {
     const lowerSequence = words.map((w) =>
       normaliseExpression(w.text.replace(/[^\p{L}\p{N}\s'-]/gu, '')),
     )
-
-    const consumed = new Array(words.length).fill(false)
-    const phraseSpans = [] // { startIdx, endIdx, text, status }
-
+    const consumedArr = new Array(words.length).fill(false)
+    const phraseSpans = []
     for (const phrase of expressions) {
       const parts = phrase.split(/\s+/)
       for (let i = 0; i <= words.length - parts.length; i++) {
         let match = true
         for (let j = 0; j < parts.length; j++) {
-          if (consumed[i + j] || lowerSequence[i + j] !== parts[j]) {
+          if (consumedArr[i + j] || lowerSequence[i + j] !== parts[j]) {
             match = false
             break
           }
         }
         if (match) {
-          const fullText = words
-            .slice(i, i + parts.length)
-            .map((w) => w.text)
-            .join(' ')
+          const fullText = words.slice(i, i + parts.length).map((w) => w.text).join(' ')
           const status = vocabEntries[phrase]?.status || 'new'
           phraseSpans.push({ startIdx: i, endIdx: i + parts.length - 1, text: fullText, status })
-          for (let j = 0; j < parts.length; j++) consumed[i + j] = true
+          for (let j = 0; j < parts.length; j++) consumedArr[i + j] = true
         }
       }
     }
-    const phraseByStart = new Map(phraseSpans.map((p) => [p.startIdx, p]))
+    const map = new Map(phraseSpans.map((p) => [p.startIdx, p]))
+    return { consumed: consumedArr, phraseByStart: map }
+  }, [words, expressions, vocabEntries])
 
-    let wordCursor = 0
-    entries.forEach((entry, entryIdx) => {
-      if (entry.type === 'break') {
-        if (!entry.soft) {
-          // Hard break = paragraph boundary. Close the current paragraph
-          // wrapper; the visual gap is now provided by paragraph margin.
-          flushParagraph(entryIdx)
-        } else {
-          currentBlock.push(<span key={`brk-${entryIdx}`}> </span>)
-        }
-        return
-      }
+  // ===== Height model =====
+  // Initial estimate from word count, refined to real measured height as
+  // each paragraph mounts. lineHeightPxRef holds the actually-measured
+  // line-height (sampled from a probe element) so estimates track whatever
+  // font / size the consumer happens to apply.
+  const heightsRef = useRef(new Map())
+  const offsetsRef = useRef([0]) // length = paragraphs.length + 1; offsets[i] = sum of heights[0..i-1]
+  const lineHeightPxRef = useRef(56) // ~Lora 1.95rem * 1.8; refined from real measurement
+  const wordsPerLineRef = useRef(10) // refined when first paragraph measures
+  const [layoutVersion, setLayoutVersion] = useState(0)
 
-      const idx = wordCursor
-      wordCursor += 1
-
-      if (consumed[idx]) {
-        // Either the start of a phrase (render it) or an internal word of
-        // one (skip — rendered by the phrase start).
-        const phrase = phraseByStart.get(idx)
-        if (!phrase) return
-        const startIdx = phrase.startIdx
-        const endIdx = phrase.endIdx
-        currentBlock.push(
-          <WordTokenListening
-            key={`w-${entryIdx}`}
-            text={phrase.text}
-            status={getDisplayStatus(phrase.status)}
-            language={language}
-            listeningMode="extensive"
-            enableHighlight={showWordStatus}
-            ref={getPhraseRefSetter(startIdx, endIdx)}
-          />,
-        )
-        currentBlock.push(<span key={`sp-${entryIdx}`}> </span>)
-        currentBlockWordCount += endIdx - startIdx + 1
-        return
-      }
-
-      const word = words[idx]
-      if (!isWordToken(word.text)) {
-        // Pure punctuation token — render as plain span, no status
-        currentBlock.push(<span key={`p-${entryIdx}`}>{word.text}</span>)
-        return
-      }
-
-      const normalised = normaliseExpression(word.text)
-      const entry2 = vocabEntries[normalised]
-      const status = getDisplayStatus(entry2?.status)
-
-      currentBlock.push(
-        <WordTokenListening
-          key={`w-${entryIdx}`}
-          text={word.text}
-          status={status}
-          language={language}
-          listeningMode="extensive"
-          enableHighlight={showWordStatus}
-          ref={getWordRefSetter(idx)}
-        />,
-      )
-      currentBlock.push(<span key={`sp-${entryIdx}`}> </span>)
-      currentBlockWordCount += 1
-    })
-
-    flushParagraph('end')
-    return paragraphs
-  }, [entries, words, expressions, vocabEntries, language, showWordStatus, getWordRefSetter, getPhraseRefSetter])
-
-  // Delegated click handler. Replaces the 2000-per-word onClick listeners
-  // with one on the track. onSelectionTranslate still flows through the
-  // existing panel-level onMouseUp (in TranscriptPanel), which is why we
-  // don't need a corresponding onMouseUp here.
-  //
-  // The third arg is the clicked word's rect. Downstream handlers position
-  // the word popup from it; event.currentTarget here is the track, not the
-  // word, so handlers can't derive the rect from the event alone.
-  const handleTrackClick = useCallback((event) => {
-    if (!onWordClick) return
-    const wordEl = event.target.closest('.reader-word')
-    if (!wordEl) return
-    const text = wordEl.getAttribute('data-word-text')
-    if (!text) return
-    const selection = typeof window !== 'undefined'
-      ? window.getSelection()?.toString()?.trim()
-      : ''
-    if (selection) return
-    onWordClick(text, event, wordEl.getBoundingClientRect())
-  }, [onWordClick])
-
-  // No passive active-word treatment. Subtitle parity: a word is only
-  // visually highlighted when the tracking toggle is on (past/active/future
-  // opacity classes). Kept as a noop placeholder so the existing call sites
-  // in the rAF loop and the unsynced effect don't need branching.
-  const updateActiveWord = useCallback(() => {}, [])
-
-  // Karaoke-style past/active/future tracking. When enabled, every word gets
-  // one of .reader-word--tp-past / --tp-active / --tp-future so CSS can dim
-  // past or future words.
-  //
-  // Performance note: the naive "clear all, write all on every call" approach
-  // did thousands of classList mutations per active-word transition on long
-  // transcripts, triggering enough style-recalc work to stutter video
-  // playback. We now only touch the range of indices whose state has
-  // actually changed since the previous apply — in the steady advancing
-  // case that's two elements per transition.
-  const lastAppliedIdxRef = useRef(-1)
-  const applyTrackingClasses = useCallback((activeIdx) => {
-    const refs = wordRefs.current
-    const prev = lastAppliedIdxRef.current
-
-    // Turning tracking off / no active word → wipe every applied class.
-    if (activeIdx < 0) {
-      if (prev < 0) return
-      const seen = new Set()
-      for (let i = 0; i < refs.length; i++) {
-        const el = refs[i]
-        if (!el || seen.has(el)) continue
-        seen.add(el)
-        el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
-      }
-      lastAppliedIdxRef.current = -1
-      return
-    }
-
-    // First apply (or resuming after a wipe) → set every element once.
-    if (prev < 0) {
-      for (let i = 0; i < refs.length; i++) {
-        const el = refs[i]
-        if (!el) continue
-        const state = i < activeIdx ? 'past' : i === activeIdx ? 'active' : 'future'
-        el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
-        el.classList.add(`reader-word--tp-${state}`)
-      }
-      lastAppliedIdxRef.current = activeIdx
-      return
-    }
-
-    if (prev === activeIdx) return
-
-    // Incremental: only indices in [min, max] changed category. Walking in
-    // index order preserves the existing last-write-wins behaviour for
-    // phrase spans (where multiple indices point at the same element).
-    const lo = Math.min(prev, activeIdx)
-    const hi = Math.max(prev, activeIdx)
-    for (let i = lo; i <= hi; i++) {
-      const el = refs[i]
-      if (!el) continue
-      const state = i < activeIdx ? 'past' : i === activeIdx ? 'active' : 'future'
-      el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
-      el.classList.add(`reader-word--tp-${state}`)
-    }
-    lastAppliedIdxRef.current = activeIdx
+  const estimateHeight = useCallback((wordCount) => {
+    const wpl = Math.max(1, wordsPerLineRef.current)
+    const lines = Math.max(1, Math.ceil(wordCount / wpl))
+    return lines * lineHeightPxRef.current + 12 // small inter-paragraph margin
   }, [])
 
-  // Apply / clear tracking as the toggle flips and as the active word moves.
-  // We also re-run on `showWordStatus` and vocab-driven render changes:
-  // WordTokenListening rebuilds its `className` string when those props
-  // change, which blows away the tp-past/active/future classes we apply via
-  // classList. Resetting `lastAppliedIdxRef` forces a full re-sweep so the
-  // tracking dim state survives the React re-render.
-  useEffect(() => {
-    if (!trackingEnabled) {
-      applyTrackingClasses(-1)
-      trackedActiveIdxRef.current = -1
-      return
-    }
-    lastAppliedIdxRef.current = -1
-    const idx = findActiveWordIdx(words, readNow())
-    trackedActiveIdxRef.current = idx
-    applyTrackingClasses(idx)
-  }, [trackingEnabled, words, showWordStatus, vocabEntries, applyTrackingClasses])
+  const getHeight = useCallback((idx) => {
+    const measured = heightsRef.current.get(idx)
+    if (measured != null) return measured
+    return estimateHeight(paragraphs[idx]?.wordCount || 0)
+  }, [estimateHeight, paragraphs])
 
-  // Build a cached list of "lines" — runs of words that share the same
-  // offsetTop. Each line knows its y, start time (first word), and (via
-  // lookup into the next line) where to scroll to next. Recomputed on
-  // mount and whenever the container resizes, since line wrapping is
-  // layout-dependent.
-  const linesRef = useRef([])
-  // Layout metrics that only change on resize / line recompute. Caching them
-  // here lets the rAF tick avoid forcing a synchronous layout pass every
-  // frame — only `scrollTop` is read live.
-  const layoutMetricsRef = useRef({ clientHeight: 0, scrollHeight: 0, maxScroll: 0 })
-  const refreshLayoutMetrics = useCallback(() => {
+  const rebuildOffsets = useCallback(() => {
+    const offs = new Array(paragraphs.length + 1)
+    offs[0] = 0
+    for (let i = 0; i < paragraphs.length; i++) {
+      offs[i + 1] = offs[i] + getHeight(i)
+    }
+    offsetsRef.current = offs
+  }, [paragraphs, getHeight])
+
+  // Rebuild offsets whenever paragraphs change (new transcript loaded).
+  useEffect(() => {
+    heightsRef.current = new Map()
+    rebuildOffsets()
+    setLayoutVersion((v) => v + 1)
+  }, [paragraphs, rebuildOffsets])
+
+  // ===== Visible range =====
+  // Binary search the offsets array for the first paragraph whose bottom is
+  // past `scrollTop`, and the last whose top is before `scrollTop+height`.
+  const computeVisibleRange = useCallback((scrollTop, viewportHeight) => {
+    const offs = offsetsRef.current
+    if (paragraphs.length === 0) return { first: 0, last: -1 }
+    // First visible: smallest i s.t. offs[i+1] > scrollTop
+    let lo = 0
+    let hi = paragraphs.length - 1
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1
+      if (offs[mid + 1] > scrollTop) hi = mid
+      else lo = mid + 1
+    }
+    const first = Math.max(0, lo - VISIBLE_BUFFER)
+    // Last visible: largest i s.t. offs[i] < scrollTop + viewportHeight
+    const bottom = scrollTop + viewportHeight
+    let lo2 = 0
+    let hi2 = paragraphs.length - 1
+    while (lo2 < hi2) {
+      const mid = (lo2 + hi2 + 1) >>> 1
+      if (offs[mid] < bottom) lo2 = mid
+      else hi2 = mid - 1
+    }
+    const last = Math.min(paragraphs.length - 1, lo2 + VISIBLE_BUFFER)
+    return { first, last }
+  }, [paragraphs])
+
+  const [visibleRange, setVisibleRange] = useState({ first: 0, last: 0 })
+
+  const recomputeVisibleRange = useCallback(() => {
     const container = containerRef.current
-    const track = trackRef.current
-    if (!container || !track) return
-    const clientHeight = container.clientHeight
-    const scrollHeight = track.scrollHeight
-    layoutMetricsRef.current = {
-      clientHeight,
-      scrollHeight,
-      maxScroll: Math.max(0, scrollHeight - clientHeight),
-    }
-  }, [])
-  const recomputeLines = useCallback(() => {
-    const lines = []
-    let current = null
-    for (let i = 0; i < words.length; i++) {
-      const el = wordRefs.current[i]
-      if (!el) continue
-      const y = el.offsetTop
-      if (!current || current.y !== y) {
-        current = { y, startTime: words[i].start }
-        lines.push(current)
-      }
-    }
-    // Annotate each line with the NEXT line's y + start time so the rAF
-    // loop can interpolate over the time window between them.
-    for (let i = 0; i < lines.length; i++) {
-      const next = lines[i + 1]
-      lines[i].nextY = next ? next.y : lines[i].y
-      lines[i].nextStartTime = next ? next.startTime : lines[i].startTime + 1
-    }
-    linesRef.current = lines
-    refreshLayoutMetrics()
-  }, [words, refreshLayoutMetrics])
+    if (!container) return
+    const next = computeVisibleRange(container.scrollTop, container.clientHeight)
+    setVisibleRange((prev) => {
+      if (prev.first === next.first && prev.last === next.last) return prev
+      return next
+    })
+  }, [computeVisibleRange])
 
+  // Initial range + on layoutVersion bumps (paragraphs changed, heights updated).
+  useLayoutEffect(() => {
+    recomputeVisibleRange()
+  }, [recomputeVisibleRange, layoutVersion])
+
+  // Scroll-driven range updates, throttled to one per rAF.
   useEffect(() => {
-    // Run after paint so offsetTop is populated.
-    const timer = setTimeout(() => {
-      recomputeLines()
-      refreshLayoutMetrics()
-    }, 50)
-    return () => clearTimeout(timer)
-  }, [recomputeLines, refreshLayoutMetrics])
+    const container = containerRef.current
+    if (!container) return undefined
+    let pending = false
+    const onScroll = () => {
+      if (pending) return
+      pending = true
+      requestAnimationFrame(() => {
+        pending = false
+        recomputeVisibleRange()
+      })
+    }
+    container.addEventListener('scroll', onScroll, { passive: true })
+    return () => container.removeEventListener('scroll', onScroll)
+  }, [recomputeVisibleRange])
 
+  // ResizeObserver on the container — recompute visible range when the panel
+  // resizes (e.g. user toggles split mode).
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver(() => recomputeVisibleRange())
+    ro.observe(container)
+    return () => ro.disconnect()
+  }, [recomputeVisibleRange])
+
+  // ===== Per-paragraph measurement =====
+  // ResizeObserver on every mounted paragraph. When real height differs from
+  // the cached value, update heightsRef + rebuild offsets + bump version so
+  // the view re-renders with the new positions.
+  const paraRefsRef = useRef(new Map()) // el → idx
+  const measureROResultRef = useRef(null)
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined') return undefined
-    if (!containerRef.current) return undefined
-    const ro = new ResizeObserver(() => {
-      recomputeLines()
-      refreshLayoutMetrics()
+    const ro = new ResizeObserver((entries) => {
+      let dirty = false
+      let firstSampleSeen = false
+      for (const entry of entries) {
+        const el = entry.target
+        const idx = paraRefsRef.current.get(el)
+        if (idx == null) continue
+        const h = entry.contentRect.height + 12 // approximate margin
+        // First-paragraph sample: refine our estimator constants.
+        if (!firstSampleSeen && idx === 0 && paragraphs[0]) {
+          const measuredLines = Math.max(1, Math.round(entry.contentRect.height / lineHeightPxRef.current))
+          if (paragraphs[0].wordCount > 0 && measuredLines > 0) {
+            wordsPerLineRef.current = Math.max(4, Math.round(paragraphs[0].wordCount / measuredLines))
+          }
+          firstSampleSeen = true
+        }
+        const cur = heightsRef.current.get(idx)
+        if (cur == null || Math.abs(cur - h) > 0.5) {
+          heightsRef.current.set(idx, h)
+          dirty = true
+        }
+      }
+      if (dirty) {
+        rebuildOffsets()
+        setLayoutVersion((v) => v + 1)
+      }
     })
-    ro.observe(containerRef.current)
-    // Also observe the track — when a webfont swaps in (Lora / Source Sans
-    // load asynchronously), the container box stays the same but the inner
-    // track reflows to a different height. Without this, recomputeLines
-    // doesn't re-run and the auto-scroll lerps to stale line offsets.
-    if (trackRef.current) ro.observe(trackRef.current)
-    return () => ro.disconnect()
-  }, [recomputeLines, refreshLayoutMetrics])
+    measureROResultRef.current = ro
+    return () => {
+      ro.disconnect()
+      measureROResultRef.current = null
+    }
+  }, [paragraphs, rebuildOffsets])
 
-  // One extra recompute after webfonts finish loading. document.fonts.ready
-  // resolves once any pending @font-face downloads are settled; the
-  // ResizeObserver above usually catches the resulting reflow, but some
-  // browsers don't fire it for inner-only height changes — this is the belt.
+  const setParaRef = useCallback((idx) => (el) => {
+    const ro = measureROResultRef.current
+    const map = paraRefsRef.current
+    if (el) {
+      map.set(el, idx)
+      if (ro) ro.observe(el)
+    }
+    // No explicit unobserve on null — the element is detached and the RO
+    // entry will go away at next GC. paraRefsRef cleans naturally as old
+    // elements lose all references.
+  }, [])
+
+  // Sample line-height once on mount from an anonymous probe so estimates
+  // start close to reality (we read computed line-height in px).
   useEffect(() => {
-    if (typeof document === 'undefined' || !document.fonts?.ready) return undefined
-    let cancelled = false
-    document.fonts.ready.then(() => {
-      if (cancelled) return
-      recomputeLines()
-      refreshLayoutMetrics()
-    })
-    return () => { cancelled = true }
-  }, [recomputeLines, refreshLayoutMetrics])
+    const container = containerRef.current
+    if (!container) return
+    const probe = document.createElement('div')
+    probe.style.cssText = 'position:absolute;visibility:hidden;height:auto;width:auto;'
+    probe.textContent = 'Mg'
+    container.appendChild(probe)
+    const cs = getComputedStyle(probe)
+    const lh = parseFloat(cs.lineHeight)
+    if (Number.isFinite(lh) && lh > 0) lineHeightPxRef.current = lh
+    container.removeChild(probe)
+  }, [])
 
-  // Line-anchored scroll. We don't care about individual words — we
-  // interpolate scroll position over a whole line's time span, then
-  // smoothly lerp the current scrollTop toward that target. Result: the
-  // scroll moves continuously throughout a line (proportional to how
-  // much of the line's time has elapsed), and only speeds up / slows
-  // down at line boundaries — where speaker rhythm naturally changes.
+  // ===== Auto-scroll lerp =====
+  // Find the active paragraph from the time, look up its top from offsetsRef,
+  // interpolate within the paragraph's time span, lerp scrollTop. No DOM
+  // reads except scrollTop (the lerp's input).
+  const findActiveParagraphIdx = useCallback((time) => {
+    if (paragraphs.length === 0) return -1
+    let lo = 0
+    let hi = paragraphs.length - 1
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >>> 1
+      if (paragraphs[mid].startTime <= time) lo = mid
+      else hi = mid - 1
+    }
+    return lo
+  }, [paragraphs])
+
   useEffect(() => {
     if (!isSynced) return undefined
-    if (!words.length) return undefined
+    if (!paragraphs.length) return undefined
 
     let rafId = null
     const tick = () => {
       const container = containerRef.current
-      const track = trackRef.current
-      if (!container || !track) {
+      if (!container) {
         rafId = requestAnimationFrame(tick)
         return
       }
       const time = readNow()
-      updateActiveWord(time)
 
       if (trackingEnabled) {
         const idx = findActiveWordIdx(words, time)
@@ -583,32 +495,22 @@ const TranscriptFlow = ({
         }
       }
 
-      const lines = linesRef.current
-      if (lines.length) {
-        // Binary search for the line whose startTime ≤ time < next.
-        let lo = 0
-        let hi = lines.length - 1
-        while (lo < hi) {
-          const mid = (lo + hi + 1) >>> 1
-          if (lines[mid].startTime <= time) lo = mid
-          else hi = mid - 1
-        }
-        const lineIdx = lo
-        const line = lines[lineIdx]
-        const span = Math.max(0.001, line.nextStartTime - line.startTime)
-        const progress = Math.max(0, Math.min(1, (time - line.startTime) / span))
-        const interpY = line.y + (line.nextY - line.y) * progress
-        // Layout metrics are cached and refreshed only on resize / line
-        // recompute. Reading them every rAF tick used to force a synchronous
-        // layout pass through the full inline-flow tree (~16k DOM nodes on a
-        // long podcast); on a short cinema transcript it was free, but at
-        // podcast scale it dominated the frame budget.
-        const { clientHeight, maxScroll } = layoutMetricsRef.current
-        const rawTarget = interpY - clientHeight * 0.4
+      const paraIdx = findActiveParagraphIdx(time)
+      if (paraIdx >= 0) {
+        const para = paragraphs[paraIdx]
+        const offs = offsetsRef.current
+        const top = offs[paraIdx]
+        const height = getHeight(paraIdx)
+        const span = Math.max(0.001, para.endTime - para.startTime)
+        const progress = Math.max(0, Math.min(1, (time - para.startTime) / span))
+        const interpY = top + height * progress
+
+        const viewportH = container.clientHeight
+        const totalH = offs[offs.length - 1]
+        const maxScroll = Math.max(0, totalH - viewportH)
+        const rawTarget = interpY - viewportH * 0.4
         const target = Math.max(0, Math.min(maxScroll, rawTarget))
 
-        // Gentle lerp for extra smoothness on top of the continuous target.
-        // `scrollTop` still has to be read live — it's the lerp's input.
         const current = container.scrollTop
         const next = current + (target - current) * 0.1
 
@@ -630,13 +532,74 @@ const TranscriptFlow = ({
         clearProgrammaticTimerRef.current = null
       }
     }
-  }, [isSynced, words, updateActiveWord, syncToken, trackingEnabled, applyTrackingClasses])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSynced, paragraphs, words, syncToken, trackingEnabled, findActiveParagraphIdx, getHeight, readNow])
 
-  // When unsynced, keep the active-word highlight tracking the audio even
-  // though scroll doesn't follow — user still sees where they are.
+  // ===== Tracking class application =====
+  const lastAppliedIdxRef = useRef(-1)
+  const applyTrackingClasses = useCallback((activeIdx) => {
+    const refs = wordRefs.current
+    const prev = lastAppliedIdxRef.current
+    if (activeIdx < 0) {
+      if (prev < 0) return
+      const seen = new Set()
+      for (let i = 0; i < refs.length; i++) {
+        const el = refs[i]
+        if (!el || seen.has(el)) continue
+        seen.add(el)
+        el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
+      }
+      lastAppliedIdxRef.current = -1
+      return
+    }
+    if (prev < 0) {
+      for (let i = 0; i < refs.length; i++) {
+        const el = refs[i]
+        if (!el) continue
+        const state = i < activeIdx ? 'past' : i === activeIdx ? 'active' : 'future'
+        el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
+        el.classList.add(`reader-word--tp-${state}`)
+      }
+      lastAppliedIdxRef.current = activeIdx
+      return
+    }
+    if (prev === activeIdx) return
+    const lo = Math.min(prev, activeIdx)
+    const hi = Math.max(prev, activeIdx)
+    for (let i = lo; i <= hi; i++) {
+      const el = refs[i]
+      if (!el) continue
+      const state = i < activeIdx ? 'past' : i === activeIdx ? 'active' : 'future'
+      el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
+      el.classList.add(`reader-word--tp-${state}`)
+    }
+    lastAppliedIdxRef.current = activeIdx
+  }, [])
+
+  useEffect(() => {
+    if (!trackingEnabled) {
+      applyTrackingClasses(-1)
+      trackedActiveIdxRef.current = -1
+      return
+    }
+    lastAppliedIdxRef.current = -1
+    const idx = findActiveWordIdx(words, readNow())
+    trackedActiveIdxRef.current = idx
+    applyTrackingClasses(idx)
+  }, [trackingEnabled, words, showWordStatus, vocabEntries, applyTrackingClasses, readNow])
+
+  // When new paragraphs scroll in, their words enter the DOM with no tracking
+  // class. Re-sweep on visible-range changes so they pick up the current
+  // active state.
+  useEffect(() => {
+    if (!trackingEnabled) return
+    lastAppliedIdxRef.current = -1
+    applyTrackingClasses(trackedActiveIdxRef.current)
+  }, [visibleRange, trackingEnabled, applyTrackingClasses])
+
+  // ===== Unsynced highlight =====
   useEffect(() => {
     if (isSynced) return
-    updateActiveWord(currentTime)
     if (trackingEnabled) {
       const idx = findActiveWordIdx(words, currentTime)
       if (idx !== trackedActiveIdxRef.current) {
@@ -644,39 +607,41 @@ const TranscriptFlow = ({
         applyTrackingClasses(idx)
       }
     }
-  }, [isSynced, currentTime, updateActiveWord, trackingEnabled, words, applyTrackingClasses])
+  }, [isSynced, currentTime, trackingEnabled, words, applyTrackingClasses])
 
-  // Scroll listener: manage fade-in/out hints only. User-vs-programmatic
-  // disambiguation is done in a separate effect below via input events, so
-  // this handler doesn't need to guess which kind of scroll just happened.
+  // ===== Click delegation =====
+  const handleTrackClick = useCallback((event) => {
+    if (!onWordClick) return
+    const wordEl = event.target.closest('.reader-word')
+    if (!wordEl) return
+    const text = wordEl.getAttribute('data-word-text')
+    if (!text) return
+    const selection = typeof window !== 'undefined'
+      ? window.getSelection()?.toString()?.trim()
+      : ''
+    if (selection) return
+    onWordClick(text, event, wordEl.getBoundingClientRect())
+  }, [onWordClick])
+
+  // ===== Fade hints + user-scroll detection =====
   useEffect(() => {
     const container = containerRef.current
     if (!container) return undefined
-
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container
       const threshold = 2
       setHasTopFade(scrollTop > threshold)
       setHasBottomFade(scrollTop + clientHeight < scrollHeight - threshold)
     }
-
     container.addEventListener('scroll', handleScroll)
     handleScroll()
-
     return () => container.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Break sync the moment the user tries to scroll the transcript. We listen
-  // on raw input events (wheel / touch / scroll-related keys) instead of the
-  // scroll event because the auto-scroll rAF loop writes scrollTop every
-  // frame and would otherwise drown out any "was this scroll from the user?"
-  // heuristic. These input events are only fired by real users, never by the
-  // programmatic scrollTop assignments in the sync loop.
   useEffect(() => {
     if (!onUserScroll) return undefined
     const container = containerRef.current
     if (!container) return undefined
-
     const SCROLL_KEYS = new Set([
       'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ',
     ])
@@ -684,12 +649,10 @@ const TranscriptFlow = ({
     const handleKey = (event) => {
       if (SCROLL_KEYS.has(event.key)) onUserScroll()
     }
-
     container.addEventListener('wheel', handleUserInput, { passive: true })
     container.addEventListener('touchstart', handleUserInput, { passive: true })
     container.addEventListener('touchmove', handleUserInput, { passive: true })
     container.addEventListener('keydown', handleKey)
-
     return () => {
       container.removeEventListener('wheel', handleUserInput)
       container.removeEventListener('touchstart', handleUserInput)
@@ -697,6 +660,69 @@ const TranscriptFlow = ({
       container.removeEventListener('keydown', handleKey)
     }
   }, [onUserScroll])
+
+  // ===== Render =====
+  // Render each visible paragraph's entries as inline children. Word/phrase
+  // refs land in wordRefs only for visible words; the auto-scroll math
+  // doesn't depend on them, so off-screen words being absent from refs
+  // is fine. Tracking classes are applied via the effect above.
+  const renderParagraphChildren = useCallback((paragraph) => {
+    const nodes = []
+    paragraph.entries.forEach((entry, i) => {
+      if (entry.type === 'break') {
+        // soft break inside a paragraph — just a space
+        nodes.push(<span key={`brk-${paragraph.index}-${i}`}> </span>)
+        return
+      }
+      const idx = entry.idx
+      if (consumed[idx]) {
+        const phrase = phraseByStart.get(idx)
+        if (!phrase) return
+        nodes.push(
+          <WordTokenListening
+            key={`w-${paragraph.index}-${i}`}
+            text={phrase.text}
+            status={getDisplayStatus(phrase.status)}
+            language={language}
+            listeningMode="extensive"
+            enableHighlight={showWordStatus}
+            ref={getPhraseRefSetter(phrase.startIdx, phrase.endIdx)}
+          />,
+        )
+        nodes.push(<span key={`sp-${paragraph.index}-${i}`}> </span>)
+        return
+      }
+      if (!isWordToken(entry.text)) {
+        nodes.push(<span key={`p-${paragraph.index}-${i}`}>{entry.text}</span>)
+        return
+      }
+      const normalised = normaliseExpression(entry.text)
+      const v = vocabEntries[normalised]
+      const status = getDisplayStatus(v?.status)
+      nodes.push(
+        <WordTokenListening
+          key={`w-${paragraph.index}-${i}`}
+          text={entry.text}
+          status={status}
+          language={language}
+          listeningMode="extensive"
+          enableHighlight={showWordStatus}
+          ref={getWordRefSetter(idx)}
+        />,
+      )
+      nodes.push(<span key={`sp-${paragraph.index}-${i}`}> </span>)
+    })
+    return nodes
+  }, [consumed, phraseByStart, vocabEntries, language, showWordStatus, getWordRefSetter, getPhraseRefSetter])
+
+  const visibleParagraphs = []
+  for (let i = visibleRange.first; i <= visibleRange.last; i++) {
+    const para = paragraphs[i]
+    if (!para) continue
+    visibleParagraphs.push(para)
+  }
+
+  const totalHeight = offsetsRef.current[offsetsRef.current.length - 1] || 0
 
   return (
     <div
@@ -714,8 +740,27 @@ const TranscriptFlow = ({
         <EyeIcon open={trackingEnabled} />
       </button>
       <div className="transcript-roller" ref={containerRef}>
-        <div className="transcript-flow-track" ref={trackRef} onClick={handleTrackClick}>
-          {renderedFlow}
+        <div
+          className="transcript-flow-track"
+          ref={trackRef}
+          onClick={handleTrackClick}
+          style={{ height: totalHeight, position: 'relative' }}
+        >
+          {visibleParagraphs.map((para) => (
+            <div
+              key={para.index}
+              ref={setParaRef(para.index)}
+              className="transcript-flow-paragraph transcript-flow-paragraph--virt"
+              style={{
+                position: 'absolute',
+                top: offsetsRef.current[para.index],
+                left: 0,
+                right: 0,
+              }}
+            >
+              {renderParagraphChildren(para)}
+            </div>
+          ))}
         </div>
       </div>
     </div>

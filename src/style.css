@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400&family=Atkinson+Hyperlegible+Next:wght@400..700&family=Crimson+Pro:wght@300;400;500&family=DM+Serif+Display:ital@0;1&family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Libre+Franklin:wght@300;400;500;600&family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400&family=Atkinson+Hyperlegible+Next:wght@400..700&family=Crimson+Pro:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=DM+Serif+Display:ital@0;1&family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Libre+Franklin:wght@300;400;500;600&family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
@@ -15,6 +15,7 @@
   --dashboard-surface-contrast: #ffffff;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-supporting: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   /* Highlight palette fallbacks (Terracotta default, light + dark variants).
      AuthProvider overrides --hlt-{new,recognised,familiar}-{light,dark} on
      document.documentElement when profile.highlightPalette changes. The
@@ -27492,4 +27493,82 @@ body:has(.cinema-page) {
 
 [data-theme='dark'] .gutenberg-confirm-btn:hover {
   background: #44403c !important;
+}
+
+/* =====================================================================
+   Supporting display text — DM Sans, sentence case
+   Slogans, descriptions, settings/form labels, hints, errors,
+   sentence-style buttons, captions. Curated; eyebrow-style micro-labels
+   and tag/badge chips intentionally excluded.
+   ===================================================================== */
+.dashboard-tagline,
+.reading-card-description,
+.ui-text,
+.gutenberg-subtitle,
+.import-modal-subtitle,
+.login-subtitle,
+.speak-mode-subtitle,
+.speak-mode-description,
+.settings-panel-description,
+.settings-section-description,
+.media-show-description,
+.media-result-description,
+.media-episode-detail-description,
+.level-description,
+.length-description,
+.score-row-description,
+.media-brand-subtitle,
+.media-search-row-subtitle,
+.media-album-tile-caption,
+.media-search-caption,
+.form-label,
+.media-modal-field-label,
+.login-form label,
+.lang-menu-label,
+.gutenberg-wizard-label,
+.gutenberg-wizard-summary,
+.import-label-text,
+.input-helper,
+.progress-hint,
+.reader-generating-hint,
+.reader-intensive-helper,
+.media-section-hint,
+.tutor-history-hint,
+.tutor-call-hint,
+.import-hint,
+.error,
+.error-banner,
+.error-state,
+.error-item,
+.error-fix,
+.error-header,
+.error-issue,
+.gutenberg-error,
+.speaking-error,
+.media-search-error,
+.floating-recording-error,
+.reader-generation-error,
+.pronunciation-page-error,
+.audio-recorder-error,
+.analysis-error,
+.media-modal-error,
+.media-pin-error,
+.cinema-error-message,
+.tutor-call-error,
+.tutor-chat-error,
+.tutor-error,
+.routine-builder-error,
+.writing-editor-error,
+.login-error,
+.login-button,
+.gutenberg-quick-import-btn,
+.translate-popup-status-button,
+.translate-popup-tutor-button,
+.review-status-button,
+.cinema-word-popup-status-btn,
+.cinema-word-popup-tutor-btn,
+.muted {
+  font-family: var(--font-supporting);
+  text-transform: none;
+  letter-spacing: normal;
 }

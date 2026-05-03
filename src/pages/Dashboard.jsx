@@ -2007,9 +2007,6 @@ const Dashboard = () => {
                     )}
                   </div>
 
-                  {/* Horizontal Divider */}
-                  <div className="home-row-divider" />
-
                   {/* Row 3: All Books */}
                   <div className="reading-shelf">
                     <div className="home-card-header">

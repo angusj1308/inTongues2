@@ -27630,6 +27630,13 @@ body:has(.cinema-page) {
   width: 100%;
 }
 
+/* Library page: stack shelves with breathing room — no divider rules */
+.read-library-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
 /* Centred form pages (Generate, Import) */
 .read-form-page {
   max-width: 600px;

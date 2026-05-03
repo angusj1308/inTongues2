@@ -27653,3 +27653,10 @@ body:has(.cinema-page) {
 .read-form-page .import-book-panel {
   padding: 0;
 }
+
+/* Top nav buttons keep uppercase even when also tagged .ui-text (which
+   the supporting-text rule above otherwise resets to text-transform: none). */
+.dashboard-nav-button.ui-text {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

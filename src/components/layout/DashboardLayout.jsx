@@ -87,6 +87,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(null) // language being confirmed for reset
   const [resetting, setResetting] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode')
     return saved ? JSON.parse(saved) : false
@@ -211,10 +212,19 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Toggle is-scrolled on the sticky top nav so the hairline rule
+  // appears only past scroll 0.
+  useEffect(() => {
+    const onScroll = () => setIsScrolled(window.scrollY > 0)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
     <div className="page dashboard-page">
       <header className="dashboard-header dashboard-header-minimal">
-        <div className="dashboard-header-row">
+        <div className={`dashboard-header-row${isScrolled ? ' is-scrolled' : ''}`}>
           <nav className="dashboard-nav" aria-label="Dashboard navigation">
             {DASHBOARD_TABS.map((tab) => (
               <button

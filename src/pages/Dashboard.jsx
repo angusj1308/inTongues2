@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore'
+import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc, getDoc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { computePagesWithFontLoading } from '../utils/pagination'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
 import ListeningHub from '../components/listen/ListeningHub'
@@ -1016,6 +1016,14 @@ const Dashboard = () => {
   const handleOpenBook = (book) => {
     if (!book?.id) return
 
+    if (user?.uid) {
+      const collectionType = book.isGeneratedBook ? 'generatedBooks' : 'stories'
+      const bookRef = doc(db, 'users', user.uid, collectionType, book.id)
+      updateDoc(bookRef, { lastOpenedAt: serverTimestamp() }).catch((err) =>
+        console.error('Failed to stamp lastOpenedAt:', err),
+      )
+    }
+
     const languageForReader = resolveSupportedLanguageLabel(book.language || activeLanguage, '')
     const readerPath = languageForReader
       ? `/reader/${encodeURIComponent(languageForReader)}/${book.id}`
@@ -1592,7 +1600,19 @@ const Dashboard = () => {
 
   const inProgressBooks =
     items.filter((item) => Number.isFinite(item.progress) && item.progress > 0 && item.progress < 100) || []
-  const yourRecentBooks = items.slice(0, 8)
+  const toMillis = (ts) => {
+    if (!ts) return 0
+    if (typeof ts === 'number') return ts
+    if (typeof ts.toMillis === 'function') return ts.toMillis()
+    if (ts.seconds) return ts.seconds * 1000
+    const parsed = Date.parse(ts)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  const yourRecentBooks = items
+    .filter((book) => toMillis(book.lastOpenedAt) > 0)
+    .slice()
+    .sort((a, b) => toMillis(b.lastOpenedAt) - toMillis(a.lastOpenedAt))
+    .slice(0, 8)
   const allBooks = items
   const generatedBooks =
     items.filter((item) => item.sourceType === 'generated' || item.storyType === 'generated') || []

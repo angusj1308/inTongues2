@@ -968,6 +968,15 @@ const Dashboard = () => {
     if (isReadRoute && activeTab !== 'read') setActiveTab('read')
   }, [isReadRoute, activeTab])
 
+  // If we land on the Read tab without a /read/* URL (e.g. returning
+  // from the reader with initialTab='read' in location state), redirect
+  // to /read/library so a sub-page actually renders.
+  useEffect(() => {
+    if (activeTab === 'read' && !isReadRoute) {
+      navigate('/read/library', { replace: true })
+    }
+  }, [activeTab, isReadRoute, navigate])
+
   const handleGutenbergSelect = useCallback(async (book) => {
     try {
       const response = await fetch('http://localhost:4000/api/import-gutenberg', {

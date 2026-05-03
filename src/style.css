@@ -784,7 +784,7 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 0;
+  padding: 1rem 0 0;
   background: #ffffff;
   min-height: 100vh;
 }
@@ -807,9 +807,10 @@ textarea {
   background: #1c1917;
 }
 
-/* Minimal header layout */
+/* Minimal header layout — now contains only the masthead since the
+   sticky nav row was lifted out into .dashboard-page directly. */
 .dashboard-header-minimal {
-  padding: 1rem 0 calc(1.75rem - 0.25cm);
+  padding: 1.5rem 0 calc(1.75rem - 0.25cm);
   gap: 1.5rem;
 }
 

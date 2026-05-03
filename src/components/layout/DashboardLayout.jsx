@@ -223,8 +223,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
 
   return (
     <div className="page dashboard-page">
-      <header className="dashboard-header dashboard-header-minimal">
-        <div className={`dashboard-header-row${isScrolled ? ' is-scrolled' : ''}`}>
+      <div className={`dashboard-header-row${isScrolled ? ' is-scrolled' : ''}`}>
           <nav className="dashboard-nav" aria-label="Dashboard navigation">
             {DASHBOARD_TABS.map((tab) => (
               <button
@@ -296,7 +295,8 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
           </div>
         </div>
 
-        {/* Centered brand below nav */}
+      <header className="dashboard-header dashboard-header-minimal">
+        {/* Masthead */}
         <div className="dashboard-brand-section">
           <button
             className="dashboard-brand-center"

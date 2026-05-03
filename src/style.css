@@ -27630,24 +27630,24 @@ body:has(.cinema-page) {
   width: 100%;
 }
 
-/* Library page: stack shelves with breathing room — no divider rules.
-   The wrapper gap is reduced by 0.25cm because each shelf label below
-   adds 0.25cm of margin-top — net inter-shelf distance is unchanged. */
+/* Library page: stack shelves with breathing room — no divider rules. */
 .read-library-page {
   display: flex;
   flex-direction: column;
-  gap: calc(2.5rem - 0.25cm);
+  gap: 2.5rem;
 }
 
 /* Library shelf labels (Continue Reading, Recent, All Books) sit
    beneath the sub-nav in hierarchy: smaller, lighter, quieter.
-   Margin-top + margin-bottom are offset by 0.25cm so the label drops
-   closer to its own shelf without changing inter-shelf spacing. */
+   Each label is shifted down 0.5cm via offsetting margin-top and
+   margin-bottom — adds 0.5cm above the label and removes 0.5cm
+   below it, so the label sits closer to its own shelf while the
+   total inter-shelf gap is preserved. */
 .read-library-page .home-card-title {
   font-size: 1.1rem;
   font-weight: 400;
   letter-spacing: 0.02em;
-  margin: 0.25cm 0 calc(0.85rem - 0.25cm);
+  margin: 0.5cm 0 calc(0.85rem - 0.5cm);
 }
 
 /* Continue Reading — single-card hero at the top of My Library */

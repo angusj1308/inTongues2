@@ -1889,7 +1889,7 @@ const Dashboard = () => {
                                 className="read-continue-button"
                                 onClick={() => handleOpenBook(cb)}
                               >
-                                Resume
+                                Resume <span className="read-continue-button-arrow" aria-hidden="true">→</span>
                               </button>
                             </div>
                           </section>

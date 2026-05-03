@@ -89,7 +89,7 @@ export const READER_PALETTES = {
   yellow: {
     label: 'Yellow',
     light: { new: '#F5D547', recognised: '#F5E27A', familiar: '#F8EDB0' },
-    dark: { new: '#FFE94A', recognised: '#F5D547', familiar: '#F5E27A' },
+    dark: { new: '#F5C518', recognised: '#F5D547', familiar: '#F5E27A' },
   },
   pink: {
     label: 'Pink',

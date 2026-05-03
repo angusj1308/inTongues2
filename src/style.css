@@ -100,6 +100,13 @@
    live-laid-out DOM from ~16k inline nodes to ~the few paragraphs in view. */
 .transcript-flow-track .transcript-flow-paragraph {
   display: block;
+  /* Skip layout/paint of off-screen paragraphs. Every paragraph also gets
+     an inline `contain-intrinsic-size` from JS based on its word count, so
+     the placeholder height stays close to the real laid-out height even
+     as the reader font / size changes. The fallback below is a one-line
+     baseline used only if the inline style is missing. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2.4em;
 }
 
 .transcript-flow-track .transcript-flow-paragraph + .transcript-flow-paragraph {

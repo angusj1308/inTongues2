@@ -235,15 +235,33 @@ const TranscriptFlow = ({
   const renderedFlow = useMemo(() => {
     const paragraphs = []
     let currentBlock = []
+    let currentBlockWordCount = 0
+
+    // Per-paragraph `contain-intrinsic-size` placeholder. We need this to
+    // be close to the real laid-out height — the original 96px constant
+    // was tuned for the smaller default font; once Lora/Source Sans at
+    // 1.95rem landed, real heights ballooned and the cached `offsetTop`
+    // values (used by the auto-scroll lerp) drifted. Estimating from word
+    // count keeps the placeholder within ~one line of reality across font
+    // sizes. ~12 words/line at 1.8 line-height + ~0.6em margin.
+    const estimateParagraphHeight = (wordCount) => {
+      const lines = Math.max(1, Math.ceil(wordCount / 12))
+      return `auto ${(lines * 1.8 + 0.6).toFixed(2)}em`
+    }
 
     const flushParagraph = (key) => {
       if (currentBlock.length === 0) return
       paragraphs.push(
-        <div key={`para-${key}`} className="transcript-flow-paragraph">
+        <div
+          key={`para-${key}`}
+          className="transcript-flow-paragraph"
+          style={{ containIntrinsicSize: estimateParagraphHeight(currentBlockWordCount) }}
+        >
           {currentBlock}
         </div>,
       )
       currentBlock = []
+      currentBlockWordCount = 0
     }
 
     // Pre-compute expression match ranges across the flat word sequence so
@@ -313,6 +331,7 @@ const TranscriptFlow = ({
           />,
         )
         currentBlock.push(<span key={`sp-${entryIdx}`}> </span>)
+        currentBlockWordCount += endIdx - startIdx + 1
         return
       }
 
@@ -339,6 +358,7 @@ const TranscriptFlow = ({
         />,
       )
       currentBlock.push(<span key={`sp-${entryIdx}`}> </span>)
+      currentBlockWordCount += 1
     })
 
     flushParagraph('end')

@@ -809,7 +809,7 @@ textarea {
 
 /* Minimal header layout */
 .dashboard-header-minimal {
-  padding: 1rem 0 1.75rem;
+  padding: 1rem 0 calc(1.75rem - 0.25cm);
   gap: 1.5rem;
 }
 
@@ -829,7 +829,7 @@ textarea {
 .dashboard-brand-section {
   width: min(1320px, 100%);
   margin: 0 auto;
-  padding: 0.25rem 1rem 0.25rem;
+  padding: calc(0.25rem + 0.25cm) 1rem 0.25rem;
 }
 
 .dashboard-brand-center {

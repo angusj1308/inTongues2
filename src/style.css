@@ -27758,7 +27758,12 @@ body:has(.cinema-page) {
 }
 
 .read-continue-author-name {
-  color: #78716c;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.9rem;
+  font-weight: 400;
+  color: #0f172a;
+  line-height: 1.15;
+  letter-spacing: normal;
 }
 
 .read-continue-title {
@@ -27841,12 +27846,12 @@ body:has(.cinema-page) {
   transition: transform 160ms ease;
 }
 
-[data-theme='dark'] .read-continue-title {
+[data-theme='dark'] .read-continue-title,
+[data-theme='dark'] .read-continue-author-name {
   color: #fafaf9;
 }
 
-[data-theme='dark'] .read-continue-eyebrow,
-[data-theme='dark'] .read-continue-author-name {
+[data-theme='dark'] .read-continue-eyebrow {
   color: #a8a29e;
 }
 

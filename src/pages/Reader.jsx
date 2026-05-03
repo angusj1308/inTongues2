@@ -2196,7 +2196,8 @@ const Reader = ({ initialMode }) => {
         '--reader-text': activeTheme.text,
         '--reader-gutter': activeTheme.gutter ?? 'rgba(0, 0, 0, 0.08)',
         '--reader-font-family': activeFont.fontFamily,
-        '--reader-font-weight': activeFont.fontWeight,
+        '--reader-font-weight':
+          activeTheme?.tone === 'dark' ? activeFont.fontWeight + 100 : activeFont.fontWeight,
         '--reader-font-size': activeFont.fontSize ?? '1rem',
         // Reader-only highlight palette — overrides the document-root vars
         // set by AuthProvider (which stay tuned for the listener/cinema).

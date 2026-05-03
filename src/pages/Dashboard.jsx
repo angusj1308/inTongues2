@@ -1853,7 +1853,7 @@ const Dashboard = () => {
                         metaParts.push(`${pct}% read`)
                         return (
                           <section className="read-continue-section" aria-label="Continue reading">
-                            <h2 className="read-continue-header">Continue reading</h2>
+                            <h2 className="home-card-title">Continue Reading</h2>
                             <div className="read-continue-card">
                               <button
                                 type="button"

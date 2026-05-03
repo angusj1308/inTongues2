@@ -863,7 +863,7 @@ textarea {
   font-weight: 400;
   color: #78716c;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .dashboard-header-minimal .dashboard-brand {
@@ -1520,7 +1520,7 @@ textarea {
   font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 450;
   font-size: 1.1rem;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
   cursor: pointer;
   transition: color 0.15s ease;
@@ -2060,7 +2060,7 @@ textarea {
   font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
 }
 
@@ -6723,7 +6723,7 @@ html.reader-active body {
   font-weight: 700;
   font-size: 0.75rem;
   letter-spacing: 0.05em;
-  text-transform: uppercase;
+  text-transform: none;
   font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
@@ -7343,7 +7343,7 @@ html.reader-active body {
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-size: 1.75rem;
   font-weight: 700;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.08em;
   color: var(--reader-text, #0f172a);
   margin-bottom: 1rem;
@@ -8664,7 +8664,7 @@ pre {
 .active-stage-transcript-header {
   font-size: 0.75rem;
   letter-spacing: 0.16em;
-  text-transform: uppercase;
+  text-transform: none;
   color: rgba(15, 23, 42, 0.6);
   text-align: center;
 }
@@ -17676,7 +17676,7 @@ body:has(.cinema-page) {
   font-size: 1.5rem;
   font-weight: 600;
   color: #0f172a;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
   margin: 0 0 0.5rem;
 }
@@ -17686,7 +17686,7 @@ body:has(.cinema-page) {
   font-size: 1.5rem;
   font-weight: 600;
   color: #0f172a;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
 }
 
@@ -17717,7 +17717,7 @@ body:has(.cinema-page) {
   margin: 0;
   font-weight: 600;
   font-size: 0.95rem;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.04em;
   color: #44403c;
 }
@@ -18813,7 +18813,7 @@ body:has(.cinema-page) {
   font-size: 0.8125rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.6);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
 }
 
@@ -18857,7 +18857,7 @@ body:has(.cinema-page) {
   font-size: 0.75rem;
   font-weight: 500;
   color: #8e8ea0;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
 }
 
@@ -19745,7 +19745,7 @@ body:has(.cinema-page) {
   font-size: 0.75rem;
   font-weight: 600;
   color: #78716c;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
 }
 
@@ -21829,7 +21829,7 @@ body:has(.cinema-page) {
   font-size: 0.8rem;
   font-weight: 600;
   color: #57534e;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.025em;
 }
 
@@ -22096,7 +22096,7 @@ body:has(.cinema-page) {
   margin: 0 0 0.75rem;
   color: #78716c;
   font-size: 0.875rem;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
 }
 
@@ -24390,7 +24390,7 @@ body:has(.cinema-page) {
   font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
   margin: 0 0 1rem;
 }
@@ -24528,7 +24528,7 @@ body:has(.cinema-page) {
   font-size: 1rem;
   font-weight: 600;
   color: #0f172a;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
   margin: 0 0 0.75rem;
 }
@@ -24908,7 +24908,7 @@ body:has(.cinema-page) {
   font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
   margin: 0 0 1rem;
 }
@@ -26478,7 +26478,7 @@ body:has(.cinema-page) {
   font-size: 0.85rem;
   font-weight: 600;
   color: #78716c;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
 }
 
@@ -26764,7 +26764,7 @@ body:has(.cinema-page) {
   font-weight: 600;
   color: #0f172a;
   margin: 0 0 0.25rem 0;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
 }
 

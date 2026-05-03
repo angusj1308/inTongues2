@@ -62,7 +62,7 @@ const fontOptions = [
     label: 'Source Sans 3',
     fontFamily: "'Source Sans 3', 'Atkinson Hyperlegible Next', 'Inter', system-ui, -apple-system, sans-serif",
     fontWeight: 400,
-    fontSize: '1.35rem',
+    fontSize: '1.55rem',
   },
 ]
 

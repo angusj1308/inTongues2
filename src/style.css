@@ -27637,6 +27637,172 @@ body:has(.cinema-page) {
   gap: 2.5rem;
 }
 
+/* Continue Reading — single-card hero at the top of My Library */
+.read-continue-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.read-continue-header {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin: 0;
+}
+
+.read-continue-card {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: #ffffff;
+  border: 1px solid #e7e5e4;
+  border-radius: 4px;
+}
+
+.read-continue-cover {
+  flex-shrink: 0;
+  width: 96px;
+  height: 144px;
+  background: linear-gradient(135deg, #d6d3d1, #a8a29e);
+  border: none;
+  padding: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.read-continue-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.read-continue-cover-fallback {
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 0.85rem;
+  color: #ffffff;
+  text-align: center;
+  padding: 0.5rem;
+  line-height: 1.2;
+}
+
+.read-continue-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.read-continue-author {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin: 0;
+}
+
+.read-continue-title {
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+  color: #0f172a;
+  margin: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  line-height: 1.15;
+}
+
+.read-continue-title:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.read-continue-progress-bar {
+  height: 2px;
+  background: #e7e5e4;
+  border-radius: 1px;
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.read-continue-progress-fill {
+  height: 100%;
+  background: #0f172a;
+  transition: width 200ms ease;
+}
+
+.read-continue-meta {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.8rem;
+  color: #78716c;
+  margin: 0;
+}
+
+.read-continue-button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0.7rem 1.5rem;
+  cursor: pointer;
+  border-radius: 9999px;
+  transition: background 160ms ease;
+}
+
+.read-continue-button:hover {
+  background: #2a3346;
+}
+
+[data-theme='dark'] .read-continue-card {
+  background: #1c1917;
+  border-color: #44403c;
+}
+
+[data-theme='dark'] .read-continue-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .read-continue-progress-bar {
+  background: #44403c;
+}
+
+[data-theme='dark'] .read-continue-progress-fill {
+  background: #fafaf9;
+}
+
+[data-theme='dark'] .read-continue-button {
+  background: #fafaf9;
+  color: #0f172a;
+}
+
+[data-theme='dark'] .read-continue-button:hover {
+  background: #ffffff;
+}
+
 /* Centred form pages (Generate, Import) */
 .read-form-page {
   max-width: 600px;

@@ -1623,6 +1623,14 @@ const Dashboard = () => {
     .sort((a, b) => toMillis(b.lastOpenedAt) - toMillis(a.lastOpenedAt))
     .slice(0, 8)
   const allBooks = items
+  // Most recently opened in-progress book (started but not finished).
+  const continueReadingBook = items
+    .filter((book) => {
+      const p = Number(book.progress) || 0
+      return p > 0 && p < 100 && toMillis(book.lastOpenedAt) > 0
+    })
+    .slice()
+    .sort((a, b) => toMillis(b.lastOpenedAt) - toMillis(a.lastOpenedAt))[0] || null
   const generatedBooks =
     items.filter((item) => item.sourceType === 'generated' || item.storyType === 'generated') || []
   const adaptationBooks =
@@ -1833,6 +1841,61 @@ const Dashboard = () => {
 
                   {readSubPage === 'library' && (
                     <div className="read-sub-page read-library-page">
+                      {continueReadingBook && (() => {
+                        const cb = continueReadingBook
+                        const pct = Math.max(0, Math.min(100, Math.round(Number(cb.progress) || 0)))
+                        const totalPages = getPageCount(cb)
+                        const pagesLeft = totalPages > 0
+                          ? Math.max(0, Math.round(totalPages * (100 - pct) / 100))
+                          : 0
+                        const metaParts = []
+                        if (totalPages > 0) metaParts.push(`${pagesLeft} pages left`)
+                        metaParts.push(`${pct}% read`)
+                        return (
+                          <section className="read-continue-section" aria-label="Continue reading">
+                            <h2 className="read-continue-header">Continue reading</h2>
+                            <div className="read-continue-card">
+                              <button
+                                type="button"
+                                className="read-continue-cover"
+                                onClick={() => handleOpenBook(cb)}
+                                aria-label={`Open ${getStoryTitle(cb)}`}
+                              >
+                                {cb.coverImageUrl ? (
+                                  <img src={cb.coverImageUrl} alt="" />
+                                ) : (
+                                  <span className="read-continue-cover-fallback">{getStoryTitle(cb)}</span>
+                                )}
+                              </button>
+                              <div className="read-continue-body">
+                                {cb.author && <p className="read-continue-author">{cb.author}</p>}
+                                <button
+                                  type="button"
+                                  className="read-continue-title"
+                                  onClick={() => handleOpenBook(cb)}
+                                >
+                                  {getStoryTitle(cb)}
+                                </button>
+                                <div className="read-continue-progress-bar" aria-hidden="true">
+                                  <div
+                                    className="read-continue-progress-fill"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <p className="read-continue-meta">{metaParts.join(' · ')}</p>
+                              </div>
+                              <button
+                                type="button"
+                                className="read-continue-button"
+                                onClick={() => handleOpenBook(cb)}
+                              >
+                                Resume
+                              </button>
+                            </div>
+                          </section>
+                        )
+                      })()}
+
                       {/* Recent Books */}
                       <div className="reading-shelf">
                     <div className="home-card-header">

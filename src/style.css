@@ -1544,6 +1544,7 @@ textarea {
 
 .dashboard-nav-button.active {
   color: #0f172a;
+  font-weight: 550;
 }
 
 .dashboard-nav-button:hover {

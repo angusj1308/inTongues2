@@ -3870,7 +3870,7 @@ textarea {
 }
 
 .reader-content-column {
-  max-width: 900px;
+  max-width: 1080px;
   margin: 0 auto;
   padding-bottom: 4rem;
 }

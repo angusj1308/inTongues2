@@ -55,14 +55,14 @@ const fontOptions = [
     label: 'Lora',
     fontFamily: "'Lora', 'EB Garamond', 'Times New Roman', serif",
     fontWeight: 400,
-    fontSize: '1.625rem',
+    fontSize: '1.95rem',
   },
   {
     id: 'source-sans-3',
     label: 'Source Sans 3',
     fontFamily: "'Source Sans 3', 'Atkinson Hyperlegible Next', 'Inter', system-ui, -apple-system, sans-serif",
     fontWeight: 400,
-    fontSize: '1.625rem',
+    fontSize: '1.95rem',
   },
 ]
 

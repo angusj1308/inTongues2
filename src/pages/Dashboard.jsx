@@ -15,6 +15,7 @@ import GutenbergSearchPanel from '../components/read/GutenbergSearchPanel'
 import ReadSubNav from '../components/read/ReadSubNav'
 import DiscoverDoors from '../components/read/DiscoverDoors'
 import NewShelfBuilder from '../components/read/NewShelfBuilder'
+import { mockBooksForLanguage } from '../data/mockBooks'
 import { prefetchPopularBooks } from '../services/gutenberg'
 import ReviewModal from '../components/review/ReviewModal'
 import RoutineBuilder from '../components/home/RoutineBuilder'
@@ -1077,7 +1078,7 @@ const Dashboard = () => {
   }
 
   const handleOpenBook = (book) => {
-    if (!book?.id) return
+    if (!book?.id || book.isMock) return
 
     if (user?.uid) {
       const collectionType = book.isGeneratedBook ? 'generatedBooks' : 'stories'
@@ -1671,12 +1672,19 @@ const Dashboard = () => {
     const parsed = Date.parse(ts)
     return Number.isFinite(parsed) ? parsed : 0
   }
-  const yourRecentBooks = items
+  // Mock-cover entries are merged into the library views (Recent +
+  // All Books) only — Continue Reading and Firestore-backed flows
+  // still use the real `items` array.
+  const libraryItems = useMemo(
+    () => [...items, ...mockBooksForLanguage(activeLanguage)],
+    [items, activeLanguage],
+  )
+  const yourRecentBooks = libraryItems
     .filter((book) => toMillis(book.lastOpenedAt) > 0)
     .slice()
     .sort((a, b) => toMillis(b.lastOpenedAt) - toMillis(a.lastOpenedAt))
     .slice(0, 8)
-  const allBooks = items
+  const allBooks = libraryItems
   // Most recently opened in-progress book (started but not finished).
   const continueReadingBook = items
     .filter((book) => {

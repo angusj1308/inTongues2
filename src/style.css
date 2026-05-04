@@ -24453,7 +24453,7 @@ body:has(.cinema-page) {
 }
 
 .home-card-title {
-  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-family: var(--font-supporting);
   font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
@@ -27708,13 +27708,10 @@ body:has(.cinema-page) {
   gap: 2.5rem;
 }
 
-/* Library shelf labels (Recent, All Books). Chrome serif voice =
-   Cormorant Garamond. DM Serif Display is reserved for book voice
-   (covers, Continue Reading title/author). Margin offset drops the
-   label 0.5cm closer to its shelf without changing inter-shelf gap. */
+/* Library shelf labels (Recent, All Books). Inherit font from base
+   .home-card-title (DM Sans). Margin offset drops the label 0.5cm
+   closer to its shelf without changing inter-shelf gap. */
 .read-library-page .home-card-title {
-  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
-  font-weight: 600;
   margin: 0.5cm 0 calc(1rem - 0.5cm);
 }
 

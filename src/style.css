@@ -27939,6 +27939,118 @@ body:has(.cinema-page) {
   padding: 0;
 }
 
+/* =====================================================================
+   Discover — Three Doors hub
+   Landing mode renders three big editorial doors; compact mode is a
+   horizontal nav that persists across the door sub-pages.
+   ===================================================================== */
+.read-discover-page {
+  width: 100%;
+}
+
+.discover-doors--landing {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4rem;
+  padding: 6rem 6rem 4rem;
+  align-items: start;
+}
+
+.discover-door--landing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0;
+  background: none;
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.discover-door--landing .discover-door-label {
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 3.5rem;
+  font-weight: 500;
+  line-height: 1.05;
+  color: #1c1a17;
+  margin: 0;
+}
+
+.discover-door--landing .discover-door-rule {
+  display: block;
+  width: 32px;
+  height: 1px;
+  background: #1c1a17;
+  margin: 0.25rem 0 0.25rem;
+}
+
+.discover-door--landing .discover-door-description {
+  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #78716c;
+  margin: 0;
+  max-width: 30ch;
+}
+
+[data-theme='dark'] .discover-door--landing .discover-door-label {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .discover-door--landing .discover-door-rule {
+  background: #fafaf9;
+}
+
+[data-theme='dark'] .discover-door--landing .discover-door-description {
+  color: #a8a29e;
+}
+
+/* Compact mode: persistent horizontal nav at the top of door sub-pages */
+.read-discover-door-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  padding: 2rem 1rem 0;
+}
+
+.discover-doors--compact {
+  display: flex;
+  align-items: baseline;
+  gap: 2.5rem;
+  padding: 0;
+}
+
+.discover-door--compact {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.discover-door--compact .discover-door-label {
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 500;
+  line-height: 1;
+  color: #1c1a17;
+  opacity: 0.4;
+  transition: opacity 160ms ease;
+}
+
+.discover-door--compact:hover .discover-door-label {
+  opacity: 0.7;
+}
+
+.discover-door--compact.is-active .discover-door-label {
+  opacity: 1;
+}
+
+[data-theme='dark'] .discover-door--compact .discover-door-label {
+  color: #fafaf9;
+}
+
 /* Top nav buttons keep uppercase even when also tagged .ui-text (which
    the supporting-text rule above otherwise resets to text-transform: none). */
 .dashboard-nav-button.ui-text {

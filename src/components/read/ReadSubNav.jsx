@@ -1,10 +1,8 @@
 import { NavLink } from 'react-router-dom'
 
 const ITEMS = [
-  { to: '/read/library', label: 'My Library' },
-  { to: '/read/discover', label: 'Discover' },
-  { to: '/read/generate', label: 'Generate' },
-  { to: '/read/import', label: 'Import' },
+  { to: '/read/library', label: 'My Library', match: 'exact' },
+  { to: '/read/discover', label: 'Discover', match: 'prefix' },
 ]
 
 export default function ReadSubNav() {
@@ -14,10 +12,10 @@ export default function ReadSubNav() {
         <NavLink
           key={item.to}
           to={item.to}
+          end={item.match === 'exact'}
           className={({ isActive }) =>
             `read-sub-nav-item${isActive ? ' is-active' : ''}`
           }
-          end
         >
           {item.label}
         </NavLink>

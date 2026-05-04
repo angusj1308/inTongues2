@@ -13,6 +13,7 @@ import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import GutenbergSearchPanel from '../components/read/GutenbergSearchPanel'
 import ReadSubNav from '../components/read/ReadSubNav'
+import DiscoverDoors from '../components/read/DiscoverDoors'
 import { prefetchPopularBooks } from '../services/gutenberg'
 import ReviewModal from '../components/review/ReviewModal'
 import RoutineBuilder from '../components/home/RoutineBuilder'
@@ -422,10 +423,17 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const params = useParams()
   const isReadRoute = location.pathname.startsWith('/read')
-  const READ_SUB_PAGES = ['library', 'discover', 'generate', 'import']
-  const readSubPage = isReadRoute && READ_SUB_PAGES.includes(params.subPage)
-    ? params.subPage
+  const readSegments = isReadRoute
+    ? location.pathname.split('/').filter(Boolean) // ['read', 'discover', 'generate']
+    : []
+  const READ_SUB_PAGES = ['library', 'discover']
+  const DISCOVER_DOORS = ['generate', 'import', 'gutenberg']
+  const readSubPage = isReadRoute && READ_SUB_PAGES.includes(readSegments[1])
+    ? readSegments[1]
     : (isReadRoute ? 'library' : null)
+  const discoverDoor = readSubPage === 'discover' && DISCOVER_DOORS.includes(readSegments[2])
+    ? readSegments[2]
+    : null
   const getInitialTab = () => {
     if (isReadRoute) return 'read'
     const initialTab = location.state?.initialTab
@@ -1818,24 +1826,31 @@ const Dashboard = () => {
 
                   <ReadSubNav />
 
-                  {readSubPage === 'discover' && (
+                  {readSubPage === 'discover' && !discoverDoor && (
                     <div className="read-sub-page read-discover-page">
-                      <GutenbergSearchPanel
-                        activeLanguage={activeLanguage}
-                        onSelectBook={handleGutenbergSelect}
-                      />
+                      <DiscoverDoors mode="landing" />
                     </div>
                   )}
 
-                  {readSubPage === 'generate' && (
-                    <div className="read-sub-page read-form-page">
-                      <GenerateStoryPanel activeLanguage={activeLanguage} />
-                    </div>
-                  )}
-
-                  {readSubPage === 'import' && (
-                    <div className="read-sub-page read-form-page">
-                      <ImportBookPanel activeLanguage={activeLanguage} />
+                  {readSubPage === 'discover' && discoverDoor && (
+                    <div className="read-sub-page read-discover-page read-discover-door-page">
+                      <DiscoverDoors mode="compact" />
+                      {discoverDoor === 'generate' && (
+                        <div className="read-form-page">
+                          <GenerateStoryPanel activeLanguage={activeLanguage} />
+                        </div>
+                      )}
+                      {discoverDoor === 'import' && (
+                        <div className="read-form-page">
+                          <ImportBookPanel activeLanguage={activeLanguage} />
+                        </div>
+                      )}
+                      {discoverDoor === 'gutenberg' && (
+                        <GutenbergSearchPanel
+                          activeLanguage={activeLanguage}
+                          onSelectBook={handleGutenbergSelect}
+                        />
+                      )}
                     </div>
                   )}
 

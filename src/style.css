@@ -25878,9 +25878,9 @@ body:has(.cinema-page) {
   border: 1px dashed #d6d3d1;
   border-radius: 0;
   color: #78716c;
-  font-family: 'DM Serif Display', 'EB Garamond', 'Crimson Pro', Georgia, serif;
+  font-family: var(--font-supporting);
   font-size: 0.95rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.03em;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;

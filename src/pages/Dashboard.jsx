@@ -1687,7 +1687,15 @@ const Dashboard = () => {
     .slice()
     .sort((a, b) => toMillis(b.lastOpenedAt) - toMillis(a.lastOpenedAt))
     .slice(0, 8)
+  const stripLeadingArticle = (s) =>
+    (s || '').replace(/^(the|a|an|el|la|los|las|le|les|der|die|das|il|i|lo|gli|une|un)\s+/i, '').trim()
   const allBooks = libraryItems
+    .slice()
+    .sort((a, b) => {
+      const at = stripLeadingArticle(getStoryTitle(a)).toLowerCase()
+      const bt = stripLeadingArticle(getStoryTitle(b)).toLowerCase()
+      return at.localeCompare(bt)
+    })
   // Most recently opened in-progress book (started but not finished).
   const continueReadingBook = items
     .filter((book) => {

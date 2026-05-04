@@ -2,7 +2,7 @@ import { Fragment } from 'react'
 import { NavLink } from 'react-router-dom'
 
 const ITEMS = [
-  { to: '/read/library', label: 'My Library', match: 'exact' },
+  { to: '/read/library', label: 'Library', match: 'exact' },
   { to: '/read/discover', label: 'Discover', match: 'prefix' },
 ]
 

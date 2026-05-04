@@ -107,6 +107,14 @@ const App = () => {
         }
       />
       <Route
+        path="/read/library/:libraryView"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/read/:subPage"
         element={
           <ProtectedRoute>

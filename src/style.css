@@ -28073,6 +28073,322 @@ body:has(.cinema-page) {
   color: #fafaf9;
 }
 
+/* =====================================================================
+   New Bookshelf builder (/read/library/new-shelf)
+   ===================================================================== */
+.read-new-shelf-page {
+  width: 100%;
+}
+
+.new-shelf-page {
+  padding: 2rem 5rem 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.new-shelf-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.new-shelf-eyebrow {
+  font-family: var(--font-supporting);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin: 0;
+}
+
+.new-shelf-name-input {
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 3rem;
+  font-weight: 500;
+  line-height: 1.1;
+  color: #1c1a17;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.new-shelf-name-input::placeholder {
+  color: #a8a29e;
+  font-style: italic;
+}
+
+.new-shelf-name-input:focus {
+  outline: 1px dashed #d6d3d1;
+  outline-offset: 8px;
+}
+
+.new-shelf-action-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.new-shelf-count {
+  font-family: var(--font-supporting);
+  font-size: 0.85rem;
+  color: #78716c;
+}
+
+.new-shelf-count strong {
+  color: #1c1a17;
+  font-weight: 600;
+}
+
+.new-shelf-action-divider {
+  color: #d6d3d1;
+  font-weight: 300;
+  user-select: none;
+}
+
+.new-shelf-save-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--font-supporting);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #1c1a17;
+  cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+.new-shelf-save-btn:disabled {
+  color: #a8a29e;
+  cursor: not-allowed;
+}
+
+.new-shelf-save-btn:not(:disabled):hover {
+  opacity: 0.7;
+}
+
+.new-shelf-cancel-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--font-supporting);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #78716c;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.new-shelf-cancel-btn:hover {
+  color: #1c1a17;
+}
+
+.new-shelf-error {
+  font-family: var(--font-supporting);
+  font-size: 0.85rem;
+  color: #b91c1c;
+  margin: 0.5rem 0 0;
+}
+
+.new-shelf-discard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  font-family: var(--font-supporting);
+  font-size: 0.85rem;
+  color: #1c1a17;
+}
+
+.new-shelf-discard-confirm,
+.new-shelf-discard-keep {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.new-shelf-discard-confirm {
+  color: #b91c1c;
+}
+
+.new-shelf-discard-keep {
+  color: #78716c;
+}
+
+.new-shelf-search input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #d6d3d1;
+  padding: 0.85rem 0;
+  font-family: var(--font-supporting);
+  font-size: 1rem;
+  color: #1c1a17;
+  outline: none;
+  transition: border-color 160ms ease;
+}
+
+.new-shelf-search input::placeholder {
+  color: #a8a29e;
+}
+
+.new-shelf-search input:focus {
+  border-bottom-color: #1c1a17;
+}
+
+.new-shelf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.new-shelf-empty {
+  font-family: var(--font-supporting);
+  font-size: 0.95rem;
+  color: #78716c;
+  margin: 0;
+}
+
+.new-shelf-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.new-shelf-group-letter {
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: #78716c;
+  margin: 0;
+}
+
+.new-shelf-group-rule {
+  height: 1px;
+  background: #e7e5e4;
+  margin: 0 0 0.5rem;
+}
+
+.new-shelf-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.75rem 0.75rem;
+  background: transparent;
+  transition: background 160ms ease;
+}
+
+.new-shelf-row.is-selected {
+  background: #fafaf7;
+}
+
+.new-shelf-row-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.new-shelf-row-title {
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: #1c1a17;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.new-shelf-row-sub {
+  font-family: var(--font-supporting);
+  font-size: 0.8rem;
+  color: #78716c;
+  margin: 0;
+}
+
+.new-shelf-toggle {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  border: 1px solid #d6d3d1;
+  background: transparent;
+  color: #1c1a17;
+  font-family: var(--font-supporting);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.new-shelf-toggle:hover {
+  background: #f5f5f4;
+}
+
+.new-shelf-toggle.is-on {
+  background: #1c1a17;
+  color: #ffffff;
+  border-color: #1c1a17;
+}
+
+.new-shelf-toggle.is-on:hover {
+  background: #2a2724;
+}
+
+[data-theme='dark'] .new-shelf-name-input,
+[data-theme='dark'] .new-shelf-row-title,
+[data-theme='dark'] .new-shelf-count strong,
+[data-theme='dark'] .new-shelf-save-btn {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .new-shelf-search input {
+  color: #fafaf9;
+  border-bottom-color: #44403c;
+}
+
+[data-theme='dark'] .new-shelf-search input:focus {
+  border-bottom-color: #fafaf9;
+}
+
+[data-theme='dark'] .new-shelf-row.is-selected {
+  background: #2a2724;
+}
+
+[data-theme='dark'] .new-shelf-toggle {
+  border-color: #44403c;
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .new-shelf-toggle.is-on {
+  background: #fafaf9;
+  color: #0f172a;
+  border-color: #fafaf9;
+}
+
+[data-theme='dark'] .new-shelf-group-rule {
+  background: #44403c;
+}
+
 /* Top nav buttons keep uppercase even when also tagged .ui-text (which
    the supporting-text rule above otherwise resets to text-transform: none). */
 .dashboard-nav-button.ui-text {

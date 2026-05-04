@@ -14,6 +14,7 @@ import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import GutenbergSearchPanel from '../components/read/GutenbergSearchPanel'
 import ReadSubNav from '../components/read/ReadSubNav'
 import DiscoverDoors from '../components/read/DiscoverDoors'
+import NewShelfBuilder from '../components/read/NewShelfBuilder'
 import { prefetchPopularBooks } from '../services/gutenberg'
 import ReviewModal from '../components/review/ReviewModal'
 import RoutineBuilder from '../components/home/RoutineBuilder'
@@ -434,6 +435,10 @@ const Dashboard = () => {
   const discoverDoor = readSubPage === 'discover' && DISCOVER_DOORS.includes(readSegments[2])
     ? readSegments[2]
     : null
+  const LIBRARY_VIEWS = ['new-shelf']
+  const libraryView = readSubPage === 'library' && LIBRARY_VIEWS.includes(readSegments[2])
+    ? readSegments[2]
+    : null
   const getInitialTab = () => {
     if (isReadRoute) return 'read'
     const initialTab = location.state?.initialTab
@@ -444,6 +449,7 @@ const Dashboard = () => {
   const [items, setItems] = useState([])
   const [libraryLoading, setLibraryLoading] = useState(true)
   const [libraryError, setLibraryError] = useState('')
+  const [bookshelves, setBookshelves] = useState([])
 
   const [generatingBookId, setGeneratingBookId] = useState(null)
 
@@ -663,6 +669,34 @@ const Dashboard = () => {
       unsubscribeGeneratedBooks()
     }
   }, [activeLanguage, user])
+
+  // Subscribe to user's bookshelves for the active language
+  useEffect(() => {
+    if (!user?.uid || !activeLanguage) {
+      setBookshelves([])
+      return undefined
+    }
+    const ref = collection(db, 'users', user.uid, 'bookshelves')
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        const docs = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((s) => !s.language || s.language === activeLanguage)
+          .sort((a, b) => {
+            const at = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0
+            const bt = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0
+            return bt - at
+          })
+        setBookshelves(docs)
+      },
+      (err) => {
+        console.error('Bookshelves load error:', err)
+        setBookshelves([])
+      },
+    )
+    return () => unsub()
+  }, [user?.uid, activeLanguage])
 
   // Ref for pagination measurement container
   const paginationMeasureRef = useRef(null)
@@ -1854,7 +1888,19 @@ const Dashboard = () => {
                     </div>
                   )}
 
-                  {readSubPage === 'library' && (
+                  {readSubPage === 'library' && libraryView === 'new-shelf' && (
+                    <div className="read-sub-page read-new-shelf-page">
+                      <NewShelfBuilder
+                        items={items}
+                        activeLanguage={activeLanguage}
+                        userId={user?.uid}
+                        getStoryTitle={getStoryTitle}
+                        getPageCount={getPageCount}
+                      />
+                    </div>
+                  )}
+
+                  {readSubPage === 'library' && !libraryView && (
                     <div className="read-sub-page read-library-page">
                       {continueReadingBook && (() => {
                         const cb = continueReadingBook
@@ -1918,6 +1964,48 @@ const Dashboard = () => {
                           </section>
                         )
                       })()}
+
+                      {/* User-created bookshelves */}
+                      {bookshelves.map((shelf) => {
+                        const shelfBooks = (shelf.bookIds || [])
+                          .map((id) => items.find((b) => b.id === id))
+                          .filter(Boolean)
+                        if (shelfBooks.length === 0) return null
+                        return (
+                          <div key={shelf.id} className="reading-shelf">
+                            <div className="home-card-header">
+                              <h3 className="home-card-title">{shelf.name || 'Untitled shelf'}</h3>
+                            </div>
+                            <div className="reading-shelf-scroll">
+                              {shelfBooks.map((book) => (
+                                <div key={book.id} className="reading-shelf-item">
+                                  <button
+                                    className="reading-shelf-item-content"
+                                    onClick={() => handleOpenBook(book)}
+                                  >
+                                    <div className="reading-shelf-cover">
+                                      {book.coverImageUrl ? (
+                                        <img
+                                          src={book.coverImageUrl}
+                                          alt={`Cover of ${getStoryTitle(book)}`}
+                                          className="reading-shelf-cover-img"
+                                          onError={(e) => {
+                                            e.target.style.display = 'none'
+                                          }}
+                                        />
+                                      ) : (
+                                        <div className="reading-shelf-no-cover">
+                                          <span>{getStoryTitle(book)}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
 
                       {/* Recent Books */}
                       <div className="reading-shelf">
@@ -2326,7 +2414,11 @@ const Dashboard = () => {
                   </div>
 
                       {/* Add Bookshelf */}
-                      <button className="add-bookshelf-btn">
+                      <button
+                        type="button"
+                        className="add-bookshelf-btn"
+                        onClick={() => navigate('/read/library/new-shelf')}
+                      >
                         + Add bookshelf
                       </button>
                     </div>

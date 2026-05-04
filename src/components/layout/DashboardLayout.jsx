@@ -224,6 +224,15 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   return (
     <div className="page dashboard-page">
       <div className={`dashboard-header-row${isScrolled ? ' is-scrolled' : ''}`}>
+          <button
+            className="dashboard-logo"
+            onClick={() => onTabChange && onTabChange('home')}
+            aria-label="Go to home"
+          >
+            <span className="dashboard-logo-prefix">{brandPrefix}</span>
+            <span className="dashboard-logo-language">{brandLanguage}</span>
+            <span className="dashboard-logo-dot">.</span>
+          </button>
           <nav className="dashboard-nav" aria-label="Dashboard navigation">
             {DASHBOARD_TABS.map((tab) => (
               <button
@@ -294,37 +303,6 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
             </div>
           </div>
         </div>
-
-      <header className="dashboard-header dashboard-header-minimal">
-        {/* Masthead */}
-        <div className="dashboard-brand-section">
-          <button
-            className="dashboard-brand-center"
-            onClick={() => onTabChange && onTabChange('home')}
-            aria-label="Go to home"
-          >
-            {activeLanguage === 'Spanish' && (
-              <img
-                src={spanishFlag}
-                alt="Spanish flag"
-                className="dashboard-brand-flag"
-              />
-            )}
-            <div className="dashboard-brand-row">
-              <span className="dashboard-brand-line" />
-              <div className="dashboard-brand-content">
-                <div className="dashboard-brand">
-                  <span className="dashboard-brand-prefix">{brandPrefix}</span>
-                  <span className="dashboard-brand-language">{brandLanguage}</span>
-                  <span className="brand-dot">.</span>
-                </div>
-                <p className="dashboard-tagline">{brandTagline}</p>
-              </div>
-              <span className="dashboard-brand-line" />
-            </div>
-          </button>
-        </div>
-      </header>
 
       <main className="dashboard-main">
         <div className="dashboard-wrapper">{children}</div>

@@ -784,7 +784,7 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 1rem 0 0;
+  padding: 0;
   background: #ffffff;
   min-height: 100vh;
 }
@@ -826,11 +826,35 @@ textarea {
   margin: 0 auto;
 }
 
-/* Empty pseudo participates in grid auto-placement, occupying the
-   left 1fr column so <nav> lands in the centered auto column and
-   <div.dashboard-header-actions> lands in the right 1fr column. */
-.dashboard-header-row::before {
-  content: '';
+/* Inline logo sits in the left 1fr column of .dashboard-header-row,
+   so <nav> lands in the centered auto column and the right-side
+   icons land in the right 1fr column. */
+.dashboard-logo {
+  justify-self: start;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  line-height: 1;
+  color: #1c1a17;
+  letter-spacing: 0;
+}
+
+.dashboard-logo-prefix,
+.dashboard-logo-language,
+.dashboard-logo-dot {
+  font: inherit;
+  color: inherit;
+}
+
+[data-theme='dark'] .dashboard-logo {
+  color: #fafaf9;
 }
 
 /* Full-bleed background + hairline rule for the sticky nav. The

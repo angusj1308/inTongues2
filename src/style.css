@@ -27644,13 +27644,25 @@ body:has(.cinema-page) {
    Persistent below the hero header; layered above the sub-page content.
    ===================================================================== */
 .read-sub-nav {
-  display: flex;
-  gap: 1.75rem;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
+  gap: 1.75rem;
   padding: 0.5rem 0 1.25rem;
   margin: 0 auto 1.5rem;
   width: min(1320px, 100%);
+}
+
+.read-sub-nav .read-sub-nav-item:first-of-type {
+  justify-self: end;
+}
+
+.read-sub-nav .read-sub-nav-item:last-of-type {
+  justify-self: start;
+}
+
+.read-sub-nav .read-sub-nav-separator {
+  justify-self: center;
 }
 
 .read-sub-nav-item {

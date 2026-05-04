@@ -10,6 +10,32 @@ export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // 
 // GATED: Tabs with output features under development — remove entries to un-gate
 const GATED_TABS = new Set(['speak', 'write'])
 
+// Flag glyphs for the header language picker. Emoji renders as a real
+// flag image on macOS / iOS / most modern Chromium / Firefox builds;
+// falls back to two-letter region codes on platforms without flag glyphs.
+const LANGUAGE_FLAGS = {
+  English: '🇬🇧',
+  French: '🇫🇷',
+  Spanish: '🇪🇸',
+  Italian: '🇮🇹',
+  German: '🇩🇪',
+  Portuguese: '🇵🇹',
+  Japanese: '🇯🇵',
+  Chinese: '🇨🇳',
+  Korean: '🇰🇷',
+  Russian: '🇷🇺',
+  Arabic: '🇸🇦',
+  Dutch: '🇳🇱',
+  Swedish: '🇸🇪',
+  Norwegian: '🇳🇴',
+  Danish: '🇩🇰',
+  Polish: '🇵🇱',
+  Turkish: '🇹🇷',
+  Greek: '🇬🇷',
+  Hebrew: '🇮🇱',
+  Hindi: '🇮🇳',
+}
+
 const LANGUAGE_NATIVE_NAMES = {
   English: 'English',
   French: 'Français',
@@ -85,6 +111,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   const { user, profile, logout, updateProfile, setLastUsedLanguage } = useAuth()
   const navigate = useNavigate()
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(null) // language being confirmed for reset
   const [resetting, setResetting] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
@@ -94,6 +121,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   })
 
   const accountMenuRef = useRef(null)
+  const languageMenuRef = useRef(null)
 
   // Sync dark mode with document
   useEffect(() => {
@@ -206,6 +234,9 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
         setAccountMenuOpen(false)
         setConfirmReset(null)
       }
+      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
+        setLanguageMenuOpen(false)
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
@@ -246,6 +277,56 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
           </nav>
 
           <div className="dashboard-header-actions">
+            <div className="dashboard-dropdown" ref={languageMenuRef}>
+              <button
+                type="button"
+                className="dashboard-language-btn"
+                onClick={() => setLanguageMenuOpen((open) => !open)}
+                aria-haspopup="menu"
+                aria-expanded={languageMenuOpen}
+                aria-label={`Active language: ${activeLanguage || 'none'}`}
+              >
+                <span className="dashboard-language-flag" aria-hidden="true">
+                  {LANGUAGE_FLAGS[activeLanguage] || '🌐'}
+                </span>
+              </button>
+              {languageMenuOpen && (
+                <div className="dashboard-menu language-menu" role="menu">
+                  {languages.map((lang) => {
+                    const isActive = lang === activeLanguage
+                    return (
+                      <button
+                        key={lang}
+                        type="button"
+                        className={`language-menu-item${isActive ? ' is-active' : ''}`}
+                        onClick={() => handleLanguageChange(lang)}
+                        role="menuitem"
+                      >
+                        <span className="language-menu-flag" aria-hidden="true">
+                          {LANGUAGE_FLAGS[lang] || '🌐'}
+                        </span>
+                        <span className="language-menu-name">
+                          {LANGUAGE_NATIVE_NAMES[lang] || lang}
+                        </span>
+                      </button>
+                    )
+                  })}
+                  <button
+                    type="button"
+                    className="language-menu-item language-menu-add"
+                    onClick={() => {
+                      setLanguageMenuOpen(false)
+                      navigate('/select-language')
+                    }}
+                    role="menuitem"
+                  >
+                    <span className="language-menu-flag" aria-hidden="true">+</span>
+                    <span className="language-menu-name">Add language</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button
               className="dashboard-icon-btn"
               onClick={() => setDarkMode(!darkMode)}

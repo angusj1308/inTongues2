@@ -229,8 +229,8 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
             onClick={() => onTabChange && onTabChange('home')}
             aria-label="Go to home"
           >
-            <span className="dashboard-logo-prefix">{brandPrefix}</span>
-            <span className="dashboard-logo-language">{brandLanguage}</span>
+            <span className="dashboard-logo-prefix">in</span>
+            <span className="dashboard-logo-language">Tongues</span>
             <span className="dashboard-logo-dot">.</span>
           </button>
           <nav className="dashboard-nav" aria-label="Dashboard navigation">

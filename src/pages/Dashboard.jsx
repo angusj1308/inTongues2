@@ -1954,7 +1954,9 @@ const Dashboard = () => {
                 <>
                   {libraryError ? <p className="error small">{libraryError}</p> : null}
 
-                  <ReadSubNav />
+                  {libraryView !== 'new-shelf' && libraryView !== 'edit-shelf' && (
+                    <ReadSubNav />
+                  )}
 
                   {readSubPage === 'discover' && !discoverDoor && (
                     <div className="read-sub-page read-discover-page">

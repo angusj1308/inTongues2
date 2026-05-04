@@ -23,7 +23,6 @@ export default function NewShelfBuilder({
     () => new Set(editingShelf?.bookIds || []),
   )
   const [saving, setSaving] = useState(false)
-  const [showDiscard, setShowDiscard] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -40,18 +39,6 @@ export default function NewShelfBuilder({
   }, [editingShelf, hydrated])
 
   const trimmedName = name.trim()
-  const initialName = (editingShelf?.name || '').trim()
-  const initialIds = useMemo(
-    () => new Set(editingShelf?.bookIds || []),
-    [editingShelf?.bookIds],
-  )
-
-  const isDirty = isEditing
-    ? trimmedName !== initialName ||
-      selected.size !== initialIds.size ||
-      [...selected].some((id) => !initialIds.has(id))
-    : trimmedName !== '' || selected.size > 0
-
   const canSave = trimmedName !== '' && selected.size > 0
 
   const filtered = useMemo(() => {
@@ -116,14 +103,6 @@ export default function NewShelfBuilder({
     }
   }
 
-  const handleCancel = () => {
-    if (isDirty) {
-      setShowDiscard(true)
-      return
-    }
-    navigate('/read/library')
-  }
-
   const handleDelete = async () => {
     if (!isEditing || !userId || !editingShelf?.id || deleting) return
     setDeleting(true)
@@ -141,20 +120,15 @@ export default function NewShelfBuilder({
   return (
     <div className="new-shelf-page">
       <header className="new-shelf-identity">
-        <p className="new-shelf-eyebrow">{isEditing ? 'Edit Bookshelf' : 'New Bookshelf'}</p>
-        <input
-          className="new-shelf-name-input"
-          type="text"
-          placeholder="Name this shelf…"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoFocus
-        />
-        <div className="new-shelf-action-row">
-          <span className="new-shelf-count">
-            <strong>{selected.size}</strong> {selected.size === 1 ? 'book' : 'books'} on this shelf
-          </span>
-          <span className="new-shelf-action-divider" aria-hidden="true">|</span>
+        <div className="new-shelf-name-row">
+          <input
+            className="new-shelf-name-input"
+            type="text"
+            placeholder="Name this shelf…"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
           <button
             type="button"
             className="new-shelf-save-btn"
@@ -163,63 +137,8 @@ export default function NewShelfBuilder({
           >
             {saving ? 'Saving…' : 'Save Shelf →'}
           </button>
-          <button
-            type="button"
-            className="new-shelf-cancel-btn"
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-          {isEditing && (
-            <button
-              type="button"
-              className="new-shelf-delete-btn"
-              onClick={() => setShowDelete(true)}
-            >
-              Delete Shelf
-            </button>
-          )}
         </div>
         {saveError && <p className="new-shelf-error">{saveError}</p>}
-        {showDelete && (
-          <div className="new-shelf-discard new-shelf-delete-confirm" role="alertdialog">
-            <span>Delete this shelf? This cannot be undone.</span>
-            <button
-              type="button"
-              className="new-shelf-discard-confirm"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? 'Deleting…' : 'Delete'}
-            </button>
-            <button
-              type="button"
-              className="new-shelf-discard-keep"
-              onClick={() => setShowDelete(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-        {showDiscard && (
-          <div className="new-shelf-discard" role="alertdialog">
-            <span>Discard {isEditing ? 'changes' : 'this shelf'}?</span>
-            <button
-              type="button"
-              className="new-shelf-discard-confirm"
-              onClick={() => navigate('/read/library')}
-            >
-              Discard
-            </button>
-            <button
-              type="button"
-              className="new-shelf-discard-keep"
-              onClick={() => setShowDiscard(false)}
-            >
-              Keep editing
-            </button>
-          </div>
-        )}
       </header>
 
       <div className="new-shelf-search">
@@ -277,6 +196,38 @@ export default function NewShelfBuilder({
           ))
         )}
       </div>
+
+      {isEditing && (
+        <footer className="new-shelf-footer">
+          <button
+            type="button"
+            className="new-shelf-delete-btn"
+            onClick={() => setShowDelete(true)}
+          >
+            Delete Shelf
+          </button>
+          {showDelete && (
+            <div className="new-shelf-discard new-shelf-delete-confirm" role="alertdialog">
+              <span>Delete this shelf? This cannot be undone.</span>
+              <button
+                type="button"
+                className="new-shelf-discard-confirm"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+              <button
+                type="button"
+                className="new-shelf-discard-keep"
+                onClick={() => setShowDelete(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </footer>
+      )}
     </div>
   )
 }

@@ -419,7 +419,7 @@ const BookGrid = ({
 )
 
 const Dashboard = () => {
-  const { user, profile, setLastUsedLanguage } = useAuth()
+  const { user, profile, setLastUsedLanguage, updateProfile } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const params = useParams()
@@ -459,6 +459,9 @@ const Dashboard = () => {
   const [libraryLoading, setLibraryLoading] = useState(true)
   const [libraryError, setLibraryError] = useState('')
   const [bookshelves, setBookshelves] = useState([])
+  const [draggingShelfId, setDraggingShelfId] = useState(null)
+  const [dragOverShelfId, setDragOverShelfId] = useState(null)
+  const [dragOverPosition, setDragOverPosition] = useState(null) // 'before' | 'after'
 
   const [generatingBookId, setGeneratingBookId] = useState(null)
 
@@ -1682,6 +1685,90 @@ const Dashboard = () => {
     })
     .slice()
     .sort((a, b) => toMillis(b.lastOpenedAt) - toMillis(a.lastOpenedAt))[0] || null
+
+  // Reorderable shelf slots (Continue Reading is pinned and not part of this list).
+  const savedShelfOrder = profile?.shelfOrder?.[activeLanguage] || []
+  const allSlotIds = ['recent', 'all-books', ...bookshelves.map((s) => s.id)]
+  const orderedShelfIds = [
+    ...savedShelfOrder.filter((id) => allSlotIds.includes(id)),
+    ...allSlotIds.filter((id) => !savedShelfOrder.includes(id)),
+  ]
+
+  const persistShelfOrder = async (nextOrder) => {
+    if (!user?.uid) return
+    const nextShelfOrder = {
+      ...(profile?.shelfOrder || {}),
+      [activeLanguage]: nextOrder,
+    }
+    try {
+      await updateProfile({ shelfOrder: nextShelfOrder })
+    } catch (err) {
+      console.error('Failed to persist shelf order:', err)
+    }
+  }
+
+  const handleShelfDragStart = (e, shelfId) => {
+    setDraggingShelfId(shelfId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', shelfId)
+    // Use the parent .reading-shelf as the drag image
+    const wrapper = e.currentTarget.closest('.reading-shelf')
+    if (wrapper) {
+      try {
+        e.dataTransfer.setDragImage(wrapper, 24, 24)
+      } catch (_) {
+        /* setDragImage unsupported in some browsers; ignore */
+      }
+    }
+  }
+
+  const handleShelfDragOver = (e, shelfId) => {
+    if (!draggingShelfId || draggingShelfId === shelfId) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    const midpoint = rect.top + rect.height / 2
+    const position = e.clientY < midpoint ? 'before' : 'after'
+    if (dragOverShelfId !== shelfId || dragOverPosition !== position) {
+      setDragOverShelfId(shelfId)
+      setDragOverPosition(position)
+    }
+  }
+
+  const handleShelfDragLeave = (e, shelfId) => {
+    if (dragOverShelfId === shelfId) {
+      // Only clear when leaving the wrapper for an unrelated element
+      const related = e.relatedTarget
+      if (!related || !e.currentTarget.contains(related)) {
+        setDragOverShelfId(null)
+        setDragOverPosition(null)
+      }
+    }
+  }
+
+  const handleShelfDrop = (e, targetShelfId) => {
+    e.preventDefault()
+    if (!draggingShelfId || draggingShelfId === targetShelfId) {
+      setDraggingShelfId(null)
+      setDragOverShelfId(null)
+      setDragOverPosition(null)
+      return
+    }
+    const next = orderedShelfIds.filter((id) => id !== draggingShelfId)
+    const targetIdx = next.indexOf(targetShelfId)
+    const insertIdx = dragOverPosition === 'after' ? targetIdx + 1 : targetIdx
+    next.splice(insertIdx, 0, draggingShelfId)
+    setDraggingShelfId(null)
+    setDragOverShelfId(null)
+    setDragOverPosition(null)
+    persistShelfOrder(next)
+  }
+
+  const handleShelfDragEnd = () => {
+    setDraggingShelfId(null)
+    setDragOverShelfId(null)
+    setDragOverPosition(null)
+  }
   const generatedBooks =
     items.filter((item) => item.sourceType === 'generated' || item.storyType === 'generated') || []
   const adaptationBooks =
@@ -1935,7 +2022,7 @@ const Dashboard = () => {
                         if (totalPages > 0) metaParts.push(`${pagesLeft} pages left`)
                         metaParts.push(`${pct}% read`)
                         return (
-                          <section className="read-continue-section" aria-label="Continue reading">
+                          <section className="read-continue-section" aria-label="Continue reading" style={{ order: 0 }}>
                             <div className="read-continue-card">
                               <button
                                 type="button"
@@ -1993,12 +2080,28 @@ const Dashboard = () => {
                           .map((id) => items.find((b) => b.id === id))
                           .filter(Boolean)
                         if (shelfBooks.length === 0) return null
+                        const orderIdx = orderedShelfIds.indexOf(shelf.id)
+                        const isDragging = draggingShelfId === shelf.id
+                        const dropClass =
+                          dragOverShelfId === shelf.id && dragOverPosition
+                            ? ` is-drag-over-${dragOverPosition}`
+                            : ''
                         return (
-                          <div key={shelf.id} className="reading-shelf">
+                          <div
+                            key={shelf.id}
+                            className={`reading-shelf reading-shelf--reorderable${isDragging ? ' is-dragging' : ''}${dropClass}`}
+                            style={{ order: orderIdx >= 0 ? orderIdx + 1 : undefined }}
+                            onDragOver={(e) => handleShelfDragOver(e, shelf.id)}
+                            onDragLeave={(e) => handleShelfDragLeave(e, shelf.id)}
+                            onDrop={(e) => handleShelfDrop(e, shelf.id)}
+                            onDragEnd={handleShelfDragEnd}
+                          >
                             <div className="home-card-header">
                               <button
                                 type="button"
-                                className="home-card-title shelf-name-button"
+                                draggable
+                                onDragStart={(e) => handleShelfDragStart(e, shelf.id)}
+                                className="home-card-title shelf-name-button shelf-drag-handle"
                                 onClick={() => navigate(`/read/library/shelf/${shelf.id}/edit`)}
                                 title="Edit shelf"
                               >
@@ -2037,9 +2140,31 @@ const Dashboard = () => {
                       })}
 
                       {/* Recent Books */}
-                      <div className="reading-shelf">
+                      {(() => {
+                        const slotId = 'recent'
+                        const orderIdx = orderedShelfIds.indexOf(slotId)
+                        const isDragging = draggingShelfId === slotId
+                        const dropClass =
+                          dragOverShelfId === slotId && dragOverPosition
+                            ? ` is-drag-over-${dragOverPosition}`
+                            : ''
+                        return (
+                      <div
+                        className={`reading-shelf reading-shelf--reorderable${isDragging ? ' is-dragging' : ''}${dropClass}`}
+                        style={{ order: orderIdx >= 0 ? orderIdx + 1 : undefined }}
+                        onDragOver={(e) => handleShelfDragOver(e, slotId)}
+                        onDragLeave={(e) => handleShelfDragLeave(e, slotId)}
+                        onDrop={(e) => handleShelfDrop(e, slotId)}
+                        onDragEnd={handleShelfDragEnd}
+                      >
                     <div className="home-card-header">
-                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'recent')}</h3>
+                      <h3
+                        className="home-card-title shelf-drag-handle"
+                        draggable
+                        onDragStart={(e) => handleShelfDragStart(e, slotId)}
+                      >
+                        {getCardHeader(activeLanguage, 'recent')}
+                      </h3>
                     </div>
                     {libraryLoading ? (
                       <p className="reading-card-empty">Loading your books...</p>
@@ -2238,11 +2363,35 @@ const Dashboard = () => {
                       </div>
                     )}
                   </div>
+                        )
+                      })()}
 
                   {/* Row 3: All Books */}
-                  <div className="reading-shelf">
+                  {(() => {
+                    const slotId = 'all-books'
+                    const orderIdx = orderedShelfIds.indexOf(slotId)
+                    const isDragging = draggingShelfId === slotId
+                    const dropClass =
+                      dragOverShelfId === slotId && dragOverPosition
+                        ? ` is-drag-over-${dragOverPosition}`
+                        : ''
+                    return (
+                  <div
+                    className={`reading-shelf reading-shelf--reorderable${isDragging ? ' is-dragging' : ''}${dropClass}`}
+                    style={{ order: orderIdx >= 0 ? orderIdx + 1 : undefined }}
+                    onDragOver={(e) => handleShelfDragOver(e, slotId)}
+                    onDragLeave={(e) => handleShelfDragLeave(e, slotId)}
+                    onDrop={(e) => handleShelfDrop(e, slotId)}
+                    onDragEnd={handleShelfDragEnd}
+                  >
                     <div className="home-card-header">
-                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'allBooks')}</h3>
+                      <h3
+                        className="home-card-title shelf-drag-handle"
+                        draggable
+                        onDragStart={(e) => handleShelfDragStart(e, slotId)}
+                      >
+                        {getCardHeader(activeLanguage, 'allBooks')}
+                      </h3>
                     </div>
                     {libraryLoading ? (
                       <p className="reading-card-empty">Loading...</p>
@@ -2441,11 +2590,14 @@ const Dashboard = () => {
                       </div>
                     )}
                   </div>
+                    )
+                  })()}
 
                       {/* Add Bookshelf */}
                       <button
                         type="button"
                         className="add-bookshelf-btn"
+                        style={{ order: 999 }}
                         onClick={() => navigate('/read/library/new-shelf')}
                       >
                         + Add bookshelf

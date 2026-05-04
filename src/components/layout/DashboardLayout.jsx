@@ -8,6 +8,7 @@ import flagEnglish from '../../assets/english.png'
 import flagFrench from '../../assets/french.png'
 import flagSpanish from '../../assets/spanish.png'
 import flagItalian from '../../assets/italian.png'
+import paperBackground from '../../assets/paperbackground.jpeg'
 
 export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
 
@@ -241,7 +242,16 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   }, [])
 
   return (
-    <div className="page dashboard-page">
+    <div
+      className="page dashboard-page"
+      style={{
+        backgroundImage: `url(${paperBackground})`,
+        backgroundAttachment: 'fixed',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       <div className={`dashboard-header-row${isScrolled ? ' is-scrolled' : ''}`}>
           <button
             className="dashboard-logo"

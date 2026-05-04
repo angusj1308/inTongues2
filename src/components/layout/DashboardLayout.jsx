@@ -117,6 +117,11 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
     localStorage.setItem('darkMode', JSON.stringify(darkMode))
+    // Push the page background image onto the documentElement so
+    // every consumer (the sticky header band's --paper-bg-image, the
+    // page bg itself) reads the same source of truth.
+    const bgUrl = darkMode ? blackBackground : paperBackground
+    document.documentElement.style.setProperty('--paper-bg-image', `url(${bgUrl})`)
   }, [darkMode])
 
   const nativeLanguageRaw = profile?.nativeLanguage || ''
@@ -243,17 +248,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   }, [])
 
   return (
-    <div
-      className="page dashboard-page"
-      style={{
-        '--paper-bg-image': `url(${darkMode ? blackBackground : paperBackground})`,
-        backgroundImage: `url(${darkMode ? blackBackground : paperBackground})`,
-        backgroundAttachment: 'fixed',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
-    >
+    <div className="page dashboard-page">
       <div className={`dashboard-header-row${isScrolled ? ' is-scrolled' : ''}`}>
           <button
             className="dashboard-logo"

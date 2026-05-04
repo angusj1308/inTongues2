@@ -785,7 +785,12 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background: #ffffff;
+  background-color: #ffffff;
+  background-image: var(--paper-bg-image);
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   min-height: 100vh;
 }
 
@@ -804,7 +809,8 @@ textarea {
 }
 
 [data-theme='dark'] .dashboard-page {
-  background: #1c1917;
+  background-color: #1c1917;
+  /* background-image is driven by --paper-bg-image set on documentElement */
 }
 
 /* Minimal header layout — now contains only the masthead since the

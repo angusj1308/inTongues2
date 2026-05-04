@@ -27674,16 +27674,12 @@ body:has(.cinema-page) {
 }
 
 /* Library shelf labels (Continue Reading, Recent, All Books) sit
-   beneath the sub-nav in hierarchy: smaller, lighter, quieter.
-   Each label is shifted down 0.5cm via offsetting margin-top and
-   margin-bottom — adds 0.5cm above the label and removes 0.5cm
-   below it, so the label sits closer to its own shelf while the
-   total inter-shelf gap is preserved. */
+   beneath the sub-nav in hierarchy. Size/weight match the Home
+   tab's section titles; only the margin is offset so each label
+   sits 0.5cm closer to its own shelf without changing inter-shelf
+   spacing. */
 .read-library-page .home-card-title {
-  font-size: 1.1rem;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  margin: 0.5cm 0 calc(0.85rem - 0.5cm);
+  margin: 0.5cm 0 calc(1rem - 0.5cm);
 }
 
 /* Continue Reading — single-card hero at the top of My Library */

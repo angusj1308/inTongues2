@@ -306,9 +306,14 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #ffffff;
+  background-color: #ffffff;
+  background-image: var(--paper-bg-image);
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: #1c1917;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #root {
@@ -317,7 +322,12 @@ body {
 
 /* Dark mode base styles - warm stone palette */
 [data-theme='dark'] body {
-  background: #1c1917;
+  background-color: #1c1917;
+  background-image: var(--paper-bg-image);
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: #ffffff;
 }
 

@@ -27708,9 +27708,10 @@ body:has(.cinema-page) {
   border-bottom-color: #fafaf9;
 }
 
-/* Sub-page shell: pure white surface */
+/* Sub-page shell — transparent so it inherits the page background
+   (white in light mode, #1c1917 in dark mode via .dashboard-page). */
 .read-sub-page {
-  background: #ffffff;
+  background: transparent;
   width: 100%;
 }
 

@@ -955,8 +955,8 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   border: none;
   background: transparent;
   color: #78716c;
@@ -974,8 +974,8 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   border: none;
   background: transparent;
   color: #0f172a;
@@ -28449,8 +28449,8 @@ body:has(.cinema-page) {
    Header language picker — circular flag button + expandable menu
    ===================================================================== */
 .dashboard-language-btn {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid #e7e5e4;
   border-radius: 50%;
@@ -28469,7 +28469,7 @@ body:has(.cinema-page) {
 }
 
 .dashboard-language-flag {
-  font-size: 1.15rem;
+  font-size: 1.6rem;
   line-height: 1;
   display: inline-block;
   transform: translateY(0);

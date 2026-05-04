@@ -28449,11 +28449,11 @@ body:has(.cinema-page) {
    Header language picker — circular flag button + expandable menu
    ===================================================================== */
 .dashboard-language-btn {
-  width: 44px;
+  width: 64px;
   height: 44px;
   padding: 0;
   border: 1px solid #e7e5e4;
-  border-radius: 50%;
+  border-radius: 0;
   background: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -28468,11 +28468,19 @@ body:has(.cinema-page) {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
+.dashboard-language-flag-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .dashboard-language-flag {
   font-size: 1.6rem;
   line-height: 1;
-  display: inline-block;
-  transform: translateY(0);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .language-menu {
@@ -28509,18 +28517,25 @@ body:has(.cinema-page) {
 }
 
 .language-menu-flag {
-  width: 22px;
+  width: 32px;
   height: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 0;
   background: #ffffff;
   border: 1px solid #e7e5e4;
   font-size: 0.95rem;
   line-height: 1;
   overflow: hidden;
   flex-shrink: 0;
+}
+
+.language-menu-flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .language-menu-add {

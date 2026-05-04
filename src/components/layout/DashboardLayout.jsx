@@ -4,36 +4,24 @@ import { useAuth } from '../../context/AuthContext'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabel } from '../../constants/languages'
 import { resetVocabProgress } from '../../services/vocab'
 import spanishFlag from '../../assets/spanishflag.png'
+import flagEnglish from '../../assets/english.png'
+import flagFrench from '../../assets/french.png'
+import flagSpanish from '../../assets/spanish.png'
+import flagItalian from '../../assets/italian.png'
 
 export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
 
 // GATED: Tabs with output features under development — remove entries to un-gate
 const GATED_TABS = new Set(['speak', 'write'])
 
-// Flag glyphs for the header language picker. Emoji renders as a real
-// flag image on macOS / iOS / most modern Chromium / Firefox builds;
-// falls back to two-letter region codes on platforms without flag glyphs.
+// Flag images for the header language picker. Map by language label
+// to the bundled PNG; languages without a registered flag fall back
+// to a globe glyph in the JSX.
 const LANGUAGE_FLAGS = {
-  English: '🇬🇧',
-  French: '🇫🇷',
-  Spanish: '🇪🇸',
-  Italian: '🇮🇹',
-  German: '🇩🇪',
-  Portuguese: '🇵🇹',
-  Japanese: '🇯🇵',
-  Chinese: '🇨🇳',
-  Korean: '🇰🇷',
-  Russian: '🇷🇺',
-  Arabic: '🇸🇦',
-  Dutch: '🇳🇱',
-  Swedish: '🇸🇪',
-  Norwegian: '🇳🇴',
-  Danish: '🇩🇰',
-  Polish: '🇵🇱',
-  Turkish: '🇹🇷',
-  Greek: '🇬🇷',
-  Hebrew: '🇮🇱',
-  Hindi: '🇮🇳',
+  English: flagEnglish,
+  French: flagFrench,
+  Spanish: flagSpanish,
+  Italian: flagItalian,
 }
 
 const LANGUAGE_NATIVE_NAMES = {
@@ -286,9 +274,15 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                 aria-expanded={languageMenuOpen}
                 aria-label={`Active language: ${activeLanguage || 'none'}`}
               >
-                <span className="dashboard-language-flag" aria-hidden="true">
-                  {LANGUAGE_FLAGS[activeLanguage] || '🌐'}
-                </span>
+                {LANGUAGE_FLAGS[activeLanguage] ? (
+                  <img
+                    src={LANGUAGE_FLAGS[activeLanguage]}
+                    alt=""
+                    className="dashboard-language-flag-img"
+                  />
+                ) : (
+                  <span className="dashboard-language-flag" aria-hidden="true">🌐</span>
+                )}
               </button>
               {languageMenuOpen && (
                 <div className="dashboard-menu language-menu" role="menu">
@@ -303,7 +297,11 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                         role="menuitem"
                       >
                         <span className="language-menu-flag" aria-hidden="true">
-                          {LANGUAGE_FLAGS[lang] || '🌐'}
+                          {LANGUAGE_FLAGS[lang] ? (
+                            <img src={LANGUAGE_FLAGS[lang]} alt="" />
+                          ) : (
+                            '🌐'
+                          )}
                         </span>
                         <span className="language-menu-name">
                           {LANGUAGE_NATIVE_NAMES[lang] || lang}

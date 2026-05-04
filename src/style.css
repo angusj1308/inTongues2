@@ -28472,11 +28472,11 @@ body:has(.cinema-page) {
    Header language picker — circular flag button + expandable menu
    ===================================================================== */
 .dashboard-language-btn {
-  width: 64px;
+  width: 44px;
   height: 44px;
   padding: 0;
   border: none;
-  border-radius: 0;
+  border-radius: 50%;
   background: transparent;
   display: inline-flex;
   align-items: center;
@@ -28539,14 +28539,14 @@ body:has(.cinema-page) {
 }
 
 .language-menu-flag {
-  width: 32px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0;
-  background: #ffffff;
-  border: 1px solid #e7e5e4;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
   font-size: 0.95rem;
   line-height: 1;
   overflow: hidden;
@@ -28573,16 +28573,11 @@ body:has(.cinema-page) {
   font-weight: 400;
   color: #57534e;
   background: transparent;
-  border-style: dashed;
+  border: 1px dashed #d6d3d1;
 }
 
 [data-theme='dark'] .dashboard-language-btn {
-  background: #1c1917;
-  border-color: #44403c;
-}
-
-[data-theme='dark'] .dashboard-language-btn:hover {
-  border-color: #78716c;
+  background: transparent;
 }
 
 [data-theme='dark'] .language-menu-item {
@@ -28595,8 +28590,8 @@ body:has(.cinema-page) {
 }
 
 [data-theme='dark'] .language-menu-flag {
-  background: #1c1917;
-  border-color: #44403c;
+  background: transparent;
+  border-color: transparent;
 }
 
 [data-theme='dark'] .language-menu-add {

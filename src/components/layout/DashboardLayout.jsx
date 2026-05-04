@@ -265,7 +265,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
           </nav>
 
           <div className="dashboard-header-actions">
-            <div className="dashboard-dropdown" ref={languageMenuRef}>
+            <div className="dashboard-dropdown" ref={languageMenuRef} style={{ order: 99 }}>
               <button
                 type="button"
                 className="dashboard-language-btn"

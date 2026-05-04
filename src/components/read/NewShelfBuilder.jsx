@@ -1,22 +1,57 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../../firebase'
 
 const stripArticles = (s) =>
   (s || '').replace(/^(the|a|an|el|la|los|las|le|les|der|die|das|il|i|lo|gli|le|une|un|el)\s+/i, '').trim()
 
-export default function NewShelfBuilder({ items, activeLanguage, userId, getStoryTitle, getPageCount }) {
+export default function NewShelfBuilder({
+  items,
+  activeLanguage,
+  userId,
+  getStoryTitle,
+  getPageCount,
+  editingShelf = null,
+}) {
   const navigate = useNavigate()
-  const [name, setName] = useState('')
+  const isEditing = !!editingShelf
+
+  const [name, setName] = useState(editingShelf?.name || '')
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState(() => new Set())
+  const [selected, setSelected] = useState(
+    () => new Set(editingShelf?.bookIds || []),
+  )
   const [saving, setSaving] = useState(false)
   const [showDiscard, setShowDiscard] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [saveError, setSaveError] = useState('')
 
+  // If the editingShelf prop arrives later (snapshot loads after mount),
+  // sync state to it once.
+  const [hydrated, setHydrated] = useState(!!editingShelf)
+  useEffect(() => {
+    if (editingShelf && !hydrated) {
+      setName(editingShelf.name || '')
+      setSelected(new Set(editingShelf.bookIds || []))
+      setHydrated(true)
+    }
+  }, [editingShelf, hydrated])
+
   const trimmedName = name.trim()
-  const isDirty = trimmedName !== '' || selected.size > 0
+  const initialName = (editingShelf?.name || '').trim()
+  const initialIds = useMemo(
+    () => new Set(editingShelf?.bookIds || []),
+    [editingShelf?.bookIds],
+  )
+
+  const isDirty = isEditing
+    ? trimmedName !== initialName ||
+      selected.size !== initialIds.size ||
+      [...selected].some((id) => !initialIds.has(id))
+    : trimmedName !== '' || selected.size > 0
+
   const canSave = trimmedName !== '' && selected.size > 0
 
   const filtered = useMemo(() => {
@@ -59,12 +94,20 @@ export default function NewShelfBuilder({ items, activeLanguage, userId, getStor
     setSaving(true)
     setSaveError('')
     try {
-      await addDoc(collection(db, 'users', userId, 'bookshelves'), {
-        name: trimmedName,
-        bookIds: Array.from(selected),
-        language: activeLanguage,
-        createdAt: serverTimestamp(),
-      })
+      if (isEditing && editingShelf?.id) {
+        await updateDoc(doc(db, 'users', userId, 'bookshelves', editingShelf.id), {
+          name: trimmedName,
+          bookIds: Array.from(selected),
+          updatedAt: serverTimestamp(),
+        })
+      } else {
+        await addDoc(collection(db, 'users', userId, 'bookshelves'), {
+          name: trimmedName,
+          bookIds: Array.from(selected),
+          language: activeLanguage,
+          createdAt: serverTimestamp(),
+        })
+      }
       navigate('/read/library')
     } catch (err) {
       console.error('Failed to save shelf:', err)
@@ -81,10 +124,24 @@ export default function NewShelfBuilder({ items, activeLanguage, userId, getStor
     navigate('/read/library')
   }
 
+  const handleDelete = async () => {
+    if (!isEditing || !userId || !editingShelf?.id || deleting) return
+    setDeleting(true)
+    try {
+      await deleteDoc(doc(db, 'users', userId, 'bookshelves', editingShelf.id))
+      navigate('/read/library')
+    } catch (err) {
+      console.error('Failed to delete shelf:', err)
+      setSaveError('Could not delete the shelf. Please try again.')
+      setDeleting(false)
+      setShowDelete(false)
+    }
+  }
+
   return (
     <div className="new-shelf-page">
       <header className="new-shelf-identity">
-        <p className="new-shelf-eyebrow">New Bookshelf</p>
+        <p className="new-shelf-eyebrow">{isEditing ? 'Edit Bookshelf' : 'New Bookshelf'}</p>
         <input
           className="new-shelf-name-input"
           type="text"
@@ -113,11 +170,40 @@ export default function NewShelfBuilder({ items, activeLanguage, userId, getStor
           >
             Cancel
           </button>
+          {isEditing && (
+            <button
+              type="button"
+              className="new-shelf-delete-btn"
+              onClick={() => setShowDelete(true)}
+            >
+              Delete Shelf
+            </button>
+          )}
         </div>
         {saveError && <p className="new-shelf-error">{saveError}</p>}
+        {showDelete && (
+          <div className="new-shelf-discard new-shelf-delete-confirm" role="alertdialog">
+            <span>Delete this shelf? This cannot be undone.</span>
+            <button
+              type="button"
+              className="new-shelf-discard-confirm"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+            <button
+              type="button"
+              className="new-shelf-discard-keep"
+              onClick={() => setShowDelete(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
         {showDiscard && (
           <div className="new-shelf-discard" role="alertdialog">
-            <span>Discard this shelf?</span>
+            <span>Discard {isEditing ? 'changes' : 'this shelf'}?</span>
             <button
               type="button"
               className="new-shelf-discard-confirm"

@@ -107,6 +107,14 @@ const App = () => {
         }
       />
       <Route
+        path="/read/library/shelf/:shelfId/edit"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/read/library/:libraryView"
         element={
           <ProtectedRoute>

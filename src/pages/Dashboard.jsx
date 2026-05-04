@@ -436,9 +436,18 @@ const Dashboard = () => {
     ? readSegments[2]
     : null
   const LIBRARY_VIEWS = ['new-shelf']
-  const libraryView = readSubPage === 'library' && LIBRARY_VIEWS.includes(readSegments[2])
-    ? readSegments[2]
-    : null
+  const isEditShelfRoute =
+    readSubPage === 'library' &&
+    readSegments[2] === 'shelf' &&
+    readSegments[3] &&
+    readSegments[4] === 'edit'
+  const editingShelfId = isEditShelfRoute ? readSegments[3] : null
+  const libraryView =
+    isEditShelfRoute
+      ? 'edit-shelf'
+      : (readSubPage === 'library' && LIBRARY_VIEWS.includes(readSegments[2])
+        ? readSegments[2]
+        : null)
   const getInitialTab = () => {
     if (isReadRoute) return 'read'
     const initialTab = location.state?.initialTab
@@ -1900,6 +1909,19 @@ const Dashboard = () => {
                     </div>
                   )}
 
+                  {readSubPage === 'library' && libraryView === 'edit-shelf' && (
+                    <div className="read-sub-page read-new-shelf-page">
+                      <NewShelfBuilder
+                        items={items}
+                        activeLanguage={activeLanguage}
+                        userId={user?.uid}
+                        getStoryTitle={getStoryTitle}
+                        getPageCount={getPageCount}
+                        editingShelf={bookshelves.find((s) => s.id === editingShelfId) || null}
+                      />
+                    </div>
+                  )}
+
                   {readSubPage === 'library' && !libraryView && (
                     <div className="read-sub-page read-library-page">
                       {continueReadingBook && (() => {
@@ -1974,7 +1996,14 @@ const Dashboard = () => {
                         return (
                           <div key={shelf.id} className="reading-shelf">
                             <div className="home-card-header">
-                              <h3 className="home-card-title">{shelf.name || 'Untitled shelf'}</h3>
+                              <button
+                                type="button"
+                                className="home-card-title shelf-name-button"
+                                onClick={() => navigate(`/read/library/shelf/${shelf.id}/edit`)}
+                                title="Edit shelf"
+                              >
+                                {shelf.name || 'Untitled shelf'}
+                              </button>
                             </div>
                             <div className="reading-shelf-scroll">
                               {shelfBooks.map((book) => (

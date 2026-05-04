@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { NavLink } from 'react-router-dom'
 
 const ITEMS = [
@@ -8,17 +9,21 @@ const ITEMS = [
 export default function ReadSubNav() {
   return (
     <nav className="read-sub-nav" aria-label="Read sections">
-      {ITEMS.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.match === 'exact'}
-          className={({ isActive }) =>
-            `read-sub-nav-item${isActive ? ' is-active' : ''}`
-          }
-        >
-          {item.label}
-        </NavLink>
+      {ITEMS.map((item, idx) => (
+        <Fragment key={item.to}>
+          {idx > 0 && (
+            <span className="read-sub-nav-separator" aria-hidden="true">|</span>
+          )}
+          <NavLink
+            to={item.to}
+            end={item.match === 'exact'}
+            className={({ isActive }) =>
+              `read-sub-nav-item${isActive ? ' is-active' : ''}`
+            }
+          >
+            {item.label}
+          </NavLink>
+        </Fragment>
       ))}
     </nav>
   )

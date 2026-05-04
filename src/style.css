@@ -27661,8 +27661,7 @@ body:has(.cinema-page) {
   opacity: 0.45;
   text-decoration: none;
   padding: 0.35rem 0;
-  border-bottom: 2px solid transparent;
-  transition: opacity 0.15s ease, border-color 0.15s ease;
+  transition: opacity 0.15s ease;
   cursor: pointer;
 }
 
@@ -27673,7 +27672,19 @@ body:has(.cinema-page) {
 .read-sub-nav-item.is-active {
   opacity: 1;
   font-weight: 600;
-  border-bottom-color: #0f172a;
+}
+
+.read-sub-nav-separator {
+  font-family: var(--font-supporting);
+  font-size: 2.2rem;
+  font-weight: 300;
+  color: #0f172a;
+  opacity: 0.3;
+  user-select: none;
+}
+
+[data-theme='dark'] .read-sub-nav-separator {
+  color: #fafaf9;
 }
 
 [data-theme='dark'] .read-sub-nav-item {

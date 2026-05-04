@@ -11,8 +11,8 @@
   -webkit-font-smoothing: antialiased;
   --accent-color: #111111;
   --accent-red: #0f172a;
-  --dashboard-surface: #FAF6F0;
-  --dashboard-surface-contrast: #FAF6F0;
+  --dashboard-surface: #ffffff;
+  --dashboard-surface-contrast: #ffffff;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-supporting: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -785,7 +785,7 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background: #FAF6F0;
+  background: #ffffff;
   min-height: 100vh;
 }
 

@@ -1622,8 +1622,8 @@ textarea {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 450;
   font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
   cursor: pointer;
   transition: color 0.15s ease;
   scroll-snap-align: center;
@@ -28469,8 +28469,8 @@ body:has(.cinema-page) {
 /* Top nav buttons keep uppercase even when also tagged .ui-text (which
    the supporting-text rule above otherwise resets to text-transform: none). */
 .dashboard-nav-button.ui-text {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
 }
 
 /* =====================================================================

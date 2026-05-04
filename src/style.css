@@ -365,7 +365,6 @@ a:hover {
 }
 
 /* Dark mode - comprehensive overrides */
-[data-theme='dark'] .home-content,
 [data-theme='dark'] .home-card,
 [data-theme='dark'] .home-stats-card,
 [data-theme='dark'] .home-routine-card,

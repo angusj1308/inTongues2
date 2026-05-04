@@ -1696,11 +1696,13 @@ const Dashboard = () => {
       const bt = stripLeadingArticle(getStoryTitle(b)).toLowerCase()
       return at.localeCompare(bt)
     })
-  // Most recently opened in-progress book (started but not finished).
+  // Most recently opened book that hasn't been finished. Drops the
+  // p > 0 requirement so a freshly-opened book still surfaces here
+  // even before the reader has stamped any progress.
   const continueReadingBook = items
     .filter((book) => {
       const p = Number(book.progress) || 0
-      return p > 0 && p < 100 && toMillis(book.lastOpenedAt) > 0
+      return p < 100 && toMillis(book.lastOpenedAt) > 0
     })
     .slice()
     .sort((a, b) => toMillis(b.lastOpenedAt) - toMillis(a.lastOpenedAt))[0] || null

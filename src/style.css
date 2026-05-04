@@ -289,10 +289,10 @@
 [data-theme='dark'] {
   color-scheme: dark;
   color: #ffffff;
-  background-color: #1c1917;
+  background-color: #000000;
   --accent-color: #ffffff;
-  --dashboard-surface: #1c1917;
-  --dashboard-surface-contrast: #1c1917;
+  --dashboard-surface: #000000;
+  --dashboard-surface-contrast: #000000;
 }
 
 .ui-text {
@@ -306,14 +306,9 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #ffffff;
-  background-image: var(--paper-bg-image);
-  background-attachment: fixed;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: #ffffff;
   color: #1c1917;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 #root {
@@ -322,12 +317,7 @@ body {
 
 /* Dark mode base styles - warm stone palette */
 [data-theme='dark'] body {
-  background-color: #1c1917;
-  background-image: var(--paper-bg-image);
-  background-attachment: fixed;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: #000000;
   color: #ffffff;
 }
 
@@ -795,12 +785,7 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background-color: #ffffff;
-  background-image: var(--paper-bg-image);
-  background-attachment: fixed;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: #ffffff;
   min-height: 100vh;
 }
 
@@ -819,8 +804,7 @@ textarea {
 }
 
 [data-theme='dark'] .dashboard-page {
-  background-color: #1c1917;
-  /* background-image is driven by --paper-bg-image set on documentElement */
+  background: #000000;
 }
 
 /* Minimal header layout — now contains only the masthead since the
@@ -883,12 +867,7 @@ textarea {
   bottom: 0;
   left: calc(50% - 50vw);
   right: calc(50% - 50vw);
-  background-color: var(--dashboard-surface-contrast, #ffffff);
-  background-image: var(--paper-bg-image);
-  background-attachment: fixed;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: var(--dashboard-surface-contrast, #ffffff);
   border-bottom: 1px solid transparent;
   transition: border-color 160ms ease;
   z-index: -1;
@@ -900,7 +879,7 @@ textarea {
 }
 
 [data-theme='dark'] .dashboard-header-row::after {
-  background-color: #1c1917;
+  background: #000000;
 }
 
 [data-theme='dark'] .dashboard-header-row.is-scrolled::after {

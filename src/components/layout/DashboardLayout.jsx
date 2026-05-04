@@ -8,8 +8,6 @@ import flagEnglish from '../../assets/english.png'
 import flagFrench from '../../assets/french.png'
 import flagSpanish from '../../assets/spanish.png'
 import flagItalian from '../../assets/italian.png'
-import paperBackground from '../../assets/paperbackground.jpeg'
-import blackBackground from '../../assets/blackbackground.jpeg'
 
 export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
 
@@ -117,11 +115,6 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
     localStorage.setItem('darkMode', JSON.stringify(darkMode))
-    // Push the page background image onto the documentElement so
-    // every consumer (the sticky header band's --paper-bg-image, the
-    // page bg itself) reads the same source of truth.
-    const bgUrl = darkMode ? blackBackground : paperBackground
-    document.documentElement.style.setProperty('--paper-bg-image', `url(${bgUrl})`)
   }, [darkMode])
 
   const nativeLanguageRaw = profile?.nativeLanguage || ''

@@ -27703,7 +27703,7 @@ body:has(.cinema-page) {
    label 0.5cm closer to its shelf without changing inter-shelf gap. */
 .read-library-page .home-card-title {
   font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
-  font-weight: 500;
+  font-weight: 600;
   margin: 0.5cm 0 calc(1rem - 0.5cm);
 }
 

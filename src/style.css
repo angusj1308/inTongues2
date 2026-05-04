@@ -25868,27 +25868,28 @@ body:has(.cinema-page) {
   }
 }
 
-/* Add Bookshelf Button */
+/* Add Bookshelf — typographic affordance, matches shelf headings */
 .add-bookshelf-btn {
-  display: block;
-  width: 100%;
-  padding: 0.75rem 1rem;
+  display: inline-block;
+  align-self: flex-start;
+  width: auto;
+  padding: 0;
   margin-top: 1.5rem;
   background: transparent;
-  border: 1px dashed #d6d3d1;
+  border: none;
   border-radius: 0;
   color: #78716c;
-  font-family: var(--font-supporting);
-  font-size: 0.95rem;
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 1.95rem;
   font-weight: 500;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  text-align: left;
+  transition: color 0.15s ease;
 }
 
 .add-bookshelf-btn:hover {
-  border-color: #a8a29e;
-  color: #57534e;
+  color: #1c1a17;
 }
 
 /* ===========================================

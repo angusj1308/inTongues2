@@ -16,6 +16,7 @@ import ReadSubNav from '../components/read/ReadSubNav'
 import DiscoverDoors from '../components/read/DiscoverDoors'
 import NewShelfBuilder from '../components/read/NewShelfBuilder'
 import { mockBooksForLanguage } from '../data/mockBooks'
+import { applyCoverOverride } from '../data/coverOverrides'
 import { prefetchPopularBooks } from '../services/gutenberg'
 import ReviewModal from '../components/review/ReviewModal'
 import RoutineBuilder from '../components/home/RoutineBuilder'
@@ -608,11 +609,13 @@ const Dashboard = () => {
     const mergeAndSetItems = () => {
       if (!storiesLoaded || !generatedBooksLoaded) return
       // Merge and sort by createdAt
-      const allItems = [...storiesItems, ...generatedBooksItems].sort((a, b) => {
-        const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds * 1000 || 0
-        const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds * 1000 || 0
-        return bTime - aTime
-      })
+      const allItems = [...storiesItems, ...generatedBooksItems]
+        .sort((a, b) => {
+          const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds * 1000 || 0
+          const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds * 1000 || 0
+          return bTime - aTime
+        })
+        .map(applyCoverOverride)
       setItems(allItems)
       setLibraryLoading(false)
     }

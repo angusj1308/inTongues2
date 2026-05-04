@@ -8,9 +8,11 @@
 // against the trimmed book title.
 
 import elPatioDeBronceCover from '../assets/El Patio de Bronce.png'
+import laUltimaEnfermeraCover from '../assets/La Ultima Enfermera.png'
 
 const OVERRIDES = [
   { titleRe: /^el patio de bronce$/i, coverImageUrl: elPatioDeBronceCover },
+  { titleRe: /^la [úu]ltima enfermera$/i, coverImageUrl: laUltimaEnfermeraCover },
 ]
 
 export function applyCoverOverride(book) {

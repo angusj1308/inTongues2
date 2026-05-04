@@ -867,7 +867,12 @@ textarea {
   bottom: 0;
   left: calc(50% - 50vw);
   right: calc(50% - 50vw);
-  background: var(--dashboard-surface-contrast, #ffffff);
+  background-color: var(--dashboard-surface-contrast, #ffffff);
+  background-image: var(--paper-bg-image);
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   border-bottom: 1px solid transparent;
   transition: border-color 160ms ease;
   z-index: -1;
@@ -879,7 +884,7 @@ textarea {
 }
 
 [data-theme='dark'] .dashboard-header-row::after {
-  background: #1c1917;
+  background-color: #1c1917;
 }
 
 [data-theme='dark'] .dashboard-header-row.is-scrolled::after {

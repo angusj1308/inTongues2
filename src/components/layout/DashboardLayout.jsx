@@ -245,6 +245,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
     <div
       className="page dashboard-page"
       style={{
+        '--paper-bg-image': `url(${paperBackground})`,
         backgroundImage: `url(${paperBackground})`,
         backgroundAttachment: 'fixed',
         backgroundSize: 'cover',

@@ -9,6 +9,7 @@ import flagFrench from '../../assets/french.png'
 import flagSpanish from '../../assets/spanish.png'
 import flagItalian from '../../assets/italian.png'
 import paperBackground from '../../assets/paperbackground.jpeg'
+import blackBackground from '../../assets/blackbackground.jpeg'
 
 export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
 
@@ -245,8 +246,8 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
     <div
       className="page dashboard-page"
       style={{
-        '--paper-bg-image': `url(${paperBackground})`,
-        backgroundImage: `url(${paperBackground})`,
+        '--paper-bg-image': `url(${darkMode ? blackBackground : paperBackground})`,
+        backgroundImage: `url(${darkMode ? blackBackground : paperBackground})`,
         backgroundAttachment: 'fixed',
         backgroundSize: 'cover',
         backgroundPosition: 'center',

@@ -27722,10 +27722,16 @@ body:has(.cinema-page) {
   gap: 2.5rem;
 }
 
-/* Library shelf labels (Recent, All Books). Inherit font from base
-   .home-card-title (DM Sans). Margin offset drops the label 0.5cm
-   closer to its shelf without changing inter-shelf gap. */
+/* Library shelf headings (Recent, All Books, user-created shelves)
+   step out of the chrome sans voice into Cormorant Garamond 500 —
+   they name curated sections of books, not UI elements. The 0.5cm
+   margin offset keeps each label closer to its own shelf without
+   changing inter-shelf spacing. */
 .read-library-page .home-card-title {
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   margin: 0.5cm 0 calc(1rem - 0.5cm);
 }
 

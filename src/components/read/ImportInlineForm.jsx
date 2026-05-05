@@ -47,6 +47,7 @@ export default function ImportInlineForm({ activeLanguage }) {
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
 
   const fileInputRef = useRef(null)
   const titleInputRef = useRef(null)
@@ -86,12 +87,36 @@ export default function ImportInlineForm({ activeLanguage }) {
     setStep(target)
   }
 
+  const acceptFile = (picked) => {
+    if (!picked) return
+    const name = picked.name?.toLowerCase() || ''
+    const ok = ['.txt', '.pdf', '.epub'].some((ext) => name.endsWith(ext))
+    if (!ok) return
+    setFile(picked)
+    advance('title')
+  }
+
   const handleFilePick = (event) => {
-    const picked = event.target.files?.[0] || null
-    if (picked) {
-      setFile(picked)
-      advance('title')
-    }
+    acceptFile(event.target.files?.[0] || null)
+  }
+
+  const handleDragOver = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!isDragging) setIsDragging(true)
+  }
+
+  const handleDragLeave = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setIsDragging(false)
+    acceptFile(event.dataTransfer.files?.[0] || null)
   }
 
   const handleLevelPick = (value) => {
@@ -249,10 +274,21 @@ export default function ImportInlineForm({ activeLanguage }) {
           <div className="genq-setting-form">
             <button
               type="button"
-              className="genq-file-button"
+              className={`genq-file-dropzone${isDragging ? ' is-dragging' : ''}`}
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
-              {file ? file.name : 'Choose file'}
+              <span className="genq-file-dropzone-primary">
+                {file ? file.name : 'Choose a file or drop one here'}
+              </span>
+              {!file && (
+                <span className="genq-file-dropzone-secondary">
+                  .txt, .pdf, or .epub
+                </span>
+              )}
             </button>
             <input
               ref={fileInputRef}
@@ -261,7 +297,6 @@ export default function ImportInlineForm({ activeLanguage }) {
               onChange={handleFilePick}
               style={{ display: 'none' }}
             />
-            <span className="genq-file-hint">.txt, .pdf, or .epub</span>
           </div>
         </>
       )

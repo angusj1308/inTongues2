@@ -29143,32 +29143,40 @@ body:has(.cinema-page) {
   box-shadow: none;
 }
 
-.genq-file-button {
+.genq-file-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
-  padding: 14px 18px;
+  min-height: 140px;
+  padding: 24px 18px;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  font-weight: 400;
   color: var(--text-primary, #1C1A17);
   background: transparent;
-  border: 1px solid rgba(28, 26, 23, 0.35);
+  border: 1px dashed rgba(28, 26, 23, 0.4);
   border-radius: 4px;
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   transition: background 140ms ease, border-color 140ms ease;
 }
 
-.genq-file-button:hover {
+.genq-file-dropzone:hover,
+.genq-file-dropzone.is-dragging {
   border-color: var(--text-primary, #1C1A17);
   background: rgba(28, 26, 23, 0.04);
 }
 
-.genq-file-hint {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+.genq-file-dropzone-primary {
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.genq-file-dropzone-secondary {
   font-size: 11px;
   color: var(--text-secondary, #6B6862);
   letter-spacing: 0.02em;
-  align-self: flex-start;
 }
 
 [data-theme='dark'] .genq-line-input {
@@ -29183,17 +29191,18 @@ body:has(.cinema-page) {
   color: rgba(251, 250, 248, 0.55);
 }
 
-[data-theme='dark'] .genq-file-button {
-  border-color: rgba(255, 255, 255, 0.3);
+[data-theme='dark'] .genq-file-dropzone {
+  border-color: rgba(255, 255, 255, 0.35);
   color: #FBFAF8;
 }
 
-[data-theme='dark'] .genq-file-button:hover {
+[data-theme='dark'] .genq-file-dropzone:hover,
+[data-theme='dark'] .genq-file-dropzone.is-dragging {
   border-color: #FBFAF8;
-  background: rgba(251, 250, 248, 0.05);
+  background: rgba(251, 250, 248, 0.06);
 }
 
-[data-theme='dark'] .genq-file-hint {
+[data-theme='dark'] .genq-file-dropzone-secondary {
   color: rgba(251, 250, 248, 0.55);
 }
 

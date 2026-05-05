@@ -1874,7 +1874,7 @@ const Dashboard = () => {
                     }`}
                   >
 
-                  {readSubPage === 'discover' && (!discoverDoor || discoverDoor === 'generate') && (
+                  {readSubPage === 'discover' && (!discoverDoor || discoverDoor === 'generate' || discoverDoor === 'import') && (
                     <div className="read-sub-page read-discover-page">
                       <DiscoverLanding
                         activeLanguage={activeLanguage}
@@ -1884,20 +1884,13 @@ const Dashboard = () => {
                     </div>
                   )}
 
-                  {readSubPage === 'discover' && (discoverDoor === 'classics' || discoverDoor === 'import') && (
+                  {readSubPage === 'discover' && discoverDoor === 'classics' && (
                     <div className="read-sub-page read-discover-page read-discover-door-page">
                       <DiscoverDoors mode="compact" />
-                      {discoverDoor === 'import' && (
-                        <div className="read-form-page">
-                          <ImportBookPanel activeLanguage={activeLanguage} />
-                        </div>
-                      )}
-                      {discoverDoor === 'classics' && (
-                        <GutenbergSearchPanel
-                          activeLanguage={activeLanguage}
-                          onSelectBook={handleGutenbergSelect}
-                        />
-                      )}
+                      <GutenbergSearchPanel
+                        activeLanguage={activeLanguage}
+                        onSelectBook={handleGutenbergSelect}
+                      />
                     </div>
                   )}
 

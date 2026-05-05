@@ -14,19 +14,19 @@ const DOORS = [
     key: 'generate',
     to: '/read/discover/generate',
     label: 'Generate',
-    description: 'Commission a new short story or novel.',
+    description: 'Have an original story written in your target language at your level.',
   },
   {
-    key: 'adapt',
-    to: '/read/discover/adapt',
-    label: 'Adapt',
-    description: 'Re-render a classic at your level.',
+    key: 'classics',
+    to: '/read/discover/classics',
+    label: 'Classics',
+    description: 'Read public-domain classics adapted to your level.',
   },
   {
     key: 'import',
     to: '/read/discover/import',
     label: 'Import',
-    description: 'Bring your own EPUB or PDF.',
+    description: 'Upload an EPUB or PDF in any language. We’ll translate it to your target language at your level.',
   },
 ]
 

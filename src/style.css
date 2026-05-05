@@ -28928,14 +28928,13 @@ body:has(.cinema-page) {
   text-align: left;
   padding: 28px;
   cursor: default;
-  border: 1px solid var(--text-primary, #1C1A17);
+  border: none;
   background: transparent;
 }
 
 .discover-landing .discover-door--landing.is-expanded:hover {
   background: transparent;
   transform: none;
-  border-color: var(--text-primary, #1C1A17);
 }
 
 .genq-card {

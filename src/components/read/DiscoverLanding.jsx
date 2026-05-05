@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { mockBooksForLanguage } from '../../data/mockBooks'
 import GenerateInlineForm from './GenerateInlineForm'
 
@@ -35,7 +35,21 @@ export default function DiscoverLanding({
   getStoryTitle,
   expandedDoor = null,
 }) {
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
+  const expandedCardRef = useRef(null)
+
+  useEffect(() => {
+    if (expandedDoor !== 'generate') return
+    const handleClickOutside = (event) => {
+      const card = expandedCardRef.current
+      if (card && !card.contains(event.target)) {
+        navigate('/read/discover')
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [expandedDoor, navigate])
 
   const rowBooks = useMemo(() => {
     const pool = mockBooksForLanguage(activeLanguage)
@@ -82,6 +96,7 @@ export default function DiscoverLanding({
             return (
               <div
                 key={door.key}
+                ref={expandedCardRef}
                 className="discover-door discover-door--landing is-expanded"
               >
                 <GenerateInlineForm activeLanguage={activeLanguage} />

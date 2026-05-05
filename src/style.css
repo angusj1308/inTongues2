@@ -29073,13 +29073,27 @@ body:has(.cinema-page) {
   box-shadow: none;
 }
 
-.genq-setting-hint {
+.genq-continue-link {
   align-self: flex-end;
+  background: none;
+  border: none;
+  padding: 0;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-secondary, #6B6862);
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.02em;
+  color: var(--text-secondary, #6B6862);
+  cursor: pointer;
+  transition: color 140ms ease, opacity 140ms ease;
+}
+
+.genq-continue-link:hover:not(:disabled) {
+  color: var(--text-primary, #1C1A17);
+}
+
+.genq-continue-link:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .genq-summary {
@@ -29197,8 +29211,12 @@ body:has(.cinema-page) {
   border-color: #FBFAF8;
 }
 
-[data-theme='dark'] .genq-setting-hint {
-  color: rgba(251, 250, 248, 0.6);
+[data-theme='dark'] .genq-continue-link {
+  color: rgba(251, 250, 248, 0.55);
+}
+
+[data-theme='dark'] .genq-continue-link:hover:not(:disabled) {
+  color: #FBFAF8;
 }
 
 [data-theme='dark'] .genq-action-row {

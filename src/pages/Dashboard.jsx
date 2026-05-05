@@ -431,7 +431,7 @@ const Dashboard = () => {
     ? location.pathname.split('/').filter(Boolean) // ['read', 'discover', 'generate']
     : []
   const READ_SUB_PAGES = ['library', 'discover']
-  const DISCOVER_DOORS = ['generate', 'adapt', 'import']
+  const DISCOVER_DOORS = ['generate', 'classics', 'import']
   const readSubPage = isReadRoute && READ_SUB_PAGES.includes(readSegments[1])
     ? readSegments[1]
     : 'library'
@@ -1884,7 +1884,7 @@ const Dashboard = () => {
                     </div>
                   )}
 
-                  {readSubPage === 'discover' && (discoverDoor === 'adapt' || discoverDoor === 'import') && (
+                  {readSubPage === 'discover' && (discoverDoor === 'classics' || discoverDoor === 'import') && (
                     <div className="read-sub-page read-discover-page read-discover-door-page">
                       <DiscoverDoors mode="compact" />
                       {discoverDoor === 'import' && (
@@ -1892,7 +1892,7 @@ const Dashboard = () => {
                           <ImportBookPanel activeLanguage={activeLanguage} />
                         </div>
                       )}
-                      {discoverDoor === 'adapt' && (
+                      {discoverDoor === 'classics' && (
                         <GutenbergSearchPanel
                           activeLanguage={activeLanguage}
                           onSelectBook={handleGutenbergSelect}

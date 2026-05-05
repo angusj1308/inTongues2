@@ -98,7 +98,8 @@ const App = () => {
       <Route path="/read" element={<Navigate to="/read/library" replace />} />
       <Route path="/read/generate" element={<Navigate to="/read/discover/generate" replace />} />
       <Route path="/read/import" element={<Navigate to="/read/discover/import" replace />} />
-      <Route path="/read/discover/gutenberg" element={<Navigate to="/read/discover/adapt" replace />} />
+      <Route path="/read/discover/gutenberg" element={<Navigate to="/read/discover/classics" replace />} />
+      <Route path="/read/discover/adapt" element={<Navigate to="/read/discover/classics" replace />} />
       <Route
         path="/read/discover/:doorPage"
         element={

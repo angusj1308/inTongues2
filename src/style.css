@@ -28188,6 +28188,7 @@ body:has(.cinema-page) {
   outline: none;
   background: transparent;
   border: none;
+  box-shadow: none;
 }
 
 .new-shelf-save-btn {
@@ -28369,6 +28370,7 @@ body:has(.cinema-page) {
 
 .new-shelf-search input:focus {
   border-bottom-color: var(--text-primary);
+  box-shadow: none;
 }
 
 .new-shelf-list {

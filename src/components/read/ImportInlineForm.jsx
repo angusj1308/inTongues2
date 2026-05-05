@@ -285,9 +285,14 @@ export default function ImportInlineForm({ activeLanguage }) {
                 {file ? file.name : 'Choose a file or drop one here'}
               </span>
               {!file && (
-                <span className="genq-file-dropzone-secondary">
-                  .txt, .pdf, or .epub
-                </span>
+                <>
+                  <span className="genq-file-dropzone-secondary">
+                    .txt, .pdf, or .epub
+                  </span>
+                  <span className="genq-file-dropzone-note">
+                    For quality and copyright reasons, scanned PDFs are not supported.
+                  </span>
+                </>
               )}
             </button>
             <input

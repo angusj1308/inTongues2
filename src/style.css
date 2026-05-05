@@ -28983,6 +28983,7 @@ body:has(.cinema-page) {
 .genq-step {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   flex: 1 1 auto;
   min-height: 0;
   will-change: transform, opacity;

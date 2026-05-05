@@ -28206,6 +28206,24 @@ body:has(.cinema-page) {
   appearance: none;
 }
 
+[data-theme='dark'] .discover-search-input {
+  border-color: #FBFAF8;
+  color: #FBFAF8;
+}
+
+[data-theme='dark'] .discover-search-input::placeholder {
+  color: #FBFAF8;
+  opacity: 1;
+}
+
+[data-theme='dark'] .discover-search-input:focus {
+  border-color: #FBFAF8;
+}
+
+[data-theme='dark'] .discover-search-icon {
+  color: #FBFAF8;
+}
+
 .discover-landing .discover-doors--landing {
   padding: 3.5rem 0 2.5rem;
   gap: 2rem;

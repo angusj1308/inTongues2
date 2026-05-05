@@ -28977,6 +28977,45 @@ body:has(.cinema-page) {
   flex: 1 1 auto;
   min-height: 0;
   margin-top: 24px;
+  overflow: hidden;
+}
+
+.genq-step {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  will-change: transform, opacity;
+}
+
+.genq-step.slide-in-right {
+  animation: genqSlideRight 360ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.genq-step.slide-in-left {
+  animation: genqSlideLeft 360ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes genqSlideRight {
+  from {
+    transform: translateX(80px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes genqSlideLeft {
+  from {
+    transform: translateX(-80px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .genq-heading {

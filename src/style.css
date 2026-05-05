@@ -28160,9 +28160,6 @@ body:has(.cinema-page) {
 
 .discover-landing .discover-doors--landing {
   padding: 3.5rem 6rem 2.5rem;
-  max-width: 1100px;
-  margin: 0 auto;
-  justify-items: center;
 }
 
 .discover-hairline {

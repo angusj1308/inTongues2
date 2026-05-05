@@ -14,6 +14,7 @@ import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import GutenbergSearchPanel from '../components/read/GutenbergSearchPanel'
 import ReadSubNav from '../components/read/ReadSubNav'
 import DiscoverDoors from '../components/read/DiscoverDoors'
+import DiscoverLanding from '../components/read/DiscoverLanding'
 import NewShelfBuilder from '../components/read/NewShelfBuilder'
 import { mockBooksForLanguage } from '../data/mockBooks'
 import { applyCoverOverride } from '../data/coverOverrides'
@@ -430,7 +431,7 @@ const Dashboard = () => {
     ? location.pathname.split('/').filter(Boolean) // ['read', 'discover', 'generate']
     : []
   const READ_SUB_PAGES = ['library', 'discover']
-  const DISCOVER_DOORS = ['generate', 'import', 'gutenberg']
+  const DISCOVER_DOORS = ['generate', 'adapt', 'import']
   const readSubPage = isReadRoute && READ_SUB_PAGES.includes(readSegments[1])
     ? readSegments[1]
     : (isReadRoute ? 'library' : null)
@@ -1981,7 +1982,10 @@ const Dashboard = () => {
 
                   {readSubPage === 'discover' && !discoverDoor && (
                     <div className="read-sub-page read-discover-page">
-                      <DiscoverDoors mode="landing" />
+                      <DiscoverLanding
+                        activeLanguage={activeLanguage}
+                        getStoryTitle={getStoryTitle}
+                      />
                     </div>
                   )}
 
@@ -1998,7 +2002,7 @@ const Dashboard = () => {
                           <ImportBookPanel activeLanguage={activeLanguage} />
                         </div>
                       )}
-                      {discoverDoor === 'gutenberg' && (
+                      {discoverDoor === 'adapt' && (
                         <GutenbergSearchPanel
                           activeLanguage={activeLanguage}
                           onSelectBook={handleGutenbergSelect}

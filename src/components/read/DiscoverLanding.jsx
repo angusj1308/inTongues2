@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import DiscoverDoors from './DiscoverDoors'
+import { NavLink } from 'react-router-dom'
 import { mockBooksForLanguage } from '../../data/mockBooks'
+import GenerateInlineForm from './GenerateInlineForm'
 
 const ROWS = [
   { key: 'originals', title: 'New inTongues Originals' },
@@ -8,7 +9,32 @@ const ROWS = [
   { key: 'popular', title: 'Popular Right Now' },
 ]
 
-export default function DiscoverLanding({ activeLanguage, getStoryTitle }) {
+const DOORS = [
+  {
+    key: 'generate',
+    to: '/read/discover/generate',
+    label: 'Generate',
+    description: 'Commission a new short story or novel.',
+  },
+  {
+    key: 'adapt',
+    to: '/read/discover/adapt',
+    label: 'Adapt',
+    description: 'Re-render a classic at your level.',
+  },
+  {
+    key: 'import',
+    to: '/read/discover/import',
+    label: 'Import',
+    description: 'Bring your own EPUB or PDF.',
+  },
+]
+
+export default function DiscoverLanding({
+  activeLanguage,
+  getStoryTitle,
+  expandedDoor = null,
+}) {
   const [query, setQuery] = useState('')
 
   const rowBooks = useMemo(() => {
@@ -43,7 +69,32 @@ export default function DiscoverLanding({ activeLanguage, getStoryTitle }) {
         />
       </form>
 
-      <DiscoverDoors mode="landing" />
+      <div className="discover-doors discover-doors--landing">
+        {DOORS.map((door) => {
+          const isExpanded = expandedDoor === door.key
+          if (isExpanded && door.key === 'generate') {
+            return (
+              <div
+                key={door.key}
+                className="discover-door discover-door--landing is-expanded"
+              >
+                <GenerateInlineForm activeLanguage={activeLanguage} />
+              </div>
+            )
+          }
+          return (
+            <NavLink
+              key={door.key}
+              to={door.to}
+              className="discover-door discover-door--landing"
+            >
+              <h2 className="discover-door-label">{door.label}</h2>
+              <span className="discover-door-rule" aria-hidden="true" />
+              <p className="discover-door-description">{door.description}</p>
+            </NavLink>
+          )
+        })}
+      </div>
 
       <div className="discover-hairline" aria-hidden="true" />
 

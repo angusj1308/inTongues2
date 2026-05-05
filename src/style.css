@@ -28170,7 +28170,7 @@ body:has(.cinema-page) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary, #6B6862);
+  color: var(--text-primary, #1C1A17);
   pointer-events: none;
 }
 
@@ -28191,8 +28191,8 @@ body:has(.cinema-page) {
 }
 
 .discover-search-input::placeholder {
-  color: var(--text-secondary, #6B6862);
-  opacity: 0.85;
+  color: var(--text-primary, #1C1A17);
+  opacity: 1;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 

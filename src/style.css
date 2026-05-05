@@ -29118,6 +29118,85 @@ body:has(.cinema-page) {
   opacity: 0.65;
 }
 
+.genq-line-input {
+  width: 100%;
+  padding: 14px 18px;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-primary, #1C1A17);
+  background: transparent;
+  border: 1px solid rgba(28, 26, 23, 0.35);
+  border-radius: 4px;
+  outline: none;
+  box-shadow: none;
+}
+
+.genq-line-input::placeholder {
+  color: var(--text-secondary, #6B6862);
+  opacity: 0.65;
+}
+
+.genq-line-input:focus {
+  border-color: var(--text-primary, #1C1A17);
+  box-shadow: none;
+}
+
+.genq-file-button {
+  width: 100%;
+  padding: 14px 18px;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary, #1C1A17);
+  background: transparent;
+  border: 1px solid rgba(28, 26, 23, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.genq-file-button:hover {
+  border-color: var(--text-primary, #1C1A17);
+  background: rgba(28, 26, 23, 0.04);
+}
+
+.genq-file-hint {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px;
+  color: var(--text-secondary, #6B6862);
+  letter-spacing: 0.02em;
+  align-self: flex-start;
+}
+
+[data-theme='dark'] .genq-line-input {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme='dark'] .genq-line-input:focus {
+  border-color: #FBFAF8;
+}
+
+[data-theme='dark'] .genq-line-input::placeholder {
+  color: rgba(251, 250, 248, 0.55);
+}
+
+[data-theme='dark'] .genq-file-button {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #FBFAF8;
+}
+
+[data-theme='dark'] .genq-file-button:hover {
+  border-color: #FBFAF8;
+  background: rgba(251, 250, 248, 0.05);
+}
+
+[data-theme='dark'] .genq-file-hint {
+  color: rgba(251, 250, 248, 0.55);
+}
+
 .genq-textarea:focus {
   border-color: var(--text-primary, #1C1A17);
   box-shadow: none;

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { mockBooksForLanguage } from '../../data/mockBooks'
 import GenerateInlineForm from './GenerateInlineForm'
+import ImportInlineForm from './ImportInlineForm'
 
 const ROWS = [
   { key: 'originals', title: 'New inTongues Originals' },
@@ -40,7 +41,7 @@ export default function DiscoverLanding({
   const expandedCardRef = useRef(null)
 
   useEffect(() => {
-    if (expandedDoor !== 'generate') return
+    if (expandedDoor !== 'generate' && expandedDoor !== 'import') return
     const handleClickOutside = (event) => {
       const card = expandedCardRef.current
       if (card && !card.contains(event.target)) {
@@ -100,6 +101,17 @@ export default function DiscoverLanding({
                 className="discover-door discover-door--landing is-expanded"
               >
                 <GenerateInlineForm activeLanguage={activeLanguage} />
+              </div>
+            )
+          }
+          if (isExpanded && door.key === 'import') {
+            return (
+              <div
+                key={door.key}
+                ref={expandedCardRef}
+                className="discover-door discover-door--landing is-expanded"
+              >
+                <ImportInlineForm activeLanguage={activeLanguage} />
               </div>
             )
           }

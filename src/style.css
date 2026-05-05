@@ -28176,8 +28176,8 @@ body:has(.cinema-page) {
 
 .discover-search-input {
   width: 100%;
-  background: var(--text-primary, #1C1A17);
-  border: 3px solid var(--text-primary, #1C1A17);
+  background: var(--text-secondary, #6B6862);
+  border: 3px solid var(--text-secondary, #6B6862);
   border-radius: 4px;
   padding: 1rem 1.25rem 1rem 3rem;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -28197,7 +28197,7 @@ body:has(.cinema-page) {
 }
 
 .discover-search-input:focus {
-  border-color: var(--text-primary, #1C1A17);
+  border-color: var(--text-secondary, #6B6862);
   box-shadow: none;
 }
 

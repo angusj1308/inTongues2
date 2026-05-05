@@ -290,7 +290,7 @@ export default function ImportInlineForm({ activeLanguage }) {
                     .txt, .pdf, or .epub
                   </span>
                   <span className="genq-file-dropzone-note">
-                    Scanned PDFs aren’t supported (quality and copyright reasons).
+                    For quality and copyright reasons, scanned PDFs are not supported.
                   </span>
                 </>
               )}

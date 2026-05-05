@@ -245,8 +245,8 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
       <div className={`dashboard-header-row${isScrolled ? ' is-scrolled' : ''}`}>
           <button
             className="dashboard-logo"
-            onClick={() => onTabChange && onTabChange('home')}
-            aria-label="Go to home"
+            onClick={() => onTabChange && onTabChange('read')}
+            aria-label="Go to library"
           >
             <span className="dashboard-logo-prefix">in</span>
             <span className="dashboard-logo-language">Tongues</span>

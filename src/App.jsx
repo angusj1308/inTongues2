@@ -67,7 +67,7 @@ const LandingRedirect = () => {
     return <Navigate to="/login" replace />
   }
 
-  return <Navigate to="/dashboard" replace />
+  return <Navigate to="/read/library" replace />
 }
 
 const App = () => {

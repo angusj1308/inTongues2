@@ -434,7 +434,7 @@ const Dashboard = () => {
   const DISCOVER_DOORS = ['generate', 'adapt', 'import']
   const readSubPage = isReadRoute && READ_SUB_PAGES.includes(readSegments[1])
     ? readSegments[1]
-    : (isReadRoute ? 'library' : null)
+    : 'library'
   const discoverDoor = readSubPage === 'discover' && DISCOVER_DOORS.includes(readSegments[2])
     ? readSegments[2]
     : null
@@ -454,7 +454,7 @@ const Dashboard = () => {
   const getInitialTab = () => {
     if (isReadRoute) return 'read'
     const initialTab = location.state?.initialTab
-    return initialTab && DASHBOARD_TABS.includes(initialTab) ? initialTab : 'home'
+    return initialTab && DASHBOARD_TABS.includes(initialTab) ? initialTab : 'read'
   }
   const [activeTab, setActiveTab] = useState(getInitialTab)
   const [slideDirection, setSlideDirection] = useState('')
@@ -1848,137 +1848,6 @@ const Dashboard = () => {
           }`}
           key={activeTab}
         >
-          {activeTab === 'home' && (
-            <div className="home-content">
-              {/* Row 1: Three Card Layout */}
-              <div className="home-grid-three">
-                {/* Card 1: Today's Routine */}
-                <div className="home-card home-routine-card">
-                  <div className="home-card-header">
-                    <h3 className="home-card-title">{getCardHeader(activeLanguage, 'routine')}</h3>
-                    <button
-                      className="home-add-activity-btn"
-                      onClick={() => setIsAddActivityOpen(true)}
-                      title="Add activity"
-                    >
-                      +
-                    </button>
-                  </div>
-                  {todayActivities.length > 0 ? (
-                    <div className="home-today-list">
-                      {todayActivities.map((activity) => {
-                        const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
-                        return (
-                          <button
-                            key={activity.id}
-                            className="home-today-item"
-                            onClick={() => {
-                              const tabMap = {
-                                reading: 'read',
-                                listening: 'listen',
-                                speaking: 'speak',
-                                review: 'review',
-                                writing: 'write',
-                                tutor: 'tutor',
-                              }
-                              handleTabClick(tabMap[activity.activityType] || 'read')
-                            }}
-                          >
-                            <span className="home-today-time">{activity.time || '—'}</span>
-                            <span className="home-today-activity">{activityConfig.label}</span>
-                            <span className="home-today-duration">{activity.duration}m</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className="home-today-empty">No activities scheduled for today</p>
-                  )}
-                  <AddActivityModal
-                    isOpen={isAddActivityOpen}
-                    onClose={() => setIsAddActivityOpen(false)}
-                    onAdd={handleAddActivity}
-                  />
-                </div>
-
-                {/* Divider */}
-                <div className="home-grid-divider" />
-
-                {/* Card 2: Stats */}
-                <div className="home-card home-stats-card">
-                  <h3 className="home-card-title">{getCardHeader(activeLanguage, 'stats')}</h3>
-                  <div className="home-stats-list">
-                    <button
-                      className={`home-stat-item ${selectedStat === 'knownWords' ? 'active' : ''}`}
-                      onClick={() => setSelectedStat('knownWords')}
-                    >
-                      <span className="home-stat-value">
-                        {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()}
-                      </span>
-                      <span className="home-stat-label">known words</span>
-                    </button>
-                    <button
-                      className={`home-stat-item ${selectedStat === 'wordsRead' ? 'active' : ''}`}
-                      onClick={() => setSelectedStat('wordsRead')}
-                    >
-                      <span className="home-stat-value">
-                        {homeStatsLoading ? '...' : homeStats.wordsRead >= 1000
-                          ? `${(homeStats.wordsRead / 1000).toFixed(1)}k`
-                          : homeStats.wordsRead}
-                      </span>
-                      <span className="home-stat-label">words read</span>
-                    </button>
-                    <button
-                      className={`home-stat-item ${selectedStat === 'listeningSeconds' ? 'active' : ''}`}
-                      onClick={() => setSelectedStat('listeningSeconds')}
-                    >
-                      <span className="home-stat-value">
-                        {homeStatsLoading ? '...' : homeStats.listeningFormatted}
-                      </span>
-                      <span className="home-stat-label">listened</span>
-                    </button>
-                    <button
-                      className={`home-stat-item ${selectedStat === 'wordsWritten' ? 'active' : ''}`}
-                      onClick={() => setSelectedStat('wordsWritten')}
-                    >
-                      <span className="home-stat-value">
-                        {homeStatsLoading ? '...' : homeStats.wordsWritten >= 1000
-                          ? `${(homeStats.wordsWritten / 1000).toFixed(1)}k`
-                          : homeStats.wordsWritten}
-                      </span>
-                      <span className="home-stat-label">words written</span>
-                    </button>
-                    <button
-                      className={`home-stat-item ${selectedStat === 'speakingSeconds' ? 'active' : ''}`}
-                      onClick={() => setSelectedStat('speakingSeconds')}
-                    >
-                      <span className="home-stat-value">
-                        {homeStatsLoading ? '...' : homeStats.speakingFormatted}
-                      </span>
-                      <span className="home-stat-label">speaking</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="home-grid-divider" />
-
-                {/* Card 3: Progress Chart */}
-                <ProgressChart
-                  userId={user?.uid}
-                  language={activeLanguage}
-                  selectedStat={selectedStat}
-                  homeStats={homeStats}
-                />
-              </div>
-
-              {/* Horizontal Divider */}
-              <div className="home-row-divider" />
-
-              {/* Row 2: Weekly Calendar */}
-              <RoutineBuilder userId={user?.uid} language={activeLanguage} />
-            </div>
-          )}
 
           {activeTab === 'read' && (
             <div className="home-content">

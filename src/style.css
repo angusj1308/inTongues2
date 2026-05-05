@@ -27682,7 +27682,7 @@ body:has(.cinema-page) {
   padding: 0.5rem 0 1.25rem;
   margin: 0 auto 1.5rem;
   width: min(1320px, 100%);
-  transform: translate(-0.25cm, 1cm);
+  transform: translate(-0.25cm, 0cm);
 }
 
 .read-sub-nav .read-sub-nav-item:first-of-type {

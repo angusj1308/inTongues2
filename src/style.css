@@ -28158,7 +28158,7 @@ body:has(.cinema-page) {
 }
 
 .discover-search {
-  padding: 2.5rem 6rem 0;
+  padding: 2.5rem 0 0;
 }
 
 .discover-search-input {
@@ -28194,14 +28194,51 @@ body:has(.cinema-page) {
 }
 
 .discover-landing .discover-doors--landing {
-  padding: 3.5rem 6rem 2.5rem;
+  padding: 3.5rem 0 2.5rem;
+  gap: 2rem;
+}
+
+.discover-landing .discover-door--landing {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2.5rem;
+  border: 1px solid var(--divider, #E8E5E0);
+  background: transparent;
+  transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+
+.discover-landing .discover-door--landing:hover {
+  background: rgba(28, 26, 23, 0.03);
+  border-color: rgba(28, 26, 23, 0.35);
+  transform: translateY(-2px);
+}
+
+[data-theme='dark'] .discover-landing .discover-door--landing:hover {
+  background: rgba(251, 250, 248, 0.04);
+  border-color: rgba(251, 250, 248, 0.35);
+}
+
+.discover-landing .discover-door--landing .discover-door-label {
+  font-size: 4.5rem;
+  line-height: 1;
+}
+
+.discover-landing .discover-door--landing .discover-door-rule {
+  width: 40px;
+}
+
+.discover-landing .discover-door--landing .discover-door-description {
+  font-size: 1rem;
+  max-width: 24ch;
 }
 
 .discover-hairline {
   height: 0.5px;
   background: var(--text-primary, #1C1A17);
   opacity: 0.12;
-  margin: 0 6rem;
+  margin: 0;
 }
 
 [data-theme='dark'] .discover-hairline {
@@ -28212,7 +28249,7 @@ body:has(.cinema-page) {
   display: flex;
   flex-direction: column;
   gap: 3.25rem;
-  padding: 3rem 6rem 6rem;
+  padding: 3rem 0 6rem;
 }
 
 .discover-row {

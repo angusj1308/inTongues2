@@ -28904,13 +28904,17 @@ body:has(.cinema-page) {
 }
 
 /* =====================================================================
-   Generate inline form — fills the Generate door card on /read/discover/generate
+   Generate door — conversational Q&A card
+   Click the Generate idle door and the card transforms into a single-question
+   flow. Breadcrumb of answers across the top. Heading in Cormorant Garamond,
+   centred. Auto-advancing single-select; setting requires Enter / Continue;
+   audio "Text only" skips the voice question.
    ===================================================================== */
 .discover-landing .discover-door--landing.is-expanded {
   align-items: stretch;
   justify-content: flex-start;
   text-align: left;
-  padding: 20px;
+  padding: 28px;
   cursor: default;
   border-color: var(--text-primary, #1C1A17);
   background: transparent;
@@ -28922,23 +28926,212 @@ body:has(.cinema-page) {
   border-color: var(--text-primary, #1C1A17);
 }
 
-.generate-inline-form {
+.genq-card {
   display: flex;
   flex-direction: column;
-  gap: 11px;
   width: 100%;
   height: 100%;
   font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text-primary, #1C1A17);
 }
 
-.gen-section {
+.genq-breadcrumbs {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 18px;
 }
 
-.gen-label {
+.genq-breadcrumb {
+  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #6B6862);
+  background: transparent;
+  border: 0.5px solid rgba(28, 26, 23, 0.35);
+  border-radius: 0;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+
+.genq-breadcrumb:hover {
+  color: var(--text-primary, #1C1A17);
+  border-color: var(--text-primary, #1C1A17);
+}
+
+.genq-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 24px;
+}
+
+.genq-heading {
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.15;
+  text-align: center;
+  margin: 0 0 18px;
+  color: var(--text-primary, #1C1A17);
+}
+
+.genq-options {
+  display: grid;
+  width: 100%;
+}
+
+.genq-options--stack {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.genq-options--grid {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.genq-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  padding: 14px 10px;
+  background: transparent;
+  border: 1px solid rgba(28, 26, 23, 0.18);
+  border-radius: 0;
+  color: var(--text-primary, #1C1A17);
+  cursor: pointer;
+  text-align: center;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.genq-option--compact {
+  padding: 12px 10px;
+}
+
+.genq-option:hover {
+  border-color: rgba(28, 26, 23, 0.55);
+}
+
+.genq-option:active {
+  background: var(--text-primary, #1C1A17);
+  color: var(--bg, #FBFAF8);
+  border-color: var(--text-primary, #1C1A17);
+}
+
+.genq-option-label {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.genq-option--compact .genq-option-label {
+  font-size: 13px;
+}
+
+.genq-option-sub {
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+.genq-setting-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.genq-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary, #1C1A17);
+  background: transparent;
+  border: 1px solid rgba(28, 26, 23, 0.35);
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+}
+
+.genq-input::placeholder {
+  color: var(--text-secondary, #6B6862);
+  opacity: 0.65;
+}
+
+.genq-input:focus {
+  border-color: var(--text-primary, #1C1A17);
+  box-shadow: none;
+}
+
+.genq-continue {
+  align-self: flex-start;
+  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-primary, #1C1A17);
+  background: transparent;
+  border: 1px solid rgba(28, 26, 23, 0.4);
+  border-radius: 0;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.genq-continue:hover:not(:disabled) {
+  background: var(--text-primary, #1C1A17);
+  color: var(--bg, #FBFAF8);
+  border-color: var(--text-primary, #1C1A17);
+}
+
+.genq-continue:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.genq-summary {
+  margin: 0;
+  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--text-secondary, #6B6862);
+}
+
+.genq-summary-key {
+  color: var(--text-primary, #1C1A17);
+  font-weight: 500;
+}
+
+.genq-spacer {
+  flex: 1 1 auto;
+  min-height: 12px;
+}
+
+.genq-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(28, 26, 23, 0.2);
+}
+
+.genq-cost {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.genq-cost-label {
   font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 9px;
   font-weight: 600;
@@ -28947,245 +29140,95 @@ body:has(.cinema-page) {
   color: var(--text-secondary, #6B6862);
 }
 
-.gen-options {
-  display: grid;
-  gap: 6px;
-}
-
-.gen-options--3 {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.gen-options--4 {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.gen-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 8px 6px;
-  border: 1px solid rgba(28, 26, 23, 0.18);
-  background: transparent;
-  border-radius: 0;
-  cursor: pointer;
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  color: var(--text-secondary, #6B6862);
-  text-align: center;
-  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
-}
-
-.gen-option:hover {
-  border-color: rgba(28, 26, 23, 0.4);
-  color: var(--text-primary, #1C1A17);
-}
-
-.gen-option.is-active {
-  background: var(--text-primary, #1C1A17);
-  color: var(--bg, #FBFAF8);
-  border-color: var(--text-primary, #1C1A17);
-}
-
-.gen-option.is-active:hover {
-  background: var(--text-primary, #1C1A17);
-  color: var(--bg, #FBFAF8);
-}
-
-.gen-option.is-disabled,
-.gen-option:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.gen-option-label {
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.1;
-}
-
-.gen-option.is-active .gen-option-label {
-  font-weight: 500;
-}
-
-.gen-option--stacked .gen-option-label {
-  font-size: 12px;
-}
-
-.gen-option-sub {
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  opacity: 0.75;
-}
-
-.gen-select-wrap {
-  position: relative;
-  display: block;
-}
-
-.gen-select {
-  width: 100%;
-  padding: 8px 28px 8px 10px;
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-primary, #1C1A17);
-  background: transparent;
-  border: 1px solid rgba(28, 26, 23, 0.18);
-  border-radius: 0;
-  outline: none;
-  -webkit-appearance: none;
-  appearance: none;
-  cursor: pointer;
-}
-
-.gen-select:focus {
-  border-color: var(--text-primary, #1C1A17);
-}
-
-.gen-select-display {
-  display: none;
-}
-
-.gen-select-chevron {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 10px;
-  color: var(--text-secondary, #6B6862);
-  pointer-events: none;
-}
-
-.gen-input {
-  width: 100%;
-  padding: 8px 10px;
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-primary, #1C1A17);
-  background: transparent;
-  border: 1px solid rgba(28, 26, 23, 0.18);
-  border-radius: 0;
-  outline: none;
-  box-shadow: none;
-}
-
-.gen-input::placeholder {
-  color: var(--text-secondary, #6B6862);
-  opacity: 0.7;
-}
-
-.gen-input:focus {
-  border-color: var(--text-primary, #1C1A17);
-  box-shadow: none;
-}
-
-.gen-spacer {
-  flex: 1 1 auto;
-  min-height: 4px;
-}
-
-.gen-action-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(28, 26, 23, 0.18);
-}
-
-.gen-cost {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.gen-cost .gen-label {
-  font-size: 8px;
-}
-
-.gen-cost-value {
+.genq-cost-value {
   font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 500;
   line-height: 1;
   color: var(--text-primary, #1C1A17);
 }
 
-.gen-submit {
+.genq-generate {
   font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--text-primary, #1C1A17);
-  background: transparent;
-  border: 1px solid var(--text-primary, #1C1A17);
-  border-radius: 0;
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: background 160ms ease, color 160ms ease;
-}
-
-.gen-submit:hover:not(:disabled) {
   background: var(--text-primary, #1C1A17);
   color: var(--bg, #FBFAF8);
+  border: 1px solid var(--text-primary, #1C1A17);
+  border-radius: 0;
+  padding: 12px 22px;
+  cursor: pointer;
+  transition: opacity 140ms ease;
 }
 
-.gen-submit:disabled {
+.genq-generate:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.genq-generate:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.gen-error {
-  margin: 0;
+.genq-error {
+  margin: 6px 0 0;
   font-size: 11px;
   color: #c1644b;
+  text-align: center;
 }
 
-/* Dark-mode tuning for the inline form */
-[data-theme='dark'] .gen-option {
+/* Dark-mode tuning */
+[data-theme='dark'] .genq-breadcrumb {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(251, 250, 248, 0.6);
+}
+
+[data-theme='dark'] .genq-breadcrumb:hover {
+  color: #FBFAF8;
+  border-color: #FBFAF8;
+}
+
+[data-theme='dark'] .genq-option {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-[data-theme='dark'] .gen-option:hover {
-  border-color: rgba(255, 255, 255, 0.45);
+[data-theme='dark'] .genq-option:hover {
+  border-color: rgba(255, 255, 255, 0.55);
 }
 
-[data-theme='dark'] .gen-option.is-active {
+[data-theme='dark'] .genq-option:active {
   background: #FBFAF8;
   color: #1C1A17;
   border-color: #FBFAF8;
 }
 
-[data-theme='dark'] .gen-option.is-active:hover {
-  background: #FBFAF8;
-  color: #1C1A17;
+[data-theme='dark'] .genq-input {
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
-[data-theme='dark'] .gen-select,
-[data-theme='dark'] .gen-input {
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-[data-theme='dark'] .gen-select:focus,
-[data-theme='dark'] .gen-input:focus {
+[data-theme='dark'] .genq-input:focus {
   border-color: #FBFAF8;
 }
 
-[data-theme='dark'] .gen-action-row {
-  border-top-color: rgba(255, 255, 255, 0.2);
-}
-
-[data-theme='dark'] .gen-submit {
-  border-color: #FBFAF8;
+[data-theme='dark'] .genq-continue {
+  border-color: rgba(255, 255, 255, 0.4);
   color: #FBFAF8;
 }
 
-[data-theme='dark'] .gen-submit:hover:not(:disabled) {
+[data-theme='dark'] .genq-continue:hover:not(:disabled) {
   background: #FBFAF8;
   color: #1C1A17;
+  border-color: #FBFAF8;
+}
+
+[data-theme='dark'] .genq-action-row {
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme='dark'] .genq-generate {
+  background: #FBFAF8;
+  color: #1C1A17;
+  border-color: #FBFAF8;
 }

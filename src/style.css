@@ -29179,6 +29179,19 @@ body:has(.cinema-page) {
   letter-spacing: 0.02em;
 }
 
+.genq-file-dropzone-note {
+  font-size: 10px;
+  color: var(--text-secondary, #6B6862);
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+  max-width: 28ch;
+  line-height: 1.4;
+}
+
+[data-theme='dark'] .genq-file-dropzone-note {
+  color: rgba(251, 250, 248, 0.55);
+}
+
 [data-theme='dark'] .genq-line-input {
   border-color: rgba(255, 255, 255, 0.3);
 }

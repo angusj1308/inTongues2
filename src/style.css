@@ -28960,16 +28960,15 @@ body:has(.cinema-page) {
   letter-spacing: 0.04em;
   color: var(--text-secondary, #6B6862);
   background: transparent;
-  border: 0.5px solid rgba(28, 26, 23, 0.35);
+  border: none;
   border-radius: 0;
-  padding: 2px 6px;
+  padding: 2px 0;
   cursor: pointer;
-  transition: color 160ms ease, border-color 160ms ease;
+  transition: color 160ms ease;
 }
 
 .genq-breadcrumb:hover {
   color: var(--text-primary, #1C1A17);
-  border-color: var(--text-primary, #1C1A17);
 }
 
 .genq-body {
@@ -29191,13 +29190,11 @@ body:has(.cinema-page) {
 
 /* Dark-mode tuning */
 [data-theme='dark'] .genq-breadcrumb {
-  border-color: rgba(255, 255, 255, 0.3);
   color: rgba(251, 250, 248, 0.6);
 }
 
 [data-theme='dark'] .genq-breadcrumb:hover {
   color: #FBFAF8;
-  border-color: #FBFAF8;
 }
 
 [data-theme='dark'] .genq-option {

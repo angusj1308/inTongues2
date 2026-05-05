@@ -28021,7 +28021,8 @@ body:has(.cinema-page) {
 .discover-door--landing {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   gap: 1rem;
   padding: 0;
   background: none;
@@ -28159,6 +28160,9 @@ body:has(.cinema-page) {
 
 .discover-landing .discover-doors--landing {
   padding: 3.5rem 6rem 2.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  justify-items: center;
 }
 
 .discover-hairline {

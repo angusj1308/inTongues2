@@ -390,7 +390,14 @@ export default function GenerateInlineForm({ activeLanguage }) {
               onKeyDown={handleSettingKeyDown}
               rows={5}
             />
-            <span className="genq-setting-hint">⌘ + Enter to continue</span>
+            <button
+              type="button"
+              className="genq-continue-link"
+              onClick={() => setting.trim() && advance('audio')}
+              disabled={!setting.trim()}
+            >
+              Continue <span aria-hidden="true">→</span>
+            </button>
           </div>
         </>
       )

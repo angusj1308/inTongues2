@@ -28502,6 +28502,7 @@ body:has(.cinema-page) {
   height: 100%;
   object-fit: cover;
   display: block;
+  transform: scale(1.04);
 }
 
 .dashboard-language-flag {

@@ -25908,10 +25908,10 @@ body:has(.cinema-page) {
   background: transparent;
   border: none;
   border-radius: 0;
-  color: #78716c;
-  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  color: var(--text-secondary);
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.95rem;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.01em;
   cursor: pointer;
   text-align: center;
@@ -27759,9 +27759,9 @@ body:has(.cinema-page) {
    margin offset keeps each label closer to its own shelf without
    changing inter-shelf spacing. */
 .read-library-page .home-card-title {
-  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.95rem;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.01em;
   margin: 0.75cm 0 calc(1rem - 0.75cm);
 }

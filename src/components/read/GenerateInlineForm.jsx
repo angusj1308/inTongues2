@@ -54,8 +54,19 @@ export default function GenerateInlineForm({ activeLanguage }) {
   const [error, setError] = useState('')
 
   const settingInputRef = useRef(null)
+  const prevStepRef = useRef(step)
+  const [stepDirection, setStepDirection] = useState('')
 
   useEffect(() => {
+    const prev = prevStepRef.current
+    if (prev !== step) {
+      const prevIdx = STEP_ORDER.indexOf(prev)
+      const nextIdx = STEP_ORDER.indexOf(step)
+      if (prevIdx >= 0 && nextIdx >= 0) {
+        setStepDirection(nextIdx > prevIdx ? 'right' : 'left')
+      }
+      prevStepRef.current = step
+    }
     if (step === 'setting' && settingInputRef.current) {
       settingInputRef.current.focus()
     }
@@ -494,7 +505,18 @@ export default function GenerateInlineForm({ activeLanguage }) {
         ))}
       </div>
       <div className="genq-body">
-        {renderStep()}
+        <div
+          key={step}
+          className={`genq-step ${
+            stepDirection === 'right'
+              ? 'slide-in-right'
+              : stepDirection === 'left'
+                ? 'slide-in-left'
+                : ''
+          }`}
+        >
+          {renderStep()}
+        </div>
       </div>
     </div>
   )

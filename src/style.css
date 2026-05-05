@@ -28177,7 +28177,7 @@ body:has(.cinema-page) {
 .discover-search-input {
   width: 100%;
   background: transparent;
-  border: 1.5px solid var(--text-primary, #1C1A17);
+  border: 3px solid var(--text-primary, #1C1A17);
   border-radius: 4px;
   padding: 1rem 1.25rem 1rem 3rem;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;

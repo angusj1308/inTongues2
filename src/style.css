@@ -28231,20 +28231,18 @@ body:has(.cinema-page) {
   justify-content: center;
   gap: 1.25rem;
   padding: 2.5rem;
-  border: 1px solid var(--divider, #E8E5E0);
+  border: none;
   background: transparent;
-  transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
+  transition: background 200ms ease, transform 200ms ease;
 }
 
 .discover-landing .discover-door--landing:hover {
   background: rgba(28, 26, 23, 0.03);
-  border-color: rgba(28, 26, 23, 0.35);
   transform: translateY(-2px);
 }
 
 [data-theme='dark'] .discover-landing .discover-door--landing:hover {
   background: rgba(251, 250, 248, 0.04);
-  border-color: rgba(251, 250, 248, 0.35);
 }
 
 .discover-landing .discover-door--landing .discover-door-label {
@@ -28930,7 +28928,7 @@ body:has(.cinema-page) {
   text-align: left;
   padding: 28px;
   cursor: default;
-  border-color: var(--text-primary, #1C1A17);
+  border: 1px solid var(--text-primary, #1C1A17);
   background: transparent;
 }
 

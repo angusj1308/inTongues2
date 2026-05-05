@@ -109,12 +109,6 @@ export default function GenerateInlineForm({ activeLanguage }) {
     advance('setting')
   }
 
-  const handleSettingSubmit = (e) => {
-    e?.preventDefault?.()
-    if (!setting.trim()) return
-    advance('audio')
-  }
-
   const handleAudioPick = (value) => {
     setAudio(value)
     if (value === 'text') {
@@ -340,7 +334,7 @@ export default function GenerateInlineForm({ activeLanguage }) {
     if (step === 'length') {
       return (
         <>
-          <h3 className="genq-heading">How long?</h3>
+          <h3 className="genq-heading">Select story length</h3>
           <div className="genq-options genq-options--stack">
             {LENGTHS.map((opt) => (
               <button
@@ -377,26 +371,27 @@ export default function GenerateInlineForm({ activeLanguage }) {
       )
     }
     if (step === 'setting') {
+      const handleSettingKeyDown = (e) => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          if (setting.trim()) advance('audio')
+        }
+      }
       return (
         <>
-          <h3 className="genq-heading">Where and when?</h3>
-          <form className="genq-setting-form" onSubmit={handleSettingSubmit}>
-            <input
+          <h3 className="genq-heading">Describe story setting</h3>
+          <div className="genq-setting-form">
+            <textarea
               ref={settingInputRef}
-              type="text"
-              className="genq-input"
-              placeholder="A villa in 1962 Sicily…"
+              className="genq-textarea"
+              placeholder="Where and when does your story take place?"
               value={setting}
               onChange={(e) => setSetting(e.target.value)}
+              onKeyDown={handleSettingKeyDown}
+              rows={5}
             />
-            <button
-              type="submit"
-              className="genq-continue"
-              disabled={!setting.trim()}
-            >
-              Continue →
-            </button>
-          </form>
+            <span className="genq-setting-hint">⌘ + Enter to continue</span>
+          </div>
         </>
       )
     }

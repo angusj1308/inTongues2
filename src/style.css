@@ -27897,10 +27897,12 @@ body:has(.cinema-page) {
   display: inline;
 }
 
+.read-continue-title {
+  transition: opacity 160ms ease;
+}
+
 .read-continue-title:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
+  opacity: 0.7;
 }
 
 .read-continue-progress-row {
@@ -28542,7 +28544,7 @@ body:has(.cinema-page) {
   height: 100%;
   object-fit: cover;
   display: block;
-  transform: scale(1.04);
+  transform: scale(1.1);
 }
 
 .dashboard-language-flag {

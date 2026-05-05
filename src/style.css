@@ -28177,7 +28177,7 @@ body:has(.cinema-page) {
 .discover-search-input {
   width: 100%;
   background: transparent;
-  border: 3px solid var(--text-primary, #1C1A17);
+  border: 3px solid var(--text-secondary, #6B6862);
   border-radius: 4px;
   padding: 1rem 1.25rem 1rem 3rem;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -28197,22 +28197,17 @@ body:has(.cinema-page) {
 }
 
 .discover-search-input:focus {
-  border-color: var(--text-primary, #1C1A17);
+  border-color: var(--text-secondary, #6B6862);
   box-shadow: none;
 }
 
 [data-theme='dark'] .discover-search-input {
-  border-color: #FBFAF8;
   color: #FBFAF8;
 }
 
 [data-theme='dark'] .discover-search-input::placeholder {
   color: #FBFAF8;
   opacity: 1;
-}
-
-[data-theme='dark'] .discover-search-input:focus {
-  border-color: #FBFAF8;
 }
 
 [data-theme='dark'] .discover-search-icon {

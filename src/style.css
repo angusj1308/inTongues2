@@ -28170,20 +28170,20 @@ body:has(.cinema-page) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-primary, #1C1A17);
+  color: var(--bg, #FBFAF8);
   pointer-events: none;
 }
 
 .discover-search-input {
   width: 100%;
-  background: transparent;
+  background: var(--text-primary, #1C1A17);
   border: 3px solid var(--text-primary, #1C1A17);
   border-radius: 4px;
   padding: 1rem 1.25rem 1rem 3rem;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1rem;
   font-weight: 400;
-  color: var(--text-primary, #1C1A17);
+  color: var(--bg, #FBFAF8);
   outline: none;
   box-shadow: none;
   -webkit-appearance: none;
@@ -28191,7 +28191,7 @@ body:has(.cinema-page) {
 }
 
 .discover-search-input::placeholder {
-  color: var(--text-primary, #1C1A17);
+  color: var(--bg, #FBFAF8);
   opacity: 1;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
@@ -28206,23 +28206,6 @@ body:has(.cinema-page) {
   appearance: none;
 }
 
-[data-theme='dark'] .discover-search-input {
-  border-color: #FBFAF8;
-  color: #FBFAF8;
-}
-
-[data-theme='dark'] .discover-search-input::placeholder {
-  color: #FBFAF8;
-  opacity: 1;
-}
-
-[data-theme='dark'] .discover-search-input:focus {
-  border-color: #FBFAF8;
-}
-
-[data-theme='dark'] .discover-search-icon {
-  color: #FBFAF8;
-}
 
 .discover-landing .discover-doors--landing {
   padding: 3.5rem 0 2.5rem;

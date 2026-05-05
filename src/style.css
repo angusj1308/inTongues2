@@ -27679,10 +27679,10 @@ body:has(.cinema-page) {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 1.75rem;
-  padding: 0.5rem 0 1.25rem;
-  margin: 0 auto 1.5rem;
+  padding: 0 0 0.75rem;
+  margin: 0 auto 1rem;
   width: min(1320px, 100%);
-  transform: translate(-0.25cm, 1cm);
+  transform: translate(-0.25cm, -1.25cm);
 }
 
 .read-sub-nav .read-sub-nav-item:first-of-type {

@@ -4,20 +4,17 @@ const DOORS = [
   {
     to: '/read/discover/generate',
     label: 'Generate',
-    description:
-      'Commission a new short story or novel. Pick an author, a setting, a level. We write it.',
+    description: 'Commission a new short story or novel.',
+  },
+  {
+    to: '/read/discover/adapt',
+    label: 'Adapt',
+    description: 'Re-render a classic at your level.',
   },
   {
     to: '/read/discover/import',
     label: 'Import',
-    description:
-      'Bring your own. Drop in an EPUB, PDF, or text file and read it with full vocabulary tracking.',
-  },
-  {
-    to: '/read/discover/gutenberg',
-    label: 'Gutenberg',
-    description:
-      'Browse the public domain. Classic literature, level-adapted, with audio.',
+    description: 'Bring your own EPUB or PDF.',
   },
 ]
 

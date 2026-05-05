@@ -175,6 +175,7 @@ export default function ImportInlineForm({ activeLanguage }) {
   }
 
   const completed = STEP_ORDER.indexOf(step)
+  const credits = 5 + (audio === 'audio' ? 2 : 0)
   const breadcrumbs = []
   if (file && completed > STEP_ORDER.indexOf('file')) {
     const name = file.name
@@ -392,8 +393,8 @@ export default function ImportInlineForm({ activeLanguage }) {
           <div className="genq-spacer" />
           <div className="genq-action-row">
             <div className="genq-cost">
-              <span className="genq-cost-label">File</span>
-              <span className="genq-cost-value">{file?.name || ''}</span>
+              <span className="genq-cost-label">Cost</span>
+              <span className="genq-cost-value">{credits} credits</span>
             </div>
             <button
               type="button"

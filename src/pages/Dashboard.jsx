@@ -2005,23 +2005,19 @@ const Dashboard = () => {
                     }`}
                   >
 
-                  {readSubPage === 'discover' && !discoverDoor && (
+                  {readSubPage === 'discover' && (!discoverDoor || discoverDoor === 'generate') && (
                     <div className="read-sub-page read-discover-page">
                       <DiscoverLanding
                         activeLanguage={activeLanguage}
                         getStoryTitle={getStoryTitle}
+                        expandedDoor={discoverDoor}
                       />
                     </div>
                   )}
 
-                  {readSubPage === 'discover' && discoverDoor && (
+                  {readSubPage === 'discover' && (discoverDoor === 'adapt' || discoverDoor === 'import') && (
                     <div className="read-sub-page read-discover-page read-discover-door-page">
                       <DiscoverDoors mode="compact" />
-                      {discoverDoor === 'generate' && (
-                        <div className="read-form-page">
-                          <GenerateStoryPanel activeLanguage={activeLanguage} />
-                        </div>
-                      )}
                       {discoverDoor === 'import' && (
                         <div className="read-form-page">
                           <ImportBookPanel activeLanguage={activeLanguage} />

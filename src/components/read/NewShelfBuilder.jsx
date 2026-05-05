@@ -128,29 +128,16 @@ export default function NewShelfBuilder({
         >
           ←
         </button>
-        <h1 className="new-shelf-page-title">
-          {isEditing ? 'Edit Shelf' : 'New Shelf'}
-        </h1>
       </div>
       <header className="new-shelf-identity">
-        <div className="new-shelf-name-row">
-          <input
-            className="new-shelf-name-input"
-            type="text"
-            placeholder="Name this shelf…"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-          <button
-            type="button"
-            className="new-shelf-save-btn"
-            onClick={handleSave}
-            disabled={!canSave || saving}
-          >
-            {saving ? 'Saving…' : 'Save Shelf →'}
-          </button>
-        </div>
+        <input
+          className="new-shelf-name-input"
+          type="text"
+          placeholder="Name this shelf…"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+        />
         {saveError && <p className="new-shelf-error">{saveError}</p>}
       </header>
 
@@ -210,8 +197,16 @@ export default function NewShelfBuilder({
         )}
       </div>
 
-      {isEditing && (
-        <footer className="new-shelf-footer">
+      <footer className="new-shelf-footer">
+        <button
+          type="button"
+          className="new-shelf-save-btn"
+          onClick={handleSave}
+          disabled={!canSave || saving}
+        >
+          {saving ? 'Saving…' : 'Save Shelf →'}
+        </button>
+        {isEditing && (
           <button
             type="button"
             className="new-shelf-delete-btn"
@@ -219,28 +214,28 @@ export default function NewShelfBuilder({
           >
             Delete Shelf
           </button>
-          {showDelete && (
-            <div className="new-shelf-discard new-shelf-delete-confirm" role="alertdialog">
-              <span>Delete this shelf? This cannot be undone.</span>
-              <button
-                type="button"
-                className="new-shelf-discard-confirm"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-              <button
-                type="button"
-                className="new-shelf-discard-keep"
-                onClick={() => setShowDelete(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </footer>
-      )}
+        )}
+        {showDelete && (
+          <div className="new-shelf-discard new-shelf-delete-confirm" role="alertdialog">
+            <span>Delete this shelf? This cannot be undone.</span>
+            <button
+              type="button"
+              className="new-shelf-discard-confirm"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+            <button
+              type="button"
+              className="new-shelf-discard-keep"
+              onClick={() => setShowDelete(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </footer>
     </div>
   )
 }

@@ -28131,11 +28131,10 @@ body:has(.cinema-page) {
   gap: 0.5rem;
 }
 
-/* Page orientation: back arrow + page title above the form */
+/* Back arrow only — page title is replaced by the name-input itself */
 .new-shelf-orientation {
   display: flex;
   align-items: center;
-  gap: 1rem;
 }
 
 .new-shelf-back {
@@ -28143,7 +28142,7 @@ body:has(.cinema-page) {
   border: none;
   padding: 0;
   font-family: var(--font-supporting);
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   line-height: 1;
   color: var(--text-primary);
   cursor: pointer;
@@ -28154,49 +28153,39 @@ body:has(.cinema-page) {
   opacity: 0.6;
 }
 
-.new-shelf-page-title {
+/* Name input: typographic title, no chrome. Centered, DM Serif
+   Display, large. Placeholder is muted; live input flips to full
+   text colour. No focus chrome. */
+.new-shelf-name-input {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0 auto;
+  text-align: center;
   font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
-  font-size: 1.95rem;
+  font-size: 2.75rem;
   font-weight: 400;
-  color: var(--text-primary);
-  margin: 0;
   line-height: 1.1;
   letter-spacing: 0.01em;
-}
-
-.new-shelf-name-row {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-/* Name input: matches search field exactly. Sans placeholder, hard
-   corners, filled bg + border. */
-.new-shelf-name-input {
-  flex: 1;
-  width: 100%;
-  background: #f5f5f4;
-  border: 1px solid #d6d3d1;
-  border-radius: 0;
-  padding: 0.85rem 1rem;
-  font-family: var(--font-supporting);
-  font-size: 0.875rem;
-  font-weight: 400;
   color: var(--text-primary);
   outline: none;
-  transition: border-color 160ms ease, background 160ms ease;
-  min-width: 0;
-  margin: 0;
+  cursor: text;
+  caret-color: var(--text-primary);
 }
 
 .new-shelf-name-input::placeholder {
   color: var(--text-secondary);
   font-style: normal;
+  opacity: 0.55;
 }
 
 .new-shelf-name-input:focus {
-  border-color: var(--text-primary);
-  background: var(--bg);
+  outline: none;
+  background: transparent;
+  border: none;
 }
 
 .new-shelf-save-btn {
@@ -28223,14 +28212,27 @@ body:has(.cinema-page) {
   opacity: 0.7;
 }
 
-/* Footer (edit mode only): destructive action bottom-right with
-   significant breathing room above it. */
+/* Footer: Save centred beneath the book list. In edit mode the
+   Delete affordance is absolutely positioned to the right edge so
+   Save remains optically centred on the page. */
 .new-shelf-footer {
-  margin-top: 6rem;
+  position: relative;
+  margin-top: 4rem;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.85rem;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.new-shelf-footer .new-shelf-save-btn {
+  margin: 0;
+}
+
+.new-shelf-footer .new-shelf-delete-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .new-shelf-delete-btn {
@@ -28347,24 +28349,24 @@ body:has(.cinema-page) {
 
 .new-shelf-search input {
   width: 100%;
-  background: #f5f5f4;
-  border: 1px solid #d6d3d1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--divider);
   border-radius: 0;
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 0;
   font-family: var(--font-supporting);
-  font-size: 0.875rem;
-  color: #1c1a17;
+  font-size: 0.95rem;
+  color: var(--text-primary);
   outline: none;
-  transition: border-color 160ms ease, background 160ms ease;
+  transition: border-color 160ms ease;
 }
 
 .new-shelf-search input::placeholder {
-  color: #a8a29e;
+  color: var(--text-secondary);
 }
 
 .new-shelf-search input:focus {
-  border-color: #1c1a17;
-  background: #ffffff;
+  border-bottom-color: var(--text-primary);
 }
 
 .new-shelf-list {

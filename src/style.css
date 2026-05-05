@@ -28164,12 +28164,11 @@ body:has(.cinema-page) {
 .discover-search-input {
   width: 100%;
   background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--divider, #E8E5E0);
+  border: 1.5px solid var(--text-primary, #1C1A17);
   border-radius: 0;
-  padding: 0.85rem 0.25rem;
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 1rem;
+  padding: 1rem 1.25rem;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.15rem;
   font-weight: 400;
   color: var(--text-primary, #1C1A17);
   outline: none;
@@ -28181,10 +28180,11 @@ body:has(.cinema-page) {
 .discover-search-input::placeholder {
   color: var(--text-secondary, #6B6862);
   opacity: 0.85;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
 }
 
 .discover-search-input:focus {
-  border-bottom-color: var(--text-primary, #1C1A17);
+  border-color: var(--text-primary, #1C1A17);
   box-shadow: none;
 }
 

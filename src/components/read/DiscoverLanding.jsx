@@ -36,7 +36,7 @@ export default function DiscoverLanding({ activeLanguage, getStoryTitle }) {
         <input
           type="search"
           className="discover-search-input"
-          placeholder="Search the catalog…"
+          placeholder="Search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search the catalog"

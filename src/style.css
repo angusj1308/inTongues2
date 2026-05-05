@@ -28279,9 +28279,9 @@ body:has(.cinema-page) {
 }
 
 .discover-row-title {
-  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.75rem;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.1;
   color: var(--text-primary, #1C1A17);
   margin: 0;
@@ -28931,7 +28931,7 @@ body:has(.cinema-page) {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text-primary, #1C1A17);
 }
 
@@ -28943,7 +28943,7 @@ body:has(.cinema-page) {
 }
 
 .genq-breadcrumb {
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.04em;
@@ -28970,9 +28970,9 @@ body:has(.cinema-page) {
 }
 
 .genq-heading {
-  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 30px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.15;
   text-align: center;
   margin: 0 0 18px;
@@ -29049,7 +29049,7 @@ body:has(.cinema-page) {
 .genq-input {
   width: 100%;
   padding: 14px 16px;
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
   font-weight: 400;
   color: var(--text-primary, #1C1A17);
@@ -29072,7 +29072,7 @@ body:has(.cinema-page) {
 
 .genq-continue {
   align-self: flex-start;
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -29099,7 +29099,7 @@ body:has(.cinema-page) {
 
 .genq-summary {
   margin: 0;
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13px;
   line-height: 1.6;
   text-align: center;
@@ -29132,7 +29132,7 @@ body:has(.cinema-page) {
 }
 
 .genq-cost-label {
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -29141,15 +29141,15 @@ body:has(.cinema-page) {
 }
 
 .genq-cost-value {
-  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
-  font-size: 22px;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 18px;
   font-weight: 500;
   line-height: 1;
   color: var(--text-primary, #1C1A17);
 }
 
 .genq-generate {
-  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.14em;

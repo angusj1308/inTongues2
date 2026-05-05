@@ -119,6 +119,19 @@ export default function NewShelfBuilder({
 
   return (
     <div className="new-shelf-page">
+      <div className="new-shelf-orientation">
+        <button
+          type="button"
+          className="new-shelf-back"
+          onClick={() => navigate('/read/library')}
+          aria-label="Back to library"
+        >
+          ←
+        </button>
+        <h1 className="new-shelf-page-title">
+          {isEditing ? 'Edit Shelf' : 'New Shelf'}
+        </h1>
+      </div>
       <header className="new-shelf-identity">
         <div className="new-shelf-name-row">
           <input

@@ -1762,6 +1762,41 @@ textarea {
   }
 }
 
+.read-sub-slider {
+  display: block;
+  will-change: transform, opacity;
+}
+
+.read-sub-slider.slide-in-right {
+  animation: readSubSlideRight 280ms ease-out;
+}
+
+.read-sub-slider.slide-in-left {
+  animation: readSubSlideLeft 280ms ease-out;
+}
+
+@keyframes readSubSlideRight {
+  from {
+    transform: translateX(48px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes readSubSlideLeft {
+  from {
+    transform: translateX(-48px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 .home-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

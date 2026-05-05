@@ -458,6 +458,8 @@ const Dashboard = () => {
   }
   const [activeTab, setActiveTab] = useState(getInitialTab)
   const [slideDirection, setSlideDirection] = useState('')
+  const [readSlideDirection, setReadSlideDirection] = useState('')
+  const prevReadSubPageRef = useRef(readSubPage)
   const [items, setItems] = useState([])
   const [libraryLoading, setLibraryLoading] = useState(true)
   const [libraryError, setLibraryError] = useState('')
@@ -547,6 +549,18 @@ const Dashboard = () => {
       setLastUsedLanguage(activeLanguage)
     }
   }, [activeLanguage, setLastUsedLanguage])
+
+  useEffect(() => {
+    const prev = prevReadSubPageRef.current
+    if (prev === readSubPage) return
+    const order = ['library', 'discover']
+    const prevIdx = order.indexOf(prev)
+    const nextIdx = order.indexOf(readSubPage)
+    if (prevIdx >= 0 && nextIdx >= 0 && prevIdx !== nextIdx) {
+      setReadSlideDirection(nextIdx > prevIdx ? 'right' : 'left')
+    }
+    prevReadSubPageRef.current = readSubPage
+  }, [readSubPage])
 
   // Load home stats when user, language, or tab changes to home
   useEffect(() => {
@@ -1980,6 +1994,17 @@ const Dashboard = () => {
                     <ReadSubNav />
                   )}
 
+                  <div
+                    key={readSubPage}
+                    className={`read-sub-slider ${
+                      readSlideDirection === 'right'
+                        ? 'slide-in-right'
+                        : readSlideDirection === 'left'
+                          ? 'slide-in-left'
+                          : ''
+                    }`}
+                  >
+
                   {readSubPage === 'discover' && !discoverDoor && (
                     <div className="read-sub-page read-discover-page">
                       <DiscoverLanding
@@ -2631,6 +2656,7 @@ const Dashboard = () => {
                       </button>
                     </div>
                   )}
+                  </div>
                 </>
               )}
             </div>

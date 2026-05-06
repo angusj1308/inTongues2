@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { searchBooks, getCachedPopularBooks } from '../../services/gutenberg'
 
 // Target language translations for modal title
@@ -11,12 +11,13 @@ const EXPLORE_TITLES = {
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
-const GutenbergSearchPanel = ({
+const GutenbergSearchPanel = forwardRef(function GutenbergSearchPanel({
   activeLanguage = '',
   onClose,
   onSelectBook,
   isModal = false,
-}) => {
+  hideSearchBar = false,
+}, ref) {
   const [searchQuery, setSearchQuery] = useState('')
   const [books, setBooks] = useState([])
   const [loading, setLoading] = useState(false)
@@ -53,6 +54,46 @@ const GutenbergSearchPanel = ({
       }
     }
     loadPopular()
+  }, [])
+
+  useImperativeHandle(ref, () => ({
+    search: (q) => {
+      setSearchQuery(q || '')
+      handleExternalSearch(q || '')
+    },
+  }))
+
+  const handleExternalSearch = useCallback(async (rawQuery) => {
+    const q = (rawQuery || '').trim()
+    setError('')
+    setLoading(true)
+    if (!q) {
+      try {
+        const results = await searchBooks({ page: 1 })
+        setBooks(results.books)
+        setTotalCount(results.count)
+        setNextPage(results.next)
+        setCurrentPage(1)
+        setHasSearched(false)
+      } catch (err) {
+        setError('Failed to load books')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+    setHasSearched(true)
+    try {
+      const results = await searchBooks({ search: q, page: 1 })
+      setBooks(results.books)
+      setTotalCount(results.count)
+      setNextPage(results.next)
+      setCurrentPage(1)
+    } catch (err) {
+      setError('Failed to search')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   const handleSearch = useCallback(async (page = 1) => {
@@ -328,7 +369,7 @@ const GutenbergSearchPanel = ({
           </div>
         )}
 
-        {!selectedBook && (
+        {!selectedBook && !hideSearchBar && (
           <div className="gutenberg-search-bar">
             <input
               type="text"
@@ -541,6 +582,6 @@ const GutenbergSearchPanel = ({
   }
 
   return panelContent
-}
+})
 
 export default GutenbergSearchPanel

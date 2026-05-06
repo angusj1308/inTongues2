@@ -101,7 +101,7 @@ export default function DiscoverLanding({
         <input
           type="search"
           className="discover-search-input"
-          placeholder={isClassics ? 'Search title, author, or subject…' : 'Search'}
+          placeholder="Search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label={isClassics ? 'Search Project Gutenberg' : 'Search the catalog'}

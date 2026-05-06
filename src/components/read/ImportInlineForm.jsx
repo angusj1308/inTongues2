@@ -270,7 +270,7 @@ export default function ImportInlineForm({ activeLanguage }) {
     if (step === 'file') {
       return (
         <>
-          <h3 className="genq-heading">Pick a book file</h3>
+          <h3 className="genq-heading">Choose your book file</h3>
           <div className="genq-setting-form">
             <button
               type="button"

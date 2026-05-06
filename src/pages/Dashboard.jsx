@@ -1886,7 +1886,6 @@ const Dashboard = () => {
 
                   {readSubPage === 'discover' && discoverDoor === 'classics' && (
                     <div className="read-sub-page read-discover-page read-discover-door-page">
-                      <DiscoverDoors mode="compact" />
                       <GutenbergSearchPanel
                         activeLanguage={activeLanguage}
                         onSelectBook={handleGutenbergSelect}

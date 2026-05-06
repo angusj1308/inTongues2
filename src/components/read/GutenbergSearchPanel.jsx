@@ -320,19 +320,13 @@ const GutenbergSearchPanel = ({
   const panelContent = (
     <div className="gutenberg-panel">
       <div className="gutenberg-header">
-        <div className="gutenberg-header-top">
-          <h2 className="gutenberg-title">
-            {EXPLORE_TITLES.English}
-          </h2>
-          {onClose && (
+        {onClose && (
+          <div className="gutenberg-header-top">
             <button className="modal-close-button" onClick={onClose} aria-label="Close">
               ×
             </button>
-          )}
-        </div>
-        <p className="gutenberg-subtitle">
-          Explore Gutenberg's vast library of classics, ready to be adapted to your level.
-        </p>
+          </div>
+        )}
 
         {!selectedBook && (
           <div className="gutenberg-search-bar">

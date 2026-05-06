@@ -28270,6 +28270,41 @@ body:has(.cinema-page) {
   opacity: 0.18;
 }
 
+.discover-content-slider {
+  width: 100%;
+  will-change: transform, opacity;
+}
+
+.discover-content-slider.slide-in-right {
+  animation: discoverContentSlideRight 360ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.discover-content-slider.slide-in-left {
+  animation: discoverContentSlideLeft 360ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes discoverContentSlideRight {
+  from {
+    transform: translateX(80px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes discoverContentSlideLeft {
+  from {
+    transform: translateX(-80px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 .discover-rows {
   display: flex;
   flex-direction: column;

@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { mockBooksForLanguage } from '../../data/mockBooks'
 import GenerateInlineForm from './GenerateInlineForm'
 import ImportInlineForm from './ImportInlineForm'
+import GutenbergSearchPanel from './GutenbergSearchPanel'
 
 const ROWS = [
   { key: 'originals', title: 'New inTongues Originals' },
@@ -35,10 +36,14 @@ export default function DiscoverLanding({
   activeLanguage,
   getStoryTitle,
   expandedDoor = null,
+  onSelectGutenbergBook,
 }) {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const expandedCardRef = useRef(null)
+  const gutenbergRef = useRef(null)
+
+  const isClassics = expandedDoor === 'classics'
 
   useEffect(() => {
     if (expandedDoor !== 'generate' && expandedDoor !== 'import') return
@@ -51,6 +56,12 @@ export default function DiscoverLanding({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [expandedDoor, navigate])
+
+  // Reset the query when leaving classics so the search bar starts empty
+  // when the user comes back to the landing.
+  useEffect(() => {
+    if (!isClassics) setQuery('')
+  }, [isClassics])
 
   const rowBooks = useMemo(() => {
     const pool = mockBooksForLanguage(activeLanguage)
@@ -67,12 +78,19 @@ export default function DiscoverLanding({
   const titleOf = (book) =>
     getStoryTitle ? getStoryTitle(book) : book.title
 
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    if (isClassics) {
+      gutenbergRef.current?.search(query)
+    }
+  }
+
   return (
     <div className="discover-landing">
       <form
         className="discover-search"
         role="search"
-        onSubmit={(e) => e.preventDefault()}
+        onSubmit={handleSearchSubmit}
       >
         <span className="discover-search-icon" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -83,90 +101,108 @@ export default function DiscoverLanding({
         <input
           type="search"
           className="discover-search-input"
-          placeholder="Search"
+          placeholder={isClassics ? 'Search title, author, or subject…' : 'Search'}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search the catalog"
+          aria-label={isClassics ? 'Search Project Gutenberg' : 'Search the catalog'}
         />
       </form>
 
-      <div className="discover-doors discover-doors--landing">
-        {DOORS.map((door) => {
-          const isExpanded = expandedDoor === door.key
-          if (isExpanded && door.key === 'generate') {
-            return (
-              <div
-                key={door.key}
-                ref={expandedCardRef}
-                className="discover-door discover-door--landing is-expanded"
-              >
-                <GenerateInlineForm activeLanguage={activeLanguage} />
-              </div>
-            )
-          }
-          if (isExpanded && door.key === 'import') {
-            return (
-              <div
-                key={door.key}
-                ref={expandedCardRef}
-                className="discover-door discover-door--landing is-expanded"
-              >
-                <ImportInlineForm activeLanguage={activeLanguage} />
-              </div>
-            )
-          }
-          return (
-            <NavLink
-              key={door.key}
-              to={door.to}
-              className="discover-door discover-door--landing"
-            >
-              <h2 className="discover-door-label">{door.label}</h2>
-              <span className="discover-door-rule" aria-hidden="true" />
-              <p className="discover-door-description">{door.description}</p>
-            </NavLink>
-          )
-        })}
-      </div>
-
-      <div className="discover-hairline" aria-hidden="true" />
-
-      <div className="discover-rows">
-        {ROWS.map((row) => {
-          const books = rowBooks[row.key] || []
-          return (
-            <section key={row.key} className="discover-row">
-              <header className="discover-row-header">
-                <h2 className="discover-row-title">{row.title}</h2>
-                <button type="button" className="discover-row-view-all">
-                  View all <span aria-hidden="true">→</span>
-                </button>
-              </header>
-              <div className="discover-row-grid">
-                {books.map((book) => (
-                  <button
-                    key={book.id}
-                    type="button"
-                    className="discover-row-cover"
-                    aria-label={titleOf(book)}
+      <div
+        key={isClassics ? 'classics' : 'landing'}
+        className={`discover-content-slider ${
+          isClassics ? 'slide-in-right' : 'slide-in-left'
+        }`}
+      >
+        {isClassics ? (
+          <GutenbergSearchPanel
+            ref={gutenbergRef}
+            activeLanguage={activeLanguage}
+            onSelectBook={onSelectGutenbergBook}
+            hideSearchBar
+          />
+        ) : (
+          <>
+            <div className="discover-doors discover-doors--landing">
+              {DOORS.map((door) => {
+                const isExpanded = expandedDoor === door.key
+                if (isExpanded && door.key === 'generate') {
+                  return (
+                    <div
+                      key={door.key}
+                      ref={expandedCardRef}
+                      className="discover-door discover-door--landing is-expanded"
+                    >
+                      <GenerateInlineForm activeLanguage={activeLanguage} />
+                    </div>
+                  )
+                }
+                if (isExpanded && door.key === 'import') {
+                  return (
+                    <div
+                      key={door.key}
+                      ref={expandedCardRef}
+                      className="discover-door discover-door--landing is-expanded"
+                    >
+                      <ImportInlineForm activeLanguage={activeLanguage} />
+                    </div>
+                  )
+                }
+                return (
+                  <NavLink
+                    key={door.key}
+                    to={door.to}
+                    className="discover-door discover-door--landing"
                   >
-                    {book.coverImageUrl ? (
-                      <img
-                        src={book.coverImageUrl}
-                        alt={`Cover of ${titleOf(book)}`}
-                        className="discover-row-cover-img"
-                      />
-                    ) : (
-                      <span className="discover-row-cover-fallback">
-                        {titleOf(book)}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </section>
-          )
-        })}
+                    <h2 className="discover-door-label">{door.label}</h2>
+                    <span className="discover-door-rule" aria-hidden="true" />
+                    <p className="discover-door-description">{door.description}</p>
+                  </NavLink>
+                )
+              })}
+            </div>
+
+            <div className="discover-hairline" aria-hidden="true" />
+
+            <div className="discover-rows">
+              {ROWS.map((row) => {
+                const books = rowBooks[row.key] || []
+                return (
+                  <section key={row.key} className="discover-row">
+                    <header className="discover-row-header">
+                      <h2 className="discover-row-title">{row.title}</h2>
+                      <button type="button" className="discover-row-view-all">
+                        View all <span aria-hidden="true">→</span>
+                      </button>
+                    </header>
+                    <div className="discover-row-grid">
+                      {books.map((book) => (
+                        <button
+                          key={book.id}
+                          type="button"
+                          className="discover-row-cover"
+                          aria-label={titleOf(book)}
+                        >
+                          {book.coverImageUrl ? (
+                            <img
+                              src={book.coverImageUrl}
+                              alt={`Cover of ${titleOf(book)}`}
+                              className="discover-row-cover-img"
+                            />
+                          ) : (
+                            <span className="discover-row-cover-fallback">
+                              {titleOf(book)}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

@@ -1874,21 +1874,13 @@ const Dashboard = () => {
                     }`}
                   >
 
-                  {readSubPage === 'discover' && (!discoverDoor || discoverDoor === 'generate' || discoverDoor === 'import') && (
+                  {readSubPage === 'discover' && (!discoverDoor || discoverDoor === 'generate' || discoverDoor === 'import' || discoverDoor === 'classics') && (
                     <div className="read-sub-page read-discover-page">
                       <DiscoverLanding
                         activeLanguage={activeLanguage}
                         getStoryTitle={getStoryTitle}
                         expandedDoor={discoverDoor}
-                      />
-                    </div>
-                  )}
-
-                  {readSubPage === 'discover' && discoverDoor === 'classics' && (
-                    <div className="read-sub-page read-discover-page read-discover-door-page">
-                      <GutenbergSearchPanel
-                        activeLanguage={activeLanguage}
-                        onSelectBook={handleGutenbergSelect}
+                        onSelectGutenbergBook={handleGutenbergSelect}
                       />
                     </div>
                   )}

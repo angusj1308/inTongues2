@@ -28177,7 +28177,7 @@ body:has(.cinema-page) {
 .discover-search-input {
   width: 100%;
   background: transparent;
-  border: 3px solid var(--text-secondary, #6B6862);
+  border: 3px solid rgba(28, 26, 23, 0.2);
   border-radius: 4px;
   padding: 1rem 1.25rem 1rem 3rem;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -28197,8 +28197,16 @@ body:has(.cinema-page) {
 }
 
 .discover-search-input:focus {
-  border-color: var(--text-secondary, #6B6862);
+  border-color: rgba(28, 26, 23, 0.4);
   box-shadow: none;
+}
+
+[data-theme='dark'] .discover-search-input {
+  border-color: rgba(251, 250, 248, 0.2);
+}
+
+[data-theme='dark'] .discover-search-input:focus {
+  border-color: rgba(251, 250, 248, 0.4);
 }
 
 [data-theme='dark'] .discover-search-input {

@@ -28228,9 +28228,9 @@ body:has(.cinema-page) {
 .discover-landing .discover-door--landing {
   aspect-ratio: 1 / 1;
   width: 100%;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1.25rem;
-  padding: 2.5rem;
+  padding: 30% 2rem 2.5rem;
   border: none;
   background: transparent;
   transition: background 200ms ease, transform 200ms ease;
@@ -28256,7 +28256,7 @@ body:has(.cinema-page) {
 
 .discover-landing .discover-door--landing .discover-door-description {
   font-size: 1rem;
-  max-width: 24ch;
+  max-width: 100%;
 }
 
 .discover-hairline {

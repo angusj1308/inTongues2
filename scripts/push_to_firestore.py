@@ -38,9 +38,12 @@ def load_promoted_ids() -> set[int]:
         return set()
     with PROMOTED_IDS_PATH.open("r", encoding="utf-8") as f:
         raw = json.load(f)
-    if not isinstance(raw, list):
-        sys.exit(f"{PROMOTED_IDS_PATH} must be a JSON array of integers.")
-    return {int(x) for x in raw}
+    if not isinstance(raw, dict) or "promoted_ids" not in raw:
+        sys.exit(f"{PROMOTED_IDS_PATH} must be a JSON object with a 'promoted_ids' array.")
+    ids = raw["promoted_ids"]
+    if not isinstance(ids, list):
+        sys.exit(f"{PROMOTED_IDS_PATH}: 'promoted_ids' must be an array of integers.")
+    return {int(x) for x in ids}
 
 
 def to_document(book: dict) -> dict:

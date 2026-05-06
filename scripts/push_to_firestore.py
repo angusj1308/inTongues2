@@ -18,17 +18,29 @@ from google.api_core import exceptions as gcloud_exceptions
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVICE_ACCOUNT_PATH = REPO_ROOT / "serviceAccountKey.json"
 INPUT_PATH = Path("~/Desktop/intongues2/data/gutenberg_catalog_classified.json").expanduser()
+PROMOTED_IDS_PATH = Path("~/Desktop/intongues2/data/promoted_ids.json").expanduser()
 
 COLLECTION = "gutenberg_classics"
 BATCH_SIZE = 500
 PROGRESS_EVERY = 200
 
-MIN_EXPECTED = 600
+MIN_EXPECTED = 800
 MAX_EXPECTED = 1500
 
 
 def passes_filter(book: dict) -> bool:
     return book.get("canon_tier") == 1 and book.get("language") == "en"
+
+
+def load_promoted_ids() -> set[int]:
+    if not PROMOTED_IDS_PATH.is_file():
+        print(f"No promoted-IDs file at {PROMOTED_IDS_PATH} (continuing without).")
+        return set()
+    with PROMOTED_IDS_PATH.open("r", encoding="utf-8") as f:
+        raw = json.load(f)
+    if not isinstance(raw, list):
+        sys.exit(f"{PROMOTED_IDS_PATH} must be a JSON array of integers.")
+    return {int(x) for x in raw}
 
 
 def to_document(book: dict) -> dict:
@@ -61,12 +73,39 @@ def main() -> None:
         books = json.load(f)
     print(f"Loaded {len(books)} books from {INPUT_PATH}")
 
-    filtered = [b for b in books if passes_filter(b)]
-    print(f"Tier 1 + English: {len(filtered)} books")
+    base = [b for b in books if passes_filter(b)]
+    print(f"Tier 1 + English: {len(base)} books")
+
+    promoted_ids = load_promoted_ids()
+    print(f"Promoted IDs from file: {len(promoted_ids)}")
+
+    by_id = {b["gutenberg_id"]: b for b in books}
+    base_ids = {b["gutenberg_id"] for b in base}
+
+    extras: list[dict] = []
+    unmatched: list[int] = []
+    for pid in promoted_ids:
+        if pid in base_ids:
+            continue
+        book = by_id.get(pid)
+        if book is None:
+            unmatched.append(pid)
+            continue
+        promoted = dict(book)
+        promoted["canon_tier"] = 1
+        extras.append(promoted)
+
+    if unmatched:
+        sample = sorted(unmatched)[:10]
+        suffix = "..." if len(unmatched) > 10 else ""
+        print(f"[WARN] {len(unmatched)} promoted IDs not found in catalogue: {sample}{suffix}")
+
+    filtered = base + extras
+    print(f"Final push set: {len(filtered)} (base {len(base)} + promoted extras {len(extras)})")
 
     if len(filtered) < MIN_EXPECTED or len(filtered) > MAX_EXPECTED:
         sys.exit(
-            f"\n[STOP] Filtered count {len(filtered)} is outside expected range "
+            f"\n[STOP] Push count {len(filtered)} is outside expected range "
             f"[{MIN_EXPECTED}, {MAX_EXPECTED}]. Investigate before pushing."
         )
 

@@ -41,3 +41,5 @@ api backup
 
 # Local Gutenberg ingestion output (untrimmed; decide later)
 data/gutenberg_catalog.json
+data/gutenberg_catalog_classified.json
+data/gutenberg_catalog_classified.partial.json

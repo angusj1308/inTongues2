@@ -38,3 +38,6 @@ __pycache__/
 scripts/fonts/
 api backup
 .DS_Store
+
+# Local Gutenberg ingestion output (untrimmed; decide later)
+data/gutenberg_catalog.json

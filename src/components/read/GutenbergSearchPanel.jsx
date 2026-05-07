@@ -1,5 +1,42 @@
-import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { searchBooks, getCachedPopularBooks } from '../../services/gutenberg'
+
+const gutenbergFallbackCover = (id) =>
+  `https://www.gutenberg.org/cache/epub/${id}/pg${id}.cover.medium.jpg`
+
+function BookCover({ book, variant }) {
+  const sources = useMemo(() => {
+    const list = []
+    if (book.coverUrl) list.push(book.coverUrl)
+    if (book.id) list.push(gutenbergFallbackCover(book.id))
+    return list
+  }, [book.coverUrl, book.id])
+
+  const [idx, setIdx] = useState(0)
+  useEffect(() => {
+    setIdx(0)
+  }, [book.id, book.coverUrl])
+
+  if (idx < sources.length) {
+    return (
+      <img
+        src={sources[idx]}
+        alt={variant === 'detail' ? book.title : ''}
+        onError={() => setIdx((i) => i + 1)}
+      />
+    )
+  }
+
+  if (variant === 'detail') {
+    return <div className="gutenberg-book-no-cover">No Cover</div>
+  }
+
+  return (
+    <div className="gutenberg-book-no-cover-small">
+      <span>{book.title.charAt(0)}</span>
+    </div>
+  )
+}
 
 // Target language translations for modal title
 const EXPLORE_TITLES = {
@@ -400,11 +437,7 @@ const GutenbergSearchPanel = forwardRef(function GutenbergSearchPanel({
 
           <div className="gutenberg-book-detail-content">
             <div className="gutenberg-book-detail-cover">
-              {selectedBook.coverUrl ? (
-                <img src={selectedBook.coverUrl} alt={selectedBook.title} />
-              ) : (
-                <div className="gutenberg-book-no-cover">No Cover</div>
-              )}
+              <BookCover book={selectedBook} variant="detail" />
             </div>
 
             <div className="gutenberg-book-detail-info">
@@ -535,13 +568,7 @@ const GutenbergSearchPanel = forwardRef(function GutenbergSearchPanel({
                 }}
               >
                 <div className="gutenberg-book-cover">
-                  {book.coverUrl ? (
-                    <img src={book.coverUrl} alt="" />
-                  ) : (
-                    <div className="gutenberg-book-no-cover-small">
-                      <span>{book.title.charAt(0)}</span>
-                    </div>
-                  )}
+                  <BookCover book={book} variant="card" />
                   {renderImportWizard(book)}
                 </div>
                 <div className="gutenberg-book-info">

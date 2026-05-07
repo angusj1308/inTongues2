@@ -25,7 +25,7 @@ BATCH_SIZE = 500
 PROGRESS_EVERY = 200
 
 MIN_EXPECTED = 800
-MAX_EXPECTED = 1500
+MAX_EXPECTED = 2000
 
 
 def passes_filter(book: dict) -> bool:

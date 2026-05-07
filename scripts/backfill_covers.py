@@ -22,11 +22,10 @@ COLLECTION = "gutenberg_classics"
 CONCURRENCY = 5
 PROGRESS_EVERY = 50
 MAX_RETRIES = 3
-HEAD_MIN_BYTES = 500
 HTTP_TIMEOUT = aiohttp.ClientTimeout(total=20)
 
 SEARCH_URL = "https://openlibrary.org/search.json"
-COVER_URL_FMT = "https://covers.openlibrary.org/b/id/{cover_i}-L.jpg"
+COVER_URL_FMT = "https://covers.openlibrary.org/b/id/{cover_i}-L.jpg?default=false"
 
 USER_AGENT = "intongues-cover-backfill/1.0 (https://intongues.app)"
 
@@ -80,28 +79,11 @@ async def search_cover_id(session: aiohttp.ClientSession, title: str, surname: s
     return docs[0].get("cover_i")
 
 
-async def verify_cover(session: aiohttp.ClientSession, url: str) -> bool:
-    async def _do():
-        async with session.head(url, allow_redirects=True) as resp:
-            if resp.status != 200:
-                return False
-            try:
-                size = int(resp.headers.get("Content-Length", "0"))
-            except ValueError:
-                size = 0
-            return size > HEAD_MIN_BYTES
-
-    return await with_retries(_do, f"head {url}")
-
-
 async def find_cover(session: aiohttp.ClientSession, title: str, surname: str) -> str | None:
     for variant in title_variants(title):
         cover_id = await search_cover_id(session, variant, surname)
-        if not cover_id:
-            continue
-        url = COVER_URL_FMT.format(cover_i=cover_id)
-        if await verify_cover(session, url):
-            return url
+        if cover_id:
+            return COVER_URL_FMT.format(cover_i=cover_id)
     return None
 
 

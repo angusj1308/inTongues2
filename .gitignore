@@ -44,3 +44,4 @@ data/gutenberg_catalog.json
 data/gutenberg_catalog_classified.json
 data/gutenberg_catalog_classified.partial.json
 data/promoted_ids.json
+data/phase_1_keep_ids.json

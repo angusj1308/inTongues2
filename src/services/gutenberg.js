@@ -14,9 +14,26 @@ import { db } from '../firebase'
 
 const COLLECTION = 'gutenberg_classics'
 const PAGE_SIZE = 24
+// Number of top-ranked book covers to preload into the browser's HTTP cache
+// when the Read hub mounts — covers ~2 pages of the Classics grid (24/page),
+// so the most-likely-seen covers are already warm by the time the user opens
+// Classics or Discover.
+const COVER_PREFETCH_COUNT = 50
 
 let _allBooks = null
 let _allBooksPromise = null
+let _coversPrefetched = false
+
+const prefetchCoverImages = (books) => {
+  if (_coversPrefetched) return
+  if (typeof window === 'undefined' || typeof Image === 'undefined') return
+  _coversPrefetched = true
+  for (const book of books.slice(0, COVER_PREFETCH_COUNT)) {
+    if (!book.coverUrl) continue
+    const img = new Image()
+    img.src = book.coverUrl
+  }
+}
 
 const formatLifespan = (author) => {
   if (!author) return ''
@@ -54,6 +71,7 @@ const loadAll = () => {
     )
     const books = snapshot.docs.map((doc) => normalizeBook(doc.data()))
     _allBooks = books
+    prefetchCoverImages(books)
     return books
   })().catch((err) => {
     _allBooksPromise = null

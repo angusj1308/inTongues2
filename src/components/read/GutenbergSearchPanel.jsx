@@ -4,18 +4,40 @@ import { searchBooks, getCachedPopularBooks } from '../../services/gutenberg'
 const gutenbergFallbackCover = (id) =>
   `https://www.gutenberg.org/cache/epub/${id}/pg${id}.cover.medium.jpg`
 
+// Slugify a title for filesystem-based cover lookup at
+// /assets/classics-covers/{slug}.png. Lowercases, strips diacritics, replaces
+// any non-alphanumeric run with a single hyphen. Keeps leading articles.
+const slugifyTitle = (title) => {
+  if (!title) return ''
+  return title
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+const localCoverPath = (title) => {
+  const slug = slugifyTitle(title)
+  return slug ? `/assets/classics-covers/${slug}.png` : null
+}
+
 function BookCover({ book, variant }) {
   const sources = useMemo(() => {
     const list = []
+    const local = localCoverPath(book.title)
+    if (local) list.push(local)
     if (book.coverUrl) list.push(book.coverUrl)
     if (book.id) list.push(gutenbergFallbackCover(book.id))
     return list
-  }, [book.coverUrl, book.id])
+  }, [book.title, book.coverUrl, book.id])
 
   const [idx, setIdx] = useState(0)
   useEffect(() => {
     setIdx(0)
-  }, [book.id, book.coverUrl])
+  }, [book.id, book.title, book.coverUrl])
 
   if (idx < sources.length) {
     return (

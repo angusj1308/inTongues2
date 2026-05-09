@@ -13,9 +13,67 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../firebase'
 
 const COLLECTION = 'gutenberg_classics'
+const PROBE_TIMEOUT_MS = 4000
 
 let _allBooks = null
 let _allBooksPromise = null
+
+// Slugify a title for filesystem-based cover lookup at
+// /assets/classics-covers/{slug}.png. Lowercased, diacritic-stripped, any
+// non-alphanumeric run becomes a single hyphen. Leading articles preserved.
+// Exported so the renderer and the cover probe use the same rule.
+export const slugifyTitle = (title) => {
+  if (!title) return ''
+  return title
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+export const localCoverPath = (title) => {
+  const slug = slugifyTitle(title)
+  return slug ? `/assets/classics-covers/${slug}.png` : null
+}
+
+const probeLocalCover = async (url) => {
+  if (typeof fetch === 'undefined') return false
+  const controller =
+    typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer = controller
+    ? setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
+    : null
+  try {
+    const resp = await fetch(url, {
+      method: 'HEAD',
+      signal: controller?.signal,
+    })
+    return resp.ok
+  } catch {
+    return false
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+// Annotate each book with hasCover (filesystem probe) and reorder so books
+// with a custom imprint cover appear first, breaking ties by download count.
+const annotateAndSort = async (books) => {
+  await Promise.all(
+    books.map(async (book) => {
+      const url = localCoverPath(book.title)
+      book.hasCover = url ? await probeLocalCover(url) : false
+    }),
+  )
+  books.sort((a, b) => {
+    if (a.hasCover !== b.hasCover) return a.hasCover ? -1 : 1
+    return (b.downloadCount || 0) - (a.downloadCount || 0)
+  })
+  return books
+}
 
 const formatLifespan = (author) => {
   if (!author) return ''
@@ -52,6 +110,7 @@ const loadAll = () => {
       query(collection(db, COLLECTION), orderBy('download_count', 'desc')),
     )
     const books = snapshot.docs.map((doc) => normalizeBook(doc.data()))
+    await annotateAndSort(books)
     _allBooks = books
     return books
   })().catch((err) => {

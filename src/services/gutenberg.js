@@ -13,7 +13,6 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../firebase'
 
 const COLLECTION = 'gutenberg_classics'
-const PAGE_SIZE = 24
 
 let _allBooks = null
 let _allBooksPromise = null
@@ -70,30 +69,27 @@ const matchesQuery = (book, term) => {
   return false
 }
 
-const buildPage = (books, page) => {
-  const start = (page - 1) * PAGE_SIZE
-  const end = start + PAGE_SIZE
-  return {
-    count: books.length,
-    next: end < books.length ? page + 1 : null,
-    previous: page > 1 ? page - 1 : null,
-    books: books.slice(start, end),
-  }
-}
-
 /**
- * Search the local Classics catalogue. Returns Gutendex-shaped results
- * (count / next / previous / books) for backwards compatibility with the
- * UI components.
+ * Search the local Classics catalogue. The catalogue is small enough (~150
+ * curated tier-1 works after Phase 1) that we return every match in a single
+ * page — the panel renders the full list and the browser lazy-loads cards
+ * below the fold. The Gutendex-shaped envelope (count / next / previous) is
+ * preserved for backwards compatibility; `next` and `previous` are always
+ * null now, which means the Load More button never renders.
  */
-export const searchBooks = async ({ search = '', page = 1 } = {}) => {
+export const searchBooks = async ({ search = '' } = {}) => {
   const all = await loadAll()
   const term = (search || '').trim().toLowerCase()
   const filtered = term ? all.filter((book) => matchesQuery(book, term)) : all
-  return buildPage(filtered, page)
+  return {
+    count: filtered.length,
+    next: null,
+    previous: null,
+    books: filtered,
+  }
 }
 
-export const getPopularBooks = async (page = 1) => searchBooks({ page })
+export const getPopularBooks = async () => searchBooks({})
 
 /**
  * Warm the in-memory cache so the Classics panel opens instantly.
@@ -105,4 +101,4 @@ export const prefetchPopularBooks = () => {
   })
 }
 
-export const getCachedPopularBooks = async () => searchBooks({ page: 1 })
+export const getCachedPopularBooks = async () => searchBooks({})

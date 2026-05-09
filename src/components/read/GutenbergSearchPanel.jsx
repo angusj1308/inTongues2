@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { searchBooks, getCachedPopularBooks } from '../../services/gutenberg'
 
-const gutenbergFallbackCover = (id) =>
-  `https://www.gutenberg.org/cache/epub/${id}/pg${id}.cover.medium.jpg`
-
 // Slugify a title for filesystem-based cover lookup at
 // /assets/classics-covers/{slug}.png. Lowercases, strips diacritics, replaces
 // any non-alphanumeric run with a single hyphen. Keeps leading articles.
@@ -25,26 +22,19 @@ const localCoverPath = (title) => {
 }
 
 function BookCover({ book, variant }) {
-  const sources = useMemo(() => {
-    const list = []
-    const local = localCoverPath(book.title)
-    if (local) list.push(local)
-    if (book.coverUrl) list.push(book.coverUrl)
-    if (book.id) list.push(gutenbergFallbackCover(book.id))
-    return list
-  }, [book.title, book.coverUrl, book.id])
+  const localSrc = useMemo(() => localCoverPath(book.title), [book.title])
+  const [failed, setFailed] = useState(false)
 
-  const [idx, setIdx] = useState(0)
   useEffect(() => {
-    setIdx(0)
-  }, [book.id, book.title, book.coverUrl])
+    setFailed(false)
+  }, [book.title])
 
-  if (idx < sources.length) {
+  if (localSrc && !failed) {
     return (
       <img
-        src={sources[idx]}
+        src={localSrc}
         alt={variant === 'detail' ? book.title : ''}
-        onError={() => setIdx((i) => i + 1)}
+        onError={() => setFailed(true)}
       />
     )
   }

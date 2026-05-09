@@ -39,25 +39,25 @@ export const localCoverPath = (title) => {
   return slug ? `/assets/classics-covers/${slug}.png` : null
 }
 
-const probeLocalCover = async (url) => {
-  if (typeof fetch === 'undefined') return false
-  const controller =
-    typeof AbortController !== 'undefined' ? new AbortController() : null
-  const timer = controller
-    ? setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
-    : null
-  try {
-    const resp = await fetch(url, {
-      method: 'HEAD',
-      signal: controller?.signal,
-    })
-    return resp.ok
-  } catch {
-    return false
-  } finally {
-    if (timer) clearTimeout(timer)
-  }
-}
+const probeLocalCover = (url) =>
+  new Promise((resolve) => {
+    if (typeof Image === 'undefined') {
+      resolve(false)
+      return
+    }
+    const img = new Image()
+    let settled = false
+    const settle = (value) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(value)
+    }
+    const timer = setTimeout(() => settle(false), PROBE_TIMEOUT_MS)
+    img.onload = () => settle(true)
+    img.onerror = () => settle(false)
+    img.src = url
+  })
 
 // Annotate each book with hasCover (filesystem probe) and reorder so books
 // with a custom imprint cover appear first, breaking ties by download count.

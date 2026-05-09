@@ -1,25 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
-import { searchBooks, getCachedPopularBooks } from '../../services/gutenberg'
-
-// Slugify a title for filesystem-based cover lookup at
-// /assets/classics-covers/{slug}.png. Lowercases, strips diacritics, replaces
-// any non-alphanumeric run with a single hyphen. Keeps leading articles.
-const slugifyTitle = (title) => {
-  if (!title) return ''
-  return title
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[\s_]+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-}
-
-const localCoverPath = (title) => {
-  const slug = slugifyTitle(title)
-  return slug ? `/assets/classics-covers/${slug}.png` : null
-}
+import {
+  searchBooks,
+  getCachedPopularBooks,
+  localCoverPath,
+} from '../../services/gutenberg'
 
 function BookCover({ book, variant }) {
   const localSrc = useMemo(() => localCoverPath(book.title), [book.title])

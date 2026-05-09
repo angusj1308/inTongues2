@@ -99,6 +99,7 @@ const normalizeBook = (data) => {
     epubUrl: data.epub_url || null,
     htmlUrl: null,
     formats: {},
+    genreShelf: data.genreShelf || null,
   }
 }
 

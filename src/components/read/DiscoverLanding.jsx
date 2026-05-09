@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { mockBooksForLanguage } from '../../data/mockBooks'
+import ClassicsShelves from './ClassicsShelves'
 import GenerateInlineForm from './GenerateInlineForm'
 import ImportInlineForm from './ImportInlineForm'
-import GutenbergSearchPanel from './GutenbergSearchPanel'
 
 const ROWS = [
   { key: 'originals', title: 'New inTongues Originals' },
@@ -41,7 +41,6 @@ export default function DiscoverLanding({
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const expandedCardRef = useRef(null)
-  const gutenbergRef = useRef(null)
 
   const isClassics = expandedDoor === 'classics'
 
@@ -80,9 +79,6 @@ export default function DiscoverLanding({
 
   const handleSearchSubmit = (e) => {
     e.preventDefault()
-    if (isClassics) {
-      gutenbergRef.current?.search(query)
-    }
   }
 
   return (
@@ -115,11 +111,9 @@ export default function DiscoverLanding({
         }`}
       >
         {isClassics ? (
-          <GutenbergSearchPanel
-            ref={gutenbergRef}
-            activeLanguage={activeLanguage}
+          <ClassicsShelves
+            searchQuery={query}
             onSelectBook={onSelectGutenbergBook}
-            hideSearchBar
           />
         ) : (
           <>

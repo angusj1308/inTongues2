@@ -78,111 +78,52 @@ def measure_width(font: ImageFont.FreeTypeFont, text: str) -> int:
     return int(round(font.getlength(text)))
 
 
-def is_pyramid(widths: list[int]) -> bool:
-    return all(widths[i] >= widths[i + 1] for i in range(len(widths) - 1))
-
-
-def variance(widths: list[int]) -> float:
-    n = len(widths)
-    if n == 0:
-        return 0.0
-    mean = sum(widths) / n
-    return sum((w - mean) ** 2 for w in widths) / n
-
-
-def enumerate_splits(words: list[str], n_lines: int):
-    """Yield every word-boundary partition of `words` into exactly `n_lines`."""
-    n = len(words)
-    if n_lines > n or n_lines < 1:
-        return
-    if n_lines == 1:
-        yield [words]
-        return
-    if n_lines == 2:
-        for i in range(1, n):
-            yield [words[:i], words[i:]]
-        return
-    if n_lines == 3:
-        for i in range(1, n - 1):
-            for j in range(i + 1, n):
-                yield [words[:i], words[i:j], words[j:]]
-        return
-
-
-def widths_of(split: list[list[str]], font: ImageFont.FreeTypeFont) -> list[int]:
-    return [measure_width(font, ' '.join(words_in_line)) for words_in_line in split]
-
-
-def best_valid_split(
-    splits_and_widths: list[tuple[list[list[str]], list[int]]],
-    max_width: int,
-):
-    """Pick the most-balanced split satisfying pyramid + max-width."""
-    valid = [
-        (split, widths)
-        for split, widths in splits_and_widths
-        if all(w <= max_width for w in widths) and is_pyramid(widths)
-    ]
-    if not valid:
-        return None
-    # Lowest variance = cleanest descent. Tie-break: longer total wins
-    # (packs more text into the larger lines, looks more solid).
-    valid.sort(key=lambda sw: (variance(sw[1]), -sum(sw[1])))
-    return valid[0]
+def greedy_wrap(words: list[str], font: ImageFont.FreeTypeFont, max_width: int) -> list[list[str]]:
+    """Greedy word-wrap: append each word to the current line if it still fits;
+    otherwise start a new line. A single word that overflows on its own is taken
+    on its own line (we never strand an empty line)."""
+    if not words:
+        return [[]]
+    lines: list[list[str]] = [[]]
+    for word in words:
+        line = lines[-1]
+        candidate = ' '.join(line + [word])
+        if not line or measure_width(font, candidate) <= max_width:
+            line.append(word)
+        else:
+            lines.append([word])
+    return lines
 
 
 def fit_title(title: str):
-    """Return (font_size, lines, widths, hit_floor_unfit)."""
+    """Return (font_size, lines, widths, hit_floor_unfit).
+
+    Greedy word-wrap at the current font size; if it produces more than
+    MAX_LINES, decrement the font size and retry. At the floor, accept the
+    greedy result regardless of line count and flag hit_floor_unfit when it
+    overflows MAX_LINES.
+    """
     words = title.split()
     if not words:
         return MIN_TITLE_FONT_SIZE, [''], [0], True
 
     font_size = MAX_TITLE_FONT_SIZE
-    last_fallback = None
-
-    while font_size >= MIN_TITLE_FONT_SIZE:
+    while font_size > MIN_TITLE_FONT_SIZE:
         font = ImageFont.truetype(str(TITLE_FONT_PATH), font_size)
-
-        for n_lines in range(1, MAX_LINES + 1):
-            if n_lines > len(words):
-                break
-            candidates = []
-            for split in enumerate_splits(words, n_lines):
-                widths = widths_of(split, font)
-                candidates.append((split, widths))
-            chosen = best_valid_split(candidates, MAX_TITLE_WIDTH)
-            if chosen:
-                lines = [' '.join(w) for w in chosen[0]]
-                return font_size, lines, chosen[1], False
-
-        # Remember the least-bad arrangement at the floor for the fallback path.
-        if font_size == MIN_TITLE_FONT_SIZE:
-            options = []
-            for n_lines in range(1, min(MAX_LINES, len(words)) + 1):
-                for split in enumerate_splits(words, n_lines):
-                    widths = widths_of(split, font)
-                    options.append((split, widths))
-            # Prefer pyramid over not, then lowest variance, then min over-width.
-            options.sort(
-                key=lambda sw: (
-                    0 if is_pyramid(sw[1]) else 1,
-                    max(0, max(sw[1]) - MAX_TITLE_WIDTH),
-                    variance(sw[1]),
-                ),
-            )
-            if options:
-                last_fallback = (
-                    font_size,
-                    [' '.join(w) for w in options[0][0]],
-                    options[0][1],
-                )
-            break
-
+        wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
+        if len(wrapped) <= MAX_LINES:
+            lines = [' '.join(w) for w in wrapped]
+            widths = [measure_width(font, line) for line in lines]
+            return font_size, lines, widths, False
         font_size -= FONT_SIZE_STEP
 
-    if last_fallback:
-        return last_fallback[0], last_fallback[1], last_fallback[2], True
-    return MIN_TITLE_FONT_SIZE, [title], [0], True
+    # Floor: take whatever greedy produces, even if > MAX_LINES.
+    font = ImageFont.truetype(str(TITLE_FONT_PATH), MIN_TITLE_FONT_SIZE)
+    wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
+    lines = [' '.join(w) for w in wrapped]
+    widths = [measure_width(font, line) for line in lines]
+    hit_floor_unfit = len(wrapped) > MAX_LINES
+    return MIN_TITLE_FONT_SIZE, lines, widths, hit_floor_unfit
 
 
 def compose(

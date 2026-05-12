@@ -14,7 +14,7 @@ produces a layout that satisfies three rules: ≤ MAX_LINES, every line
 lone short word (≤ ORPHAN_MAX_CHARS chars). The orphan rule prevents
 widows like "to" or "and" stranded above more text; last-line short
 words ("Sea", "Oz", "Mr") are natural title endings and pass through.
-Floor of 60px overall; 4px decrement step.
+Floor of 120px overall; 4px decrement step.
 
 CLI:
     # Single composition
@@ -58,7 +58,7 @@ LINE_HEIGHT_RATIO = 1.1
 
 # Title sizing
 MAX_TITLE_FONT_SIZE = 180
-MIN_TITLE_FONT_SIZE = 60
+MIN_TITLE_FONT_SIZE = 120
 FONT_SIZE_STEP = 4
 ORPHAN_MAX_CHARS = 3  # lone words ≤ this length are rejected on first/middle lines; last-line allowed
 

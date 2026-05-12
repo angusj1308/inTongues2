@@ -74,20 +74,30 @@ def slugify_title(title: str) -> str:
     return s.strip("-")
 
 
-def format_author(raw: str | None) -> str:
-    """Flip Project Gutenberg `Lastname, Given` to natural `Given Lastname`.
+_PARENS_RE = re.compile(r"\([^)]*\)")
 
-    Names without a comma (anonymous works, single-word names, names already
-    in natural order) pass through unchanged.
+
+def format_author(raw: str | None) -> str:
+    """Clean a Project Gutenberg author string for cover typography.
+
+    Rules:
+      1. No comma → pass through unchanged ("Murasaki Shikibu", anonymous, etc.).
+      2. Otherwise split on commas, take the first two parts only — surname,
+         given. Anything after the second comma is discarded (drops honorific
+         suffixes like "Tolstoy, Leo, graf" → surname=Tolstoy, given=Leo).
+      3. Strip parenthetical content from the given part
+         ("Fitzgerald, F. Scott (Francis Scott)" → given=F. Scott).
+      4. Output as "{given} {surname}" (or just surname if given is empty).
     """
     if not raw:
         return ""
     raw = raw.strip()
     if "," not in raw:
         return raw
-    surname, _, given = raw.partition(",")
-    surname = surname.strip()
-    given = given.strip()
+    parts = raw.split(",")
+    surname = parts[0].strip()
+    given_raw = parts[1] if len(parts) > 1 else ""
+    given = _PARENS_RE.sub("", given_raw).strip()
     return f"{given} {surname}" if given else surname
 
 

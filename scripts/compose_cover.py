@@ -9,11 +9,12 @@ to fixed brand specifications:
     - Author: EB Garamond SemiBold, 30% of title size, below title block
 
 Title sizing picks the largest font size at which greedy word-wrap
-produces a layout that satisfies three rules: ≤ MAX_LINES, every line
-≤ MAX_TITLE_WIDTH, and (for multi-line layouts) no NON-LAST line is a
-lone short word (≤ ORPHAN_MAX_CHARS chars). The orphan rule prevents
-widows like "to" or "and" stranded above more text; last-line short
-words ("Sea", "Oz", "Mr") are natural title endings and pass through.
+produces a layout that satisfies four rules: ≤ MAX_LINES, every line
+≤ MAX_TITLE_WIDTH, the title block bottom (TOP_MARGIN + N × line_height)
+≤ MAX_TITLE_BLOCK_BOTTOM, and (for multi-line layouts) no NON-LAST line
+is a lone short word (≤ ORPHAN_MAX_CHARS chars). The orphan rule prevents
+widows like "to" or "and" stranded above more text; last-line short words
+("Sea", "Oz", "Mr") are natural title endings and pass through.
 Floor of 120px overall; 4px decrement step.
 
 CLI:
@@ -51,8 +52,9 @@ TEXT_COLOR = (26, 26, 26)  # #1A1A1A
 
 # Layout
 LEFT_MARGIN = 80
-TOP_MARGIN = 80
+TOP_MARGIN = 180
 MAX_TITLE_WIDTH = 720  # 1024 − 2·80, leaves right-side breathing room
+MAX_TITLE_BLOCK_BOTTOM = 610  # 40% of canvas height — title typography stays in the top zone
 MAX_LINES = 3
 LINE_HEIGHT_RATIO = 1.1
 
@@ -120,9 +122,10 @@ def fit_title(title: str):
 
     Walk font sizes from MAX_TITLE_FONT_SIZE down to MIN_TITLE_FONT_SIZE in
     FONT_SIZE_STEP decrements. At each size, greedy-wrap and accept the first
-    layout that satisfies all three rules: ≤ MAX_LINES, all lines ≤
-    MAX_TITLE_WIDTH, no orphan in multi-line layouts. If no size satisfies
-    all three, render greedy at the floor and flag hit_floor_unfit.
+    layout that satisfies all four rules: ≤ MAX_LINES, all lines ≤
+    MAX_TITLE_WIDTH, title-block bottom ≤ MAX_TITLE_BLOCK_BOTTOM, no orphan
+    on first/middle lines. If no size satisfies all four, render greedy at
+    the floor and flag hit_floor_unfit.
     """
     words = title.split()
     if not words:
@@ -132,9 +135,12 @@ def fit_title(title: str):
         font = ImageFont.truetype(str(TITLE_FONT_PATH), font_size)
         wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
         widths = [measure_width(font, ' '.join(line)) for line in wrapped]
+        line_height = int(round(LINE_HEIGHT_RATIO * font_size))
+        block_bottom = TOP_MARGIN + len(wrapped) * line_height
         if (
             len(wrapped) <= MAX_LINES
             and all(w <= MAX_TITLE_WIDTH for w in widths)
+            and block_bottom <= MAX_TITLE_BLOCK_BOTTOM
             and not has_orphan(wrapped)
         ):
             lines = [' '.join(w) for w in wrapped]

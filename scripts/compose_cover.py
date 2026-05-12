@@ -8,10 +8,12 @@ to fixed brand specifications:
     - Title: DM Serif Display Regular, near-black, top-left anchored
     - Author: EB Garamond SemiBold, 30% of title size, below title block
 
-Title sizing uses a pyramid-cascade algorithm: widest line first, lines
-strictly non-increasing in pixel width, balanced cascade picked from
-among valid splits. Font size decrements from 180px in 4px steps until a
-valid arrangement fits; floor of 60px.
+Title sizing prefers fewer lines at a still-readable size. For each
+candidate line count N in 1..MAX_LINES, we find the largest font size at
+which greedy word-wrap produces ≤N lines (all within MAX_TITLE_WIDTH).
+We then pick the smallest N whose best font is still ≥ MIN_ACCEPTABLE_FONT
+(108px = 60% of MAX). If none qualify, we fall back to MAX_LINES at its
+best font. Floor of 60px overall; 4px decrement step.
 
 CLI:
     # Single composition
@@ -56,6 +58,7 @@ LINE_HEIGHT_RATIO = 1.1
 # Title sizing
 MAX_TITLE_FONT_SIZE = 180
 MIN_TITLE_FONT_SIZE = 60
+MIN_ACCEPTABLE_FONT = 108  # 60% of MAX — readability floor for the "fewer lines" preference
 FONT_SIZE_STEP = 4
 
 # Author
@@ -95,35 +98,59 @@ def greedy_wrap(words: list[str], font: ImageFont.FreeTypeFont, max_width: int) 
     return lines
 
 
+def find_font_at_max_lines(words: list[str], max_lines: int):
+    """Largest font in [MIN, MAX] step −STEP at which greedy_wrap yields
+    ≤ max_lines AND every line's width ≤ MAX_TITLE_WIDTH. Returns
+    (font_size, wrapped, widths) or None if no size in the range qualifies
+    (only possible for single overlong words that still overflow at the floor).
+    """
+    for font_size in range(MAX_TITLE_FONT_SIZE, MIN_TITLE_FONT_SIZE - 1, -FONT_SIZE_STEP):
+        font = ImageFont.truetype(str(TITLE_FONT_PATH), font_size)
+        wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
+        widths = [measure_width(font, ' '.join(line)) for line in wrapped]
+        if len(wrapped) <= max_lines and all(w <= MAX_TITLE_WIDTH for w in widths):
+            return font_size, wrapped, widths
+    return None
+
+
 def fit_title(title: str):
     """Return (font_size, lines, widths, hit_floor_unfit).
 
-    Greedy word-wrap at the current font size; if it produces more than
-    MAX_LINES, decrement the font size and retry. At the floor, accept the
-    greedy result regardless of line count and flag hit_floor_unfit when it
-    overflows MAX_LINES.
+    For each candidate N in 1..MAX_LINES, find the largest font size at which
+    greedy_wrap produces ≤ N lines AND every line is ≤ MAX_TITLE_WIDTH. Pick
+    the smallest N whose best font is still ≥ MIN_ACCEPTABLE_FONT. Trades
+    extra lines for legibility — a 2-line layout at 130px beats a 1-line
+    layout at 80px.
+
+    If no N qualifies above the readability floor, fall back to MAX_LINES at
+    its best font (still ≥ MIN_TITLE_FONT_SIZE). If even MAX_LINES has no
+    valid arrangement (extreme single-word overflows), render greedy at the
+    floor and flag hit_floor_unfit.
     """
     words = title.split()
     if not words:
         return MIN_TITLE_FONT_SIZE, [''], [0], True
 
-    font_size = MAX_TITLE_FONT_SIZE
-    while font_size > MIN_TITLE_FONT_SIZE:
-        font = ImageFont.truetype(str(TITLE_FONT_PATH), font_size)
-        wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
-        if len(wrapped) <= MAX_LINES:
-            lines = [' '.join(w) for w in wrapped]
-            widths = [measure_width(font, line) for line in lines]
-            return font_size, lines, widths, False
-        font_size -= FONT_SIZE_STEP
+    candidates: dict[int, tuple] = {}
+    for n in range(1, MAX_LINES + 1):
+        result = find_font_at_max_lines(words, n)
+        if result is not None:
+            candidates[n] = result
 
-    # Floor: take whatever greedy produces, even if > MAX_LINES.
+    for n in range(1, MAX_LINES + 1):
+        if n in candidates and candidates[n][0] >= MIN_ACCEPTABLE_FONT:
+            font_size, wrapped, widths = candidates[n]
+            return font_size, [' '.join(w) for w in wrapped], widths, False
+
+    if MAX_LINES in candidates:
+        font_size, wrapped, widths = candidates[MAX_LINES]
+        return font_size, [' '.join(w) for w in wrapped], widths, False
+
     font = ImageFont.truetype(str(TITLE_FONT_PATH), MIN_TITLE_FONT_SIZE)
     wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
     lines = [' '.join(w) for w in wrapped]
     widths = [measure_width(font, line) for line in lines]
-    hit_floor_unfit = len(wrapped) > MAX_LINES
-    return MIN_TITLE_FONT_SIZE, lines, widths, hit_floor_unfit
+    return MIN_TITLE_FONT_SIZE, lines, widths, True
 
 
 def compose(
@@ -173,8 +200,8 @@ def compose(
 
     if hit_floor:
         print(
-            f"[WARN] '{title_clean}' bottomed out at {MIN_TITLE_FONT_SIZE}px without "
-            f"finding a valid pyramid. Rendered lines: {lines}",
+            f"[WARN] '{title_clean}' bottomed out at {MIN_TITLE_FONT_SIZE}px — no "
+            f"font/line-count combination fit. Rendered lines: {lines}",
             file=sys.stderr,
         )
 

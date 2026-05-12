@@ -10,10 +10,11 @@ to fixed brand specifications:
 
 Title sizing picks the largest font size at which greedy word-wrap
 produces a layout that satisfies three rules: ≤ MAX_LINES, every line
-≤ MAX_TITLE_WIDTH, and (for multi-line layouts) no line is a lone short
-word (≤ ORPHAN_MAX_CHARS chars). The orphan rule prevents widows like
-"to" or "and" stranded on their own line. Floor of 60px overall; 4px
-decrement step.
+≤ MAX_TITLE_WIDTH, and (for multi-line layouts) no NON-LAST line is a
+lone short word (≤ ORPHAN_MAX_CHARS chars). The orphan rule prevents
+widows like "to" or "and" stranded above more text; last-line short
+words ("Sea", "Oz", "Mr") are natural title endings and pass through.
+Floor of 60px overall; 4px decrement step.
 
 CLI:
     # Single composition
@@ -59,7 +60,7 @@ LINE_HEIGHT_RATIO = 1.1
 MAX_TITLE_FONT_SIZE = 180
 MIN_TITLE_FONT_SIZE = 60
 FONT_SIZE_STEP = 4
-ORPHAN_MAX_CHARS = 3  # in multi-line layouts, a lone word with ≤ this many chars is rejected
+ORPHAN_MAX_CHARS = 3  # lone words ≤ this length are rejected on first/middle lines; last-line allowed
 
 # Author
 AUTHOR_SIZE_RATIO = 0.3
@@ -99,13 +100,19 @@ def greedy_wrap(words: list[str], font: ImageFont.FreeTypeFont, max_width: int) 
 
 
 def has_orphan(wrapped: list[list[str]]) -> bool:
-    """Multi-line layouts: True if any line is a single word with
-    ≤ ORPHAN_MAX_CHARS characters (a stranded "to", "and", "A", etc.).
-    Single-line layouts always return False — the orphan rule only applies
-    when the alternative is to leave a short word alone on its own line."""
+    """True if any non-last line is a single short word (≤ ORPHAN_MAX_CHARS).
+
+    Single-line layouts return False (no neighbour to compare against). The
+    last line is exempt — natural title endings like "Sea", "Oz", or "Mr"
+    are acceptable on a final line; we only reject orphans that strand a
+    short word with more text below it.
+    """
     if len(wrapped) <= 1:
         return False
-    return any(len(line) == 1 and len(line[0]) <= ORPHAN_MAX_CHARS for line in wrapped)
+    return any(
+        len(line) == 1 and len(line[0]) <= ORPHAN_MAX_CHARS
+        for line in wrapped[:-1]
+    )
 
 
 def fit_title(title: str):

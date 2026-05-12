@@ -8,12 +8,12 @@ to fixed brand specifications:
     - Title: DM Serif Display Regular, near-black, top-left anchored
     - Author: EB Garamond SemiBold, 30% of title size, below title block
 
-Title sizing prefers fewer lines at a still-readable size. For each
-candidate line count N in 1..MAX_LINES, we find the largest font size at
-which greedy word-wrap produces ≤N lines (all within MAX_TITLE_WIDTH).
-We then pick the smallest N whose best font is still ≥ MIN_ACCEPTABLE_FONT
-(108px = 60% of MAX). If none qualify, we fall back to MAX_LINES at its
-best font. Floor of 60px overall; 4px decrement step.
+Title sizing picks the largest font size at which greedy word-wrap
+produces a layout that satisfies three rules: ≤ MAX_LINES, every line
+≤ MAX_TITLE_WIDTH, and (for multi-line layouts) no line is a lone short
+word (≤ ORPHAN_MAX_CHARS chars). The orphan rule prevents widows like
+"to" or "and" stranded on their own line. Floor of 60px overall; 4px
+decrement step.
 
 CLI:
     # Single composition
@@ -58,8 +58,8 @@ LINE_HEIGHT_RATIO = 1.1
 # Title sizing
 MAX_TITLE_FONT_SIZE = 180
 MIN_TITLE_FONT_SIZE = 60
-MIN_ACCEPTABLE_FONT = 108  # 60% of MAX — readability floor for the "fewer lines" preference
 FONT_SIZE_STEP = 4
+ORPHAN_MAX_CHARS = 3  # in multi-line layouts, a lone word with ≤ this many chars is rejected
 
 # Author
 AUTHOR_SIZE_RATIO = 0.3
@@ -98,54 +98,42 @@ def greedy_wrap(words: list[str], font: ImageFont.FreeTypeFont, max_width: int) 
     return lines
 
 
-def find_font_at_max_lines(words: list[str], max_lines: int):
-    """Largest font in [MIN, MAX] step −STEP at which greedy_wrap yields
-    ≤ max_lines AND every line's width ≤ MAX_TITLE_WIDTH. Returns
-    (font_size, wrapped, widths) or None if no size in the range qualifies
-    (only possible for single overlong words that still overflow at the floor).
-    """
-    for font_size in range(MAX_TITLE_FONT_SIZE, MIN_TITLE_FONT_SIZE - 1, -FONT_SIZE_STEP):
-        font = ImageFont.truetype(str(TITLE_FONT_PATH), font_size)
-        wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
-        widths = [measure_width(font, ' '.join(line)) for line in wrapped]
-        if len(wrapped) <= max_lines and all(w <= MAX_TITLE_WIDTH for w in widths):
-            return font_size, wrapped, widths
-    return None
+def has_orphan(wrapped: list[list[str]]) -> bool:
+    """Multi-line layouts: True if any line is a single word with
+    ≤ ORPHAN_MAX_CHARS characters (a stranded "to", "and", "A", etc.).
+    Single-line layouts always return False — the orphan rule only applies
+    when the alternative is to leave a short word alone on its own line."""
+    if len(wrapped) <= 1:
+        return False
+    return any(len(line) == 1 and len(line[0]) <= ORPHAN_MAX_CHARS for line in wrapped)
 
 
 def fit_title(title: str):
     """Return (font_size, lines, widths, hit_floor_unfit).
 
-    For each candidate N in 1..MAX_LINES, find the largest font size at which
-    greedy_wrap produces ≤ N lines AND every line is ≤ MAX_TITLE_WIDTH. Pick
-    the smallest N whose best font is still ≥ MIN_ACCEPTABLE_FONT. Trades
-    extra lines for legibility — a 2-line layout at 130px beats a 1-line
-    layout at 80px.
-
-    If no N qualifies above the readability floor, fall back to MAX_LINES at
-    its best font (still ≥ MIN_TITLE_FONT_SIZE). If even MAX_LINES has no
-    valid arrangement (extreme single-word overflows), render greedy at the
-    floor and flag hit_floor_unfit.
+    Walk font sizes from MAX_TITLE_FONT_SIZE down to MIN_TITLE_FONT_SIZE in
+    FONT_SIZE_STEP decrements. At each size, greedy-wrap and accept the first
+    layout that satisfies all three rules: ≤ MAX_LINES, all lines ≤
+    MAX_TITLE_WIDTH, no orphan in multi-line layouts. If no size satisfies
+    all three, render greedy at the floor and flag hit_floor_unfit.
     """
     words = title.split()
     if not words:
         return MIN_TITLE_FONT_SIZE, [''], [0], True
 
-    candidates: dict[int, tuple] = {}
-    for n in range(1, MAX_LINES + 1):
-        result = find_font_at_max_lines(words, n)
-        if result is not None:
-            candidates[n] = result
+    for font_size in range(MAX_TITLE_FONT_SIZE, MIN_TITLE_FONT_SIZE - 1, -FONT_SIZE_STEP):
+        font = ImageFont.truetype(str(TITLE_FONT_PATH), font_size)
+        wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
+        widths = [measure_width(font, ' '.join(line)) for line in wrapped]
+        if (
+            len(wrapped) <= MAX_LINES
+            and all(w <= MAX_TITLE_WIDTH for w in widths)
+            and not has_orphan(wrapped)
+        ):
+            lines = [' '.join(w) for w in wrapped]
+            return font_size, lines, widths, False
 
-    for n in range(1, MAX_LINES + 1):
-        if n in candidates and candidates[n][0] >= MIN_ACCEPTABLE_FONT:
-            font_size, wrapped, widths = candidates[n]
-            return font_size, [' '.join(w) for w in wrapped], widths, False
-
-    if MAX_LINES in candidates:
-        font_size, wrapped, widths = candidates[MAX_LINES]
-        return font_size, [' '.join(w) for w in wrapped], widths, False
-
+    # Floor fallback — render greedy at MIN and flag.
     font = ImageFont.truetype(str(TITLE_FONT_PATH), MIN_TITLE_FONT_SIZE)
     wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
     lines = [' '.join(w) for w in wrapped]

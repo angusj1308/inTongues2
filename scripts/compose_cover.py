@@ -52,9 +52,9 @@ TEXT_COLOR = (26, 26, 26)  # #1A1A1A
 
 # Layout
 LEFT_MARGIN = 80
-TOP_MARGIN = 180
+TOP_MARGIN = 100
 MAX_TITLE_WIDTH = 720  # 1024 − 2·80, leaves right-side breathing room
-MAX_TITLE_BLOCK_BOTTOM = 610  # 40% of canvas height — title typography stays in the top zone
+MAX_TITLE_BLOCK_BOTTOM = 512  # 1/3 of canvas height — title typography stays in the top zone
 MAX_LINES = 3
 LINE_HEIGHT_RATIO = 1.1
 

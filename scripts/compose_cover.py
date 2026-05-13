@@ -8,14 +8,13 @@ to fixed brand specifications:
     - Title: DM Serif Display Regular, near-black, top-left anchored
     - Author: EB Garamond SemiBold, 30% of title size, below title block
 
-Title sizing picks the largest font size at which greedy word-wrap
-produces a layout that satisfies four rules: ≤ MAX_LINES, every line
-≤ MAX_TITLE_WIDTH, the title block bottom (TOP_MARGIN + N × line_height)
-≤ MAX_TITLE_BLOCK_BOTTOM, and (for multi-line layouts) no NON-LAST line
-is a lone short word (≤ ORPHAN_MAX_CHARS chars). The orphan rule prevents
-widows like "to" or "and" stranded above more text; last-line short words
-("Sea", "Oz", "Mr") are natural title endings and pass through.
-Floor of 120px overall; 4px decrement step.
+Title sizing walks font sizes from MAX_TITLE_FONT_SIZE down to
+MIN_TITLE_FONT_SIZE in FONT_SIZE_STEP steps and accepts the first
+size at which greedy word-wrap yields ≤ MAX_LINES lines AND the title
+block bottom (TOP_MARGIN + N × line_height) is ≤ MAX_TITLE_BLOCK_BOTTOM.
+That's it — no orphan rule, no width-cap rejection, no readability
+threshold. Greedy wrapping uses MAX_TITLE_WIDTH as its line-break
+target, which already keeps multi-word lines within the column.
 
 CLI:
     # Single composition
@@ -60,9 +59,8 @@ LINE_HEIGHT_RATIO = 1.1
 
 # Title sizing
 MAX_TITLE_FONT_SIZE = 180
-MIN_TITLE_FONT_SIZE = 120
+MIN_TITLE_FONT_SIZE = 60  # search floor, not an aesthetic floor — only kicks in for extreme outliers
 FONT_SIZE_STEP = 4
-ORPHAN_MAX_CHARS = 3  # lone words ≤ this length are rejected on first/middle lines; last-line allowed
 
 # Author
 AUTHOR_SIZE_RATIO = 0.3
@@ -101,57 +99,37 @@ def greedy_wrap(words: list[str], font: ImageFont.FreeTypeFont, max_width: int) 
     return lines
 
 
-def has_orphan(wrapped: list[list[str]]) -> bool:
-    """True if any non-last line is a single short word (≤ ORPHAN_MAX_CHARS).
-
-    Single-line layouts return False (no neighbour to compare against). The
-    last line is exempt — natural title endings like "Sea", "Oz", or "Mr"
-    are acceptable on a final line; we only reject orphans that strand a
-    short word with more text below it.
-    """
-    if len(wrapped) <= 1:
-        return False
-    return any(
-        len(line) == 1 and len(line[0]) <= ORPHAN_MAX_CHARS
-        for line in wrapped[:-1]
-    )
-
-
 def fit_title(title: str):
-    """Return (font_size, lines, widths, hit_floor_unfit).
+    """Return (font_size, lines, widths).
 
     Walk font sizes from MAX_TITLE_FONT_SIZE down to MIN_TITLE_FONT_SIZE in
-    FONT_SIZE_STEP decrements. At each size, greedy-wrap and accept the first
-    layout that satisfies all four rules: ≤ MAX_LINES, all lines ≤
-    MAX_TITLE_WIDTH, title-block bottom ≤ MAX_TITLE_BLOCK_BOTTOM, no orphan
-    on first/middle lines. If no size satisfies all four, render greedy at
-    the floor and flag hit_floor_unfit.
+    FONT_SIZE_STEP decrements. At each size, greedy-wrap with
+    MAX_TITLE_WIDTH as the wrap target, compute the title block bottom, and
+    accept the first arrangement where line count ≤ MAX_LINES AND block
+    bottom ≤ MAX_TITLE_BLOCK_BOTTOM. If nothing passes (extreme outlier),
+    fall back to greedy at the search floor.
     """
     words = title.split()
     if not words:
-        return MIN_TITLE_FONT_SIZE, [''], [0], True
+        return MIN_TITLE_FONT_SIZE, [''], [0]
 
     for font_size in range(MAX_TITLE_FONT_SIZE, MIN_TITLE_FONT_SIZE - 1, -FONT_SIZE_STEP):
         font = ImageFont.truetype(str(TITLE_FONT_PATH), font_size)
         wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
-        widths = [measure_width(font, ' '.join(line)) for line in wrapped]
         line_height = int(round(LINE_HEIGHT_RATIO * font_size))
         block_bottom = TOP_MARGIN + len(wrapped) * line_height
-        if (
-            len(wrapped) <= MAX_LINES
-            and all(w <= MAX_TITLE_WIDTH for w in widths)
-            and block_bottom <= MAX_TITLE_BLOCK_BOTTOM
-            and not has_orphan(wrapped)
-        ):
+        if len(wrapped) <= MAX_LINES and block_bottom <= MAX_TITLE_BLOCK_BOTTOM:
             lines = [' '.join(w) for w in wrapped]
-            return font_size, lines, widths, False
+            widths = [measure_width(font, line) for line in lines]
+            return font_size, lines, widths
 
-    # Floor fallback — render greedy at MIN and flag.
+    # Extreme outlier — no size in the range satisfies both rules.
+    # Render greedy at the floor anyway, no warning.
     font = ImageFont.truetype(str(TITLE_FONT_PATH), MIN_TITLE_FONT_SIZE)
     wrapped = greedy_wrap(words, font, MAX_TITLE_WIDTH)
     lines = [' '.join(w) for w in wrapped]
     widths = [measure_width(font, line) for line in lines]
-    return MIN_TITLE_FONT_SIZE, lines, widths, True
+    return MIN_TITLE_FONT_SIZE, lines, widths
 
 
 def compose(
@@ -167,7 +145,7 @@ def compose(
         sys.exit(f"Artwork not found: {artwork_path}")
 
     title_clean = preprocess_title(title)
-    font_size, lines, widths, hit_floor = fit_title(title_clean)
+    font_size, lines, widths = fit_title(title_clean)
 
     canvas = Image.new("RGB", (CANVAS_W, CANVAS_H), IVORY)
     artwork = Image.open(artwork_path).convert("RGB")
@@ -199,13 +177,6 @@ def compose(
     author_top = author_baseline - author_ascent
     draw.text((LEFT_MARGIN, author_top), author, fill=TEXT_COLOR, font=author_font)
 
-    if hit_floor:
-        print(
-            f"[WARN] '{title_clean}' bottomed out at {MIN_TITLE_FONT_SIZE}px — no "
-            f"font/line-count combination fit. Rendered lines: {lines}",
-            file=sys.stderr,
-        )
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(output_path, "PNG")
 
@@ -216,7 +187,6 @@ def compose(
         "author_size": author_size,
         "lines": lines,
         "line_widths_px": widths,
-        "hit_floor": hit_floor,
         "output_path": str(output_path),
     }
 
@@ -246,8 +216,6 @@ def print_report(reports: list[dict]) -> None:
         print(f"Lines ({len(r['lines'])}):")
         for i, (line, w) in enumerate(zip(r['lines'], r['line_widths_px']), 1):
             print(f"  L{i}: {w:>4}px  {line!r}")
-        if r['hit_floor']:
-            print("  [FLOOR] Hit min font size; rendered best non-fitting arrangement.")
         print(f"Output:    {r['output_path']}")
 
 

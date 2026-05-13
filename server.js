@@ -9874,30 +9874,6 @@ async function generateAudioForPage(bookId, pageIndex, text, voiceId, languageLa
 // Cover painting generation — picks a scene with Haiku, paints with gpt-image-2
 // ─────────────────────────────────────────────────────────────────────────────
 const COVER_FONTS_DIR = path.join(process.cwd(), 'scripts', 'fonts')
-const COVER_FONT_URLS = {
-  'Lora-Variable.ttf':
-    'https://github.com/google/fonts/raw/main/ofl/lora/Lora%5Bwght%5D.ttf',
-  'texgyreheros-regular.otf':
-    'https://mirrors.ctan.org/fonts/tex-gyre/opentype/texgyreheros-regular.otf',
-}
-
-async function ensureCoverFonts() {
-  await fs.mkdir(COVER_FONTS_DIR, { recursive: true })
-  for (const [name, url] of Object.entries(COVER_FONT_URLS)) {
-    const dest = path.join(COVER_FONTS_DIR, name)
-    try {
-      await fs.access(dest)
-      continue
-    } catch {}
-    console.log(`Downloading cover font: ${name}`)
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`Failed to download ${name}: HTTP ${response.status}`)
-    }
-    const buf = Buffer.from(await response.arrayBuffer())
-    await fs.writeFile(dest, buf)
-  }
-}
 
 // ── Wordmark font (EB Garamond) ──
 // Downloaded once and cached in scripts/fonts/. The wordmark compositor
@@ -9953,29 +9929,6 @@ function runWordmarkCompositor(paintingPath, fontPath, outputPath) {
         resolve(JSON.parse(line.slice('WORDMARK_RESULT '.length)))
       } catch (parseErr) {
         reject(new Error(`Failed to parse WORDMARK_RESULT: ${parseErr.message}`))
-      }
-    })
-  })
-}
-
-function runCoverCompositor(paintingPath, title, level, outputPath) {
-  return new Promise((resolve, reject) => {
-    const scriptPath = path.join(process.cwd(), 'scripts', 'compose_cover.py')
-    const proc = spawn('python3', [
-      scriptPath,
-      '--painting', paintingPath,
-      '--title', title,
-      '--level', level,
-      '--output', outputPath,
-    ])
-    let stderr = ''
-    proc.stderr.on('data', (chunk) => { stderr += chunk.toString() })
-    proc.on('error', (err) => reject(new Error(`Failed to spawn python3: ${err.message}`)))
-    proc.on('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(`compose_cover.py exited with code ${code}: ${stderr.trim()}`))
-      } else {
-        resolve()
       }
     })
   })
@@ -10424,78 +10377,6 @@ app.post('/api/generate-square-cover', async (req, res) => {
   } catch (err) {
     console.error('Square cover generation failed:', err)
     return res.status(500).json({ error: 'Square cover generation failed', details: err?.message })
-  }
-})
-
-app.post('/api/recomposite-cover', async (req, res) => {
-  try {
-    const { uid, storyId } = req.body || {}
-    if (!uid || !storyId) {
-      return res.status(400).json({ error: 'uid and storyId are required' })
-    }
-
-    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
-    const snap = await storyRef.get()
-    if (!snap.exists) {
-      return res.status(404).json({ error: 'Story not found' })
-    }
-
-    const data = snap.data() || {}
-    if (!data.coverUrl && !data.coverImageUrl) {
-      return res.status(400).json({ error: 'Story has no existing cover' })
-    }
-
-    // Download existing cover from Storage
-    const storagePath = `covers/${uid}/${storyId}.png`
-    const file = bucket.file(storagePath)
-    const [existingCover] = await file.download()
-
-    const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const tempCover = path.join(os.tmpdir(), `cover-existing-${tempId}.png`)
-    const tempPainting = path.join(os.tmpdir(), `cover-painting-${tempId}.png`)
-    const tempComposed = path.join(os.tmpdir(), `cover-composed-${tempId}.png`)
-
-    let coverBuffer
-    try {
-      await fs.writeFile(tempCover, existingCover)
-
-      // Crop the painting (top 1580px) from the existing cover
-      await new Promise((resolve, reject) => {
-        const proc = spawn('python3', ['-c', `
-from PIL import Image
-img = Image.open("${tempCover}")
-img.crop((0, 0, ${1600}, ${1580})).save("${tempPainting}")
-`])
-        proc.on('error', (err) => reject(err))
-        proc.on('close', (code) => code === 0 ? resolve() : reject(new Error('Crop failed')))
-      })
-
-      await ensureCoverFonts()
-
-      const title = data.storyTitle || data.title || 'Untitled'
-      const storedLevel = data.level || 'Intermediate'
-      const coverLevel = storedLevel === 'Native' ? 'Advanced' : storedLevel
-      const levelLine = `${coverLevel} ${data.language || ''}`.trim()
-
-      await runCoverCompositor(tempPainting, title, levelLine, tempComposed)
-      coverBuffer = await fs.readFile(tempComposed)
-    } finally {
-      await fs.unlink(tempCover).catch(() => {})
-      await fs.unlink(tempPainting).catch(() => {})
-      await fs.unlink(tempComposed).catch(() => {})
-    }
-
-    const baseUrl = await uploadCoverToStorage(coverBuffer, 'image/png', uid, storyId)
-    if (!baseUrl) throw new Error('Failed to upload recomposited cover')
-
-    const coverUrl = `${baseUrl}?v=${Date.now()}`
-    await storyRef.update({ coverUrl, coverImageUrl: coverUrl })
-    console.log(`Recomposited cover for ${storyId}:`, coverUrl)
-
-    return res.json({ success: true, coverUrl })
-  } catch (err) {
-    console.error('Recomposite cover error:', err)
-    return res.status(500).json({ error: 'Recomposite failed', details: err?.message })
   }
 })
 

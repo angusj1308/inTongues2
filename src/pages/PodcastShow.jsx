@@ -7,6 +7,7 @@ import FollowButton from '../components/podcast/FollowButton'
 import AddToPlaylistMenu from '../components/podcast/AddToPlaylistMenu'
 import UnavailableShowMessage from '../components/podcast/UnavailableShowMessage'
 import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
+import DashboardLayout from '../components/layout/DashboardLayout'
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest first' },
@@ -77,10 +78,22 @@ const PodcastShowPage = () => {
     setLoadingMore(false)
   }
 
+  const handleTabChange = (tab) => {
+    if (tab === 'listen') {
+      navigate('/listen/library')
+    } else if (tab === 'read') {
+      navigate('/read/library')
+    } else {
+      navigate('/dashboard', { state: { initialTab: tab } })
+    }
+  }
+
   return (
-    <div className="media-page media-page--bare">
-      <div className="media-show-page">
-        <Link to="/listen/library/podcasts" className="media-back-link ui-text">
+    <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
+      <div className="media-page media-page--bare">
+        <main className="media-main">
+          <div className="media-show-page">
+            <Link to="/listen/library/podcasts" className="media-back-link ui-text">
           ← Library
         </Link>
 
@@ -261,8 +274,10 @@ const PodcastShowPage = () => {
             )}
           </>
         )}
+          </div>
+        </main>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 

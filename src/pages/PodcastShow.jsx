@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchShow, fetchShowEpisodes } from '../services/podcast'
-import PodcastShell from '../components/podcast/PodcastShell'
 import CoverArt from '../components/podcast/CoverArt'
 import EpisodeRow from '../components/podcast/EpisodeRow'
 import FollowButton from '../components/podcast/FollowButton'
@@ -79,9 +78,9 @@ const PodcastShowPage = () => {
   }
 
   return (
-    <PodcastShell>
+    <div className="media-page media-page--bare">
       <div className="media-show-page">
-        <Link to="/podcasts" className="media-back-link ui-text">
+        <Link to="/listen/library/podcasts" className="media-back-link ui-text">
           ← Library
         </Link>
 
@@ -263,7 +262,7 @@ const PodcastShowPage = () => {
           </>
         )}
       </div>
-    </PodcastShell>
+    </div>
   )
 }
 

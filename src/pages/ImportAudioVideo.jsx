@@ -14,12 +14,12 @@ const ImportAudioVideo = () => {
               Add a YouTube video to your listening library and access it inside inTongues Cinema.
             </p>
           </div>
-          <button className="button ghost" onClick={() => navigate('/listening')}>
+          <button className="button ghost" onClick={() => navigate('/listen/library')}>
             Back to listening library
           </button>
         </div>
 
-        <ImportYouTubePanel headingLevel="h3" layout="section" onSuccess={() => navigate('/listening')} />
+        <ImportYouTubePanel headingLevel="h3" layout="section" onSuccess={() => navigate('/listen/library')} />
       </div>
     </div>
   )

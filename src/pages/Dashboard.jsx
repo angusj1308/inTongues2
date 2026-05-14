@@ -4,7 +4,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc, getDoc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { computePagesWithFontLoading } from '../utils/pagination'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
-import ListeningHub from '../components/listen/ListeningHub'
 import ListenSubNav from '../components/listen/ListenSubNav'
 import ListenLibrary from '../components/listen/ListenLibrary'
 import ListenDeepView from '../components/listen/ListenDeepView'
@@ -2538,20 +2537,14 @@ const Dashboard = () => {
           )}
           {activeTab === 'listen' && (
             <div className="home-content">
-              {!isListenRoute ? (
-                <ListeningHub embedded showBackButton={false} />
-              ) : (
-                <>
-                  <ListenSubNav />
-                  <div className="read-sub-page read-listen-page">
-                    {listenSubPage === 'library' && !listenMedium && <ListenLibrary />}
-                    {listenSubPage === 'library' && listenMedium && (
-                      <ListenDeepView medium={listenMedium} />
-                    )}
-                    {listenSubPage === 'discover' && <ListenDiscover />}
-                  </div>
-                </>
-              )}
+              <ListenSubNav />
+              <div className="read-sub-page read-listen-page">
+                {listenSubPage === 'library' && !listenMedium && <ListenLibrary />}
+                {listenSubPage === 'library' && listenMedium && (
+                  <ListenDeepView medium={listenMedium} />
+                )}
+                {listenSubPage === 'discover' && <ListenDiscover />}
+              </div>
             </div>
           )}
 

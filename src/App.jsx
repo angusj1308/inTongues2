@@ -12,7 +12,6 @@ import SelectLanguagePage from './pages/SelectLanguagePage'
 import Signup from './pages/Signup'
 import Reader from './pages/Reader'
 import Review from './pages/Review'
-import ListeningLibrary from './pages/ListeningLibrary'
 import AudioPlayer from './pages/AudioPlayer'
 import ImportAudioVideo from './pages/ImportAudioVideo'
 import IntonguesCinema from './pages/IntonguesCinema'
@@ -212,14 +211,7 @@ const App = () => {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/listening"
-        element={
-          <ProtectedRoute>
-            <ListeningLibrary />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/listening" element={<Navigate to="/listen/library" replace />} />
       <Route path="/listen" element={<Navigate to="/listen/library" replace />} />
       <Route
         path="/listen/library"

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { collection, doc, getDoc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
@@ -1292,8 +1292,12 @@ const normalisePagesToSegments = (pages = []) =>
 
       const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', id)
       const progress = Math.min(100, Math.round((currentTime / duration) * 100))
-      updateDoc(videoRef, { progress, duration, lastPosition: currentTime })
-        .catch((err) => console.debug('Failed to save video progress:', err))
+      updateDoc(videoRef, {
+        progress,
+        duration,
+        lastPosition: currentTime,
+        lastPlayedAt: serverTimestamp(),
+      }).catch((err) => console.debug('Failed to save video progress:', err))
     }
 
     const interval = setInterval(() => writePlayhead(false), 1000)

@@ -1786,7 +1786,11 @@ const AudioPlayer = () => {
             const collectionName = isSpotify ? 'spotifyItems' : 'stories'
             const docRef = doc(db, 'users', user.uid, collectionName, id)
             const progress = Math.min(100, Math.round((progressSeconds / durationSeconds) * 100))
-            await updateDoc(docRef, { progress, duration: durationSeconds })
+            await updateDoc(docRef, {
+              progress,
+              duration: durationSeconds,
+              lastPlayedAt: serverTimestamp(),
+            })
           }
         } catch (err) {
           // Silently fail - this is non-critical

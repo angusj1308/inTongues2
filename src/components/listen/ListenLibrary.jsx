@@ -175,83 +175,40 @@ export default function ListenLibrary() {
   )
 
   // -- Podcasts shelf: subscribed shows -------------------------------------
-  // The user's "subscribed shows" combines two sources: explicit follows from
-  // podcastFollows, plus shows the user has touched via episodeStates. The
-  // latter catches shows played from a search result without an explicit
-  // follow doc. Deduped by showId, follow data wins for metadata.
-  const podcastCards = useMemo(() => {
-    const byShowId = new Map()
+  // Episode count per show comes from the user's episodeStates (the only
+  // per-user episode signal we have client-side).
+  const episodeCountByShow = useMemo(() => {
+    const counts = {}
+    data.episodeStates.forEach((e) => {
+      const sid = e.showId || e.show_id || ''
+      if (!sid) return
+      counts[sid] = (counts[sid] || 0) + 1
+    })
+    return counts
+  }, [data.episodeStates])
 
-    data.followedShows.forEach((s) => {
-      const showId = s.showId || s.id
-      if (!showId) return
-      byShowId.set(showId, {
-        showId,
-        title: s.title || '',
-        host: s.host || '',
-        coverUrl: s.coverUrl || '',
-        sortKey: s.followedAt?.toMillis?.() || 0,
+  const podcastCards = useMemo(
+    () => [...data.followedShows]
+      .sort((a, b) => {
+        const at = a.followedAt?.toMillis?.() || 0
+        const bt = b.followedAt?.toMillis?.() || 0
+        return bt - at
       })
-    })
-
-    // Derive any additional shows from episodeStates whose showId isn't
-    // already represented. Use the freshest episode's metadata for cover/name.
-    const episodesByShow = new Map()
-    data.episodeStates.forEach((e) => {
-      const sid = e.showId || ''
-      if (!sid) return
-      const ts = e.lastPlayedAt?.toMillis?.() || 0
-      const existing = episodesByShow.get(sid)
-      if (!existing || ts > existing.ts) {
-        episodesByShow.set(sid, {
-          ts,
-          showName: e.showName || '',
-          coverUrl: e.coverUrl || '',
-        })
-      }
-    })
-
-    episodesByShow.forEach((ep, sid) => {
-      if (byShowId.has(sid)) {
-        // Backfill weak fields from episode metadata if the follow doc lacks them.
-        const existing = byShowId.get(sid)
-        if (!existing.title) existing.title = ep.showName
-        if (!existing.coverUrl) existing.coverUrl = ep.coverUrl
-        if (ep.ts > existing.sortKey) existing.sortKey = ep.ts
-      } else {
-        byShowId.set(sid, {
-          showId: sid,
-          title: ep.showName || 'Untitled show',
-          host: '',
-          coverUrl: ep.coverUrl || '',
-          sortKey: ep.ts,
-        })
-      }
-    })
-
-    // Count episodes per show from the user's episodeStates.
-    const episodeCountByShow = {}
-    data.episodeStates.forEach((e) => {
-      const sid = e.showId || ''
-      if (!sid) return
-      episodeCountByShow[sid] = (episodeCountByShow[sid] || 0) + 1
-    })
-
-    return [...byShowId.values()]
-      .sort((a, b) => b.sortKey - a.sortKey)
       .slice(0, 5)
       .map((s) => {
-        const count = episodeCountByShow[s.showId] || 0
+        const showId = s.showId || s.id
+        const count = episodeCountByShow[showId] || 0
         return {
-          id: s.showId,
+          id: s.id,
           title: s.title || 'Untitled show',
           subtitle: s.host || '',
           trailing: count > 0 ? (count === 1 ? '1 episode' : `${count} episodes`) : '',
           coverUrl: s.coverUrl || '',
-          onClick: () => navigate(`/podcasts/show/${s.showId}`),
+          onClick: () => navigate(`/podcasts/show/${showId}`),
         }
-      })
-  }, [data.followedShows, data.episodeStates, navigate])
+      }),
+    [data.followedShows, episodeCountByShow, navigate],
+  )
 
   // -- YouTube shelf: derived channels --------------------------------------
   // No channel-follow API exists; channels are derived by grouping the user's

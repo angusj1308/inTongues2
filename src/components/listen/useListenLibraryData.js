@@ -21,6 +21,10 @@ export default function useListenLibraryData(uid) {
   const [savedTracks, setSavedTracks] = useState([])
   const [savedAlbums, setSavedAlbums] = useState([])
   const [followedArtists, setFollowedArtists] = useState([])
+  // spotifyItems carries the actual lastPlayedAt timestamp for music tracks
+  // (the player writes there on every progress tick). savedTracks only
+  // has savedAt — not enough to drive Continue Listening.
+  const [spotifyItems, setSpotifyItems] = useState([])
 
   useEffect(() => {
     if (!uid) {
@@ -31,6 +35,7 @@ export default function useListenLibraryData(uid) {
       setSavedTracks([])
       setSavedAlbums([])
       setFollowedArtists([])
+      setSpotifyItems([])
       return undefined
     }
 
@@ -50,6 +55,16 @@ export default function useListenLibraryData(uid) {
       setYoutubeVideos(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     })
 
+    const spotifyRef = collection(db, 'users', uid, 'spotifyItems')
+    const unsubSpotify = onSnapshot(
+      spotifyRef,
+      (snap) => {
+        setSpotifyItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      },
+      // Collection may not exist for some users; non-fatal.
+      () => setSpotifyItems([]),
+    )
+
     const unsubEpisodes = subscribeEpisodeStates(uid, setEpisodeStates)
     const unsubShows = subscribeFollowedShows(uid, setFollowedShows)
     const unsubTracks = subscribeSavedTracks(uid, setSavedTracks)
@@ -59,6 +74,7 @@ export default function useListenLibraryData(uid) {
     return () => {
       unsubStories()
       unsubVideos()
+      unsubSpotify()
       unsubEpisodes && unsubEpisodes()
       unsubShows && unsubShows()
       unsubTracks && unsubTracks()
@@ -75,7 +91,18 @@ export default function useListenLibraryData(uid) {
     savedTracks,
     savedAlbums,
     followedArtists,
+    spotifyItems,
   }
+}
+
+const tsOf = (...values) => {
+  for (const v of values) {
+    if (!v) continue
+    if (typeof v?.toMillis === 'function') return v.toMillis()
+    const n = Number(v)
+    if (Number.isFinite(n) && n > 0) return n
+  }
+  return 0
 }
 
 // Normalise an item from any of the four mediums into the shape the hero card
@@ -84,11 +111,9 @@ export function toContinueCandidate(medium, item) {
   if (!item) return null
   switch (medium) {
     case 'audiobook': {
-      const ts = item.lastOpenedAt?.toMillis?.() ?? Number(item.lastOpenedAt) ?? 0
+      const ts = tsOf(item.lastPlayedAt, item.lastOpenedAt)
       if (!ts) return null
-      const total = Number(item.totalChapters || item.totalPhases || 0)
-      const done = Number(item.chaptersGenerated || item.lastPhaseCompleted || 0)
-      const progress = Number(item.progress) || (total > 0 ? Math.round((done / total) * 100) : 0)
+      const progress = Number(item.progress) || 0
       return {
         medium: 'audiobook',
         id: item.id,
@@ -101,7 +126,7 @@ export function toContinueCandidate(medium, item) {
       }
     }
     case 'podcast': {
-      const ts = item.lastPlayedAt?.toMillis?.() ?? Number(item.lastPlayedAt) ?? 0
+      const ts = tsOf(item.lastPlayedAt)
       if (!ts) return null
       const progressMs = Number(item.progressMs) || 0
       const durationMs = Number(item.durationMs) || 0
@@ -122,21 +147,21 @@ export function toContinueCandidate(medium, item) {
       }
     }
     case 'music': {
-      const ts = item.lastPlayedAt?.toMillis?.() ?? item.savedAt?.toMillis?.() ?? 0
+      const ts = tsOf(item.lastPlayedAt)
       if (!ts) return null
       return {
         medium: 'music',
-        id: item.trackId || item.id,
+        id: item.id,
         title: item.title || 'Untitled track',
-        creator: item.artistName || '',
-        coverUrl: item.coverUrl || '',
+        creator: item.artistName || item.artist || '',
+        coverUrl: item.coverImageUrl || item.coverUrl || '',
         progress: null,
         lastPlayedAt: ts,
-        playHref: `/listen/${item.trackId || item.id}?source=music`,
+        playHref: `/listen/${item.id}?source=music`,
       }
     }
     case 'video': {
-      const ts = item.lastOpenedAt?.toMillis?.() ?? item.createdAt?.toMillis?.() ?? 0
+      const ts = tsOf(item.lastPlayedAt, item.lastOpenedAt)
       if (!ts) return null
       const progress = Number(item.progress) || 0
       return {
@@ -165,8 +190,8 @@ export function pickContinueListening(data) {
     const c = toContinueCandidate('podcast', e)
     if (c) candidates.push(c)
   })
-  data.savedTracks?.forEach((t) => {
-    const c = toContinueCandidate('music', t)
+  data.spotifyItems?.forEach((s) => {
+    const c = toContinueCandidate('music', s)
     if (c) candidates.push(c)
   })
   data.youtubeVideos?.forEach((v) => {

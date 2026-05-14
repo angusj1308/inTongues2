@@ -198,6 +198,15 @@ export const addEpisodeToPlaylist = async (uid, playlistId, episodeId) => {
 
 const API_BASE = 'http://localhost:4000'
 
+// Search results carry IDs across multiple provider-specific fields (iTunes
+// collection id, Spotify show id, feed URL hash, etc.). These helpers pick
+// the first non-empty one so callers don't have to repeat the ?? chain.
+export const showIdOf = (r) =>
+  String(r?.itunesCollectionId ?? r?.spotifyShowId ?? r?.feedId ?? '')
+
+export const episodeIdOf = (r) =>
+  String(r?.itunesEpisodeId ?? r?.spotifyEpisodeId ?? r?.episodeId ?? '')
+
 // Mixed-type search backed by Spotify (with iTunes RSS resolution for show pages).
 // Returns an array of results
 // where each entry is either { type: 'show', ... } or { type: 'episode', ... }.

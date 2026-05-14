@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { searchPodcasts } from '../../services/podcast'
+import { searchPodcasts, showIdOf, episodeIdOf } from '../../services/podcast'
 import { searchMusic } from '../../services/music'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 
@@ -139,26 +139,41 @@ export default function ListenDiscover() {
     const rows = []
     // Podcasts: split show vs episode
     ;(results.podcasts || []).forEach((p) => {
+      // The podcast search endpoint returns iTunes/Spotify-shaped raw rows.
+      // Use the same field names the legacy podcast search row uses
+      // (coverArtUrl, author, itunesCollectionId/Episode, …) so covers,
+      // subtitles, and navigation actually work.
+      const cover = p.coverArtUrl || p.coverUrl || p.image || ''
       if (p.type === 'episode') {
+        const episodeId = episodeIdOf(p)
+        const showName = p.showTitle || p.collectionName || p.showName || ''
         rows.push({
-          id: `pod-ep-${p.id || p.episodeId || p.guid || Math.random()}`,
+          id: `pod-ep-${episodeId || Math.random()}`,
           medium: 'Podcasts',
-          coverUrl: p.coverUrl || p.image || '',
+          coverUrl: cover,
           title: p.title || 'Untitled episode',
-          subtitle: p.showName || p.host || '',
+          subtitle: showName,
           shape: 'square',
-          trailing: formatDuration(p.durationMs),
-          onClick: () => p.episodeId && navigate(`/listen/${p.episodeId}?source=podcast`),
+          trailing: formatDuration(
+            typeof p.duration === 'number' ? p.duration * 1000 : p.durationMs,
+          ),
+          onClick: () => episodeId && navigate(`/listen/${episodeId}?source=podcast`),
         })
       } else {
+        const showId = showIdOf(p)
+        const metaParts = []
+        if (p.author) metaParts.push(p.author)
+        if (p.episodeCount > 0) {
+          metaParts.push(p.episodeCount === 1 ? '1 episode' : `${p.episodeCount} episodes`)
+        }
         rows.push({
-          id: `pod-show-${p.id || Math.random()}`,
+          id: `pod-show-${showId || Math.random()}`,
           medium: 'Podcasts',
-          coverUrl: p.coverUrl || p.image || '',
+          coverUrl: cover,
           title: p.title || 'Untitled show',
-          subtitle: p.host || '',
+          subtitle: metaParts.join(' · '),
           shape: 'square',
-          onClick: () => p.id && navigate(`/podcasts/show/${p.id}`),
+          onClick: () => showId && navigate(`/podcasts/show/${showId}`),
         })
       }
     })

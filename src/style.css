@@ -29420,3 +29420,653 @@ body:has(.cinema-page) {
   color: #1C1A17;
   border-color: #FBFAF8;
 }
+
+/* =====================================================================
+   Listen Hub — Library home, deep views, Discover
+   Reuses the read-sub-nav, discover-search and theme tokens. Everything
+   below is just layout/sizing specific to the Listen pages.
+   ===================================================================== */
+.listen-library {
+  display: flex;
+  flex-direction: column;
+  gap: 2.75rem;
+  width: 100%;
+}
+
+/* ---------- Continue Listening hero ---------- */
+.listen-continue-section {
+  width: 100%;
+}
+
+.listen-continue-card {
+  display: flex;
+  align-items: center;
+  gap: 3.5rem;
+  padding: 0 0 2rem;
+  border-bottom: 1px solid var(--divider, #E8E5E0);
+}
+
+[data-theme='dark'] .listen-continue-card {
+  border-bottom-color: var(--divider, #2E2A24);
+}
+
+.listen-continue-cover {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #d6d3d1 0%, #a8a29e 100%);
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 200ms ease;
+}
+
+.listen-continue-cover:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.listen-continue-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.listen-continue-cover--portrait {
+  width: 180px;
+  aspect-ratio: 2 / 3;
+}
+
+.listen-continue-cover--square {
+  width: 220px;
+  aspect-ratio: 1 / 1;
+}
+
+.listen-continue-cover--wide {
+  width: 320px;
+  aspect-ratio: 16 / 9;
+}
+
+.listen-continue-cover-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  text-align: center;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1rem;
+  color: #57534e;
+  line-height: 1.25;
+}
+
+.listen-continue-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.listen-continue-eyebrow {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #6B6862);
+  margin: 0;
+}
+
+.listen-continue-headline {
+  margin: 0;
+  font-size: 0;
+  line-height: 1.15;
+}
+
+.listen-continue-title {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 2rem;
+  font-weight: 400;
+  color: var(--text-primary, #1C1A17);
+  line-height: 1.15;
+  text-align: left;
+  transition: opacity 160ms ease;
+}
+
+.listen-continue-title:hover {
+  opacity: 0.7;
+}
+
+.listen-continue-byline {
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--text-secondary, #6B6862);
+  line-height: 1.15;
+  margin-left: 0.35rem;
+}
+
+.listen-continue-creator {
+  color: var(--text-primary, #1C1A17);
+}
+
+.listen-continue-progress {
+  height: 1px;
+  width: 100%;
+  background: var(--divider, #E8E5E0);
+  position: relative;
+}
+
+.listen-continue-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--text-primary, #1C1A17);
+}
+
+.listen-continue-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.listen-continue-meta {
+  margin: 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #6B6862);
+}
+
+.listen-continue-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary, #1C1A17);
+  transition: opacity 160ms ease;
+}
+
+.listen-continue-button:hover {
+  opacity: 0.7;
+}
+
+/* ---------- Shelf ---------- */
+.listen-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.listen-shelf-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.listen-shelf-heading {
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--text-primary, #1C1A17);
+  margin: 0;
+}
+
+.listen-shelf-empty {
+  margin: 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #6B6862);
+}
+
+.listen-shelf-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.listen-shelf-grid--cols-4 { grid-template-columns: repeat(4, 1fr); }
+.listen-shelf-grid--cols-5 { grid-template-columns: repeat(5, 1fr); }
+.listen-shelf-grid--cols-6 { grid-template-columns: repeat(6, 1fr); }
+
+.listen-shelf-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  transition: transform 200ms ease;
+}
+
+.listen-shelf-card:hover {
+  transform: translateY(-2px);
+}
+
+.listen-shelf-cover {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(135deg, #d6d3d1 0%, #a8a29e 100%);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 200ms ease;
+}
+
+.listen-shelf-card:hover .listen-shelf-cover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+.listen-shelf-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.listen-shelf-cover--portrait { aspect-ratio: 2 / 3; }
+.listen-shelf-cover--square { aspect-ratio: 1 / 1; }
+.listen-shelf-cover--wide { aspect-ratio: 16 / 9; }
+
+.listen-shelf-cover-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  text-align: center;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 0.85rem;
+  color: #57534e;
+  line-height: 1.25;
+}
+
+.listen-shelf-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 2px;
+  min-width: 0;
+}
+
+.listen-shelf-title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary, #1C1A17);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listen-shelf-sub {
+  margin: 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6B6862);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* All my [Type] tile — dashed, transparent, same aspect */
+.listen-shelf-allmine {
+  cursor: pointer;
+}
+
+.listen-shelf-allmine-cover {
+  background: transparent;
+  border: 1px dashed rgba(28, 26, 23, 0.35);
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  transition: border-color 160ms ease;
+}
+
+[data-theme='dark'] .listen-shelf-allmine-cover {
+  border-color: rgba(251, 250, 248, 0.35);
+}
+
+.listen-shelf-allmine:hover .listen-shelf-allmine-cover {
+  border-color: var(--text-primary, #1C1A17);
+  box-shadow: none;
+}
+
+.listen-shelf-allmine-label {
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--text-primary, #1C1A17);
+  text-align: center;
+  line-height: 1.15;
+}
+
+.listen-shelf-allmine-arrow {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #6B6862);
+}
+
+/* ---------- Deep view ---------- */
+.listen-deep-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+}
+
+.listen-deep-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  margin: 0 auto 0.5rem;
+  width: min(1320px, 100%);
+}
+
+.listen-deep-back {
+  justify-self: start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #6B6862);
+  transition: color 160ms ease;
+}
+
+.listen-deep-back:hover {
+  color: var(--text-primary, #1C1A17);
+}
+
+.listen-deep-title-main {
+  margin: 0;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 2.2rem;
+  font-weight: 400;
+  color: var(--text-primary, #1C1A17);
+  text-align: center;
+  line-height: 1.1;
+}
+
+.listen-deep-header-right {
+  justify-self: end;
+}
+
+.listen-deep-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.listen-deep-tab {
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 400;
+  color: var(--text-secondary, #6B6862);
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+
+.listen-deep-tab:hover {
+  opacity: 0.85;
+}
+
+.listen-deep-tab.is-active {
+  color: var(--text-primary, #1C1A17);
+  opacity: 1;
+}
+
+.listen-deep-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.listen-deep-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.75rem 0.25rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--divider, #E8E5E0);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  transition: background 160ms ease;
+}
+
+[data-theme='dark'] .listen-deep-row {
+  border-bottom-color: var(--divider, #2E2A24);
+}
+
+.listen-deep-row:hover {
+  background: rgba(28, 26, 23, 0.03);
+}
+
+[data-theme='dark'] .listen-deep-row:hover {
+  background: rgba(251, 250, 248, 0.04);
+}
+
+.listen-deep-thumb {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #d6d3d1 0%, #a8a29e 100%);
+  overflow: hidden;
+  position: relative;
+}
+
+.listen-deep-thumb--square {
+  width: 56px;
+  height: 56px;
+}
+
+.listen-deep-thumb--portrait {
+  width: 44px;
+  height: 64px;
+}
+
+.listen-deep-thumb--wide {
+  width: 96px;
+  height: 56px;
+}
+
+.listen-deep-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.listen-deep-thumb-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.4rem;
+  color: #57534e;
+}
+
+.listen-deep-meta {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.listen-deep-title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--text-primary, #1C1A17);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listen-deep-sub {
+  margin: 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6B6862);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listen-deep-trailing {
+  flex-shrink: 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #6B6862);
+}
+
+.listen-deep-empty {
+  margin: 2rem 0;
+  text-align: center;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #6B6862);
+}
+
+/* ---------- Discover ---------- */
+.listen-discover {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  width: 100%;
+}
+
+.listen-discover-chips,
+.listen-filter-chips {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.listen-utility-chip {
+  background: transparent;
+  border: 1px solid rgba(28, 26, 23, 0.35);
+  border-radius: 4px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-primary, #1C1A17);
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.listen-utility-chip:hover {
+  background: rgba(28, 26, 23, 0.04);
+  border-color: var(--text-primary, #1C1A17);
+}
+
+[data-theme='dark'] .listen-utility-chip {
+  border-color: rgba(251, 250, 248, 0.35);
+}
+
+[data-theme='dark'] .listen-utility-chip:hover {
+  background: rgba(251, 250, 248, 0.06);
+  border-color: #FBFAF8;
+}
+
+.listen-utility-note {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6B6862);
+}
+
+.listen-filter-chip {
+  background: transparent;
+  border: 1px solid rgba(28, 26, 23, 0.25);
+  border-radius: 4px;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary, #6B6862);
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.listen-filter-chip:hover {
+  border-color: var(--text-primary, #1C1A17);
+  color: var(--text-primary, #1C1A17);
+}
+
+.listen-filter-chip.is-active {
+  background: var(--text-primary, #1C1A17);
+  color: var(--bg, #FBFAF8);
+  border-color: var(--text-primary, #1C1A17);
+}
+
+[data-theme='dark'] .listen-filter-chip {
+  border-color: rgba(251, 250, 248, 0.25);
+}
+
+[data-theme='dark'] .listen-filter-chip.is-active {
+  background: #FBFAF8;
+  color: #1C1A17;
+  border-color: #FBFAF8;
+}
+
+.listen-discover-rails {
+  display: flex;
+  flex-direction: column;
+  gap: 3.25rem;
+}
+
+/* ---------- Listen sub-page shell ---------- */
+.read-sub-page.read-listen-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}

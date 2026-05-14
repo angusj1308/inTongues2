@@ -29640,9 +29640,9 @@ body:has(.cinema-page) {
   gap: 16px;
 }
 
-.listen-shelf-grid--cols-4 { grid-template-columns: repeat(4, 1fr); }
-.listen-shelf-grid--cols-5 { grid-template-columns: repeat(5, 1fr); }
-.listen-shelf-grid--cols-6 { grid-template-columns: repeat(6, 1fr); }
+.listen-shelf-grid--cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.listen-shelf-grid--cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.listen-shelf-grid--cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
 .listen-shelf-card {
   display: flex;
@@ -29654,6 +29654,7 @@ body:has(.cinema-page) {
   cursor: pointer;
   text-align: left;
   color: inherit;
+  min-width: 0;
   transition: transform 200ms ease;
 }
 

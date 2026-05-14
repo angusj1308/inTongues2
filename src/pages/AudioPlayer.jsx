@@ -2433,7 +2433,7 @@ const AudioPlayer = () => {
               <div className="listening-header-left">
                 <button
                   className="reader-header-button icon-button reader-back-button"
-                  onClick={() => navigate('/listening')}
+                  onClick={() => navigate('/listen/library')}
                   type="button"
                   aria-label="Back to library"
                 >

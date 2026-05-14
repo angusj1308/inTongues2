@@ -163,7 +163,7 @@ const SpotifyCollectionPage = () => {
     <div className="page listening-surface">
       <div className="container">
         <div className="section" style={{ marginBottom: '1rem' }}>
-          <button className="button ghost" type="button" onClick={() => navigate('/listening')}>
+          <button className="button ghost" type="button" onClick={() => navigate('/listen/library')}>
             ← Back to Listening
           </button>
         </div>

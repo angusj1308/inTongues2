@@ -2000,7 +2000,7 @@ const normalisePagesToSegments = (pages = []) =>
           <div className="cinema-header-left">
             <button
               className="reader-header-button icon-button reader-back-button cinema-back-button"
-              onClick={() => navigate('/listening')}
+              onClick={() => navigate('/listen/library')}
               type="button"
               aria-label="Back to library"
             >

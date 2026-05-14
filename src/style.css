@@ -30070,3 +30070,81 @@ body:has(.cinema-page) {
   flex-direction: column;
   width: 100%;
 }
+
+/* Listen shelf — trailing meta line under subtitle (for "X episodes",
+   "Y videos", album year, etc.). */
+.listen-shelf-trailing {
+  margin: 2px 0 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #6B6862);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Non-interactive shelf card (e.g. derived channel card with no landing page). */
+.listen-shelf-card.is-disabled {
+  cursor: default;
+}
+
+.listen-shelf-card.is-disabled:hover {
+  transform: none;
+}
+
+.listen-shelf-card.is-disabled:hover .listen-shelf-cover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Music cold-start prompt — sits where the shelf grid normally would. */
+.listen-shelf-coldstart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem 1rem;
+  border: 1px dashed rgba(28, 26, 23, 0.25);
+  text-align: center;
+}
+
+[data-theme='dark'] .listen-shelf-coldstart {
+  border-color: rgba(251, 250, 248, 0.25);
+}
+
+.listen-shelf-coldstart-headline {
+  margin: 0;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  color: var(--text-primary, #1C1A17);
+  line-height: 1.2;
+}
+
+.listen-shelf-coldstart-sub {
+  margin: 0 0 0.5rem;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #6B6862);
+}
+
+.listen-shelf-coldstart-cta {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-primary, #1C1A17);
+  transition: opacity 160ms ease;
+}
+
+.listen-shelf-coldstart-cta:hover {
+  opacity: 0.7;
+}

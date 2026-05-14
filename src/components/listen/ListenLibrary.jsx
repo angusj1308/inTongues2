@@ -3,24 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import useListenLibraryData, { pickContinueListening } from './useListenLibraryData'
 
-const MEDIUM_TO_HREF = {
-  audiobook: (item) => `/listen/${item.id}`,
-  podcast: (item) => `/listen/${item.episodeId || item.id}?source=podcast`,
-  music: (item) => `/listen/${item.trackId || item.id}?source=music`,
-  video: (item) => `/cinema/${item.id}`,
-}
-
 const SHELVES = [
   { key: 'audiobooks', title: 'Audiobooks', cover: 'portrait', cols: 6 },
   { key: 'podcasts', title: 'Podcasts', cover: 'square', cols: 6 },
   { key: 'music', title: 'Music', cover: 'square', cols: 6 },
   { key: 'youtube', title: 'YouTube', cover: 'wide', cols: 4 },
 ]
-
-function continueLabel(item) {
-  if (!item) return 'Continue Listening'
-  return 'Continue Listening'
-}
 
 function continueSubtitle(item) {
   if (!item) return ''
@@ -47,7 +35,10 @@ function continueCtaLabel(item) {
 
 function ContinueListeningHero({ item, onPlay }) {
   if (!item) return null
-  const coverClass = `listen-continue-cover listen-continue-cover--${item.medium === 'audiobook' ? 'portrait' : item.medium === 'video' ? 'wide' : 'square'}`
+  const coverShape = item.medium === 'audiobook' ? 'portrait'
+    : item.medium === 'video' ? 'wide'
+    : 'square'
+  const coverClass = `listen-continue-cover listen-continue-cover--${coverShape}`
   const showProgress = item.medium !== 'music'
   const progressPct = Math.max(0, Math.min(100, Number(item.progress) || 0))
 
@@ -67,7 +58,7 @@ function ContinueListeningHero({ item, onPlay }) {
           )}
         </button>
         <div className="listen-continue-body">
-          <p className="listen-continue-eyebrow">{continueLabel(item)}</p>
+          <p className="listen-continue-eyebrow">Continue Listening</p>
           <p className="listen-continue-headline">
             <button
               type="button"
@@ -103,13 +94,14 @@ function ContinueListeningHero({ item, onPlay }) {
   )
 }
 
-function ShelfCard({ shape, coverUrl, title, subtitle, onClick, ariaLabel }) {
+function ShelfCard({ shape, coverUrl, title, subtitle, trailing, onClick, ariaLabel, disabled }) {
   return (
     <button
       type="button"
-      className={`listen-shelf-card listen-shelf-card--${shape}`}
-      onClick={onClick}
+      className={`listen-shelf-card listen-shelf-card--${shape}${disabled ? ' is-disabled' : ''}`}
+      onClick={disabled ? undefined : onClick}
       aria-label={ariaLabel || title}
+      disabled={disabled}
     >
       <div className={`listen-shelf-cover listen-shelf-cover--${shape}`}>
         {coverUrl ? (
@@ -121,6 +113,7 @@ function ShelfCard({ shape, coverUrl, title, subtitle, onClick, ariaLabel }) {
       <div className="listen-shelf-meta">
         <p className="listen-shelf-title">{title}</p>
         {subtitle && <p className="listen-shelf-sub">{subtitle}</p>}
+        {trailing && <p className="listen-shelf-trailing">{trailing}</p>}
       </div>
     </button>
   )
@@ -141,6 +134,24 @@ function AllMineTile({ shape, label, onClick }) {
   )
 }
 
+function MusicColdStart({ onBrowse }) {
+  return (
+    <div className="listen-shelf-coldstart">
+      <p className="listen-shelf-coldstart-headline">No music yet.</p>
+      <p className="listen-shelf-coldstart-sub">
+        Follow an artist or save an album to get started.
+      </p>
+      <button
+        type="button"
+        className="listen-shelf-coldstart-cta"
+        onClick={onBrowse}
+      >
+        Browse music in Discover →
+      </button>
+    </div>
+  )
+}
+
 export default function ListenLibrary() {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -148,74 +159,144 @@ export default function ListenLibrary() {
 
   const continueItem = useMemo(() => pickContinueListening(data), [data])
 
+  // -- Audiobooks shelf: books (unchanged) ----------------------------------
   const audiobookCards = useMemo(
     () => data.audiobooks
-      .filter((b) => b.coverImageUrl || b.title)
       .slice(0, 5)
       .map((b) => ({
         id: b.id,
         title: b.storyTitle || b.title || 'Untitled',
         subtitle: b.author || '',
+        trailing: '',
         coverUrl: b.coverImageUrl || '',
-        onClick: () => navigate(MEDIUM_TO_HREF.audiobook(b)),
+        onClick: () => navigate(`/listen/${b.id}`),
       })),
     [data.audiobooks, navigate],
   )
 
-  const episodeCards = useMemo(
-    () => [...data.episodeStates]
+  // -- Podcasts shelf: subscribed shows -------------------------------------
+  // Episode count per show comes from the user's episodeStates (the only
+  // per-user episode signal we have client-side).
+  const episodeCountByShow = useMemo(() => {
+    const counts = {}
+    data.episodeStates.forEach((e) => {
+      const sid = e.showId || e.show_id || ''
+      if (!sid) return
+      counts[sid] = (counts[sid] || 0) + 1
+    })
+    return counts
+  }, [data.episodeStates])
+
+  const podcastCards = useMemo(
+    () => [...data.followedShows]
       .sort((a, b) => {
-        const at = a.lastPlayedAt?.toMillis?.() || 0
-        const bt = b.lastPlayedAt?.toMillis?.() || 0
+        const at = a.followedAt?.toMillis?.() || 0
+        const bt = b.followedAt?.toMillis?.() || 0
         return bt - at
       })
       .slice(0, 5)
-      .map((e) => ({
-        id: e.id,
-        title: e.title || 'Untitled episode',
-        subtitle: e.showName || '',
-        coverUrl: e.coverUrl || '',
-        onClick: () => navigate(MEDIUM_TO_HREF.podcast(e)),
-      })),
-    [data.episodeStates, navigate],
+      .map((s) => {
+        const showId = s.showId || s.id
+        const count = episodeCountByShow[showId] || 0
+        return {
+          id: s.id,
+          title: s.title || 'Untitled show',
+          subtitle: s.host || '',
+          trailing: count > 0 ? (count === 1 ? '1 episode' : `${count} episodes`) : '',
+          coverUrl: s.coverUrl || '',
+          onClick: () => navigate(`/podcasts/show/${showId}`),
+        }
+      }),
+    [data.followedShows, episodeCountByShow, navigate],
   )
 
-  const trackCards = useMemo(
-    () => [...data.savedTracks]
-      .sort((a, b) => {
-        const at = a.savedAt?.toMillis?.() || 0
-        const bt = b.savedAt?.toMillis?.() || 0
-        return bt - at
-      })
-      .slice(0, 5)
-      .map((t) => ({
-        id: t.id,
-        title: t.title || 'Untitled track',
-        subtitle: t.artistName || '',
-        coverUrl: t.coverUrl || '',
-        onClick: () => navigate(MEDIUM_TO_HREF.music(t)),
-      })),
-    [data.savedTracks, navigate],
-  )
-
-  const videoCards = useMemo(
-    () => data.youtubeVideos
-      .slice(0, 3)
-      .map((v) => ({
-        id: v.id,
-        title: v.title || 'Untitled video',
-        subtitle: v.channelTitle || '',
+  // -- YouTube shelf: derived channels --------------------------------------
+  // No channel-follow API exists; channels are derived by grouping the user's
+  // imported videos by channelTitle. Card art is the first video's thumb;
+  // trailing detail is the user's video count for that channel.
+  const channelCards = useMemo(() => {
+    const channels = new Map()
+    data.youtubeVideos.forEach((v) => {
+      const key = v.channelId || v.channelTitle || 'Unknown'
+      const existing = channels.get(key) || {
+        id: key,
+        title: v.channelTitle || 'Unknown channel',
         coverUrl: v.coverUrl || v.thumbnailUrl || '',
-        onClick: () => navigate(MEDIUM_TO_HREF.video(v)),
-      })),
-    [data.youtubeVideos, navigate],
-  )
+        count: 0,
+      }
+      existing.count += 1
+      if (!existing.coverUrl) {
+        existing.coverUrl = v.coverUrl || v.thumbnailUrl || ''
+      }
+      channels.set(key, existing)
+    })
+    return [...channels.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        subtitle: '',
+        trailing: c.count === 1 ? '1 video' : `${c.count} videos`,
+        coverUrl: c.coverUrl,
+        // No channel landing page exists today — defer to the deep view's
+        // Channels tab so the user still has somewhere to go.
+        onClick: () => navigate('/listen/library/youtube'),
+      }))
+  }, [data.youtubeVideos, navigate])
+
+  // -- Music shelf: tiered fallback -----------------------------------------
+  // 1) saved albums  2) saved tracks  3) cold-start
+  // Playlists tier omitted: no playlist data source exists today.
+  const musicShelf = useMemo(() => {
+    if (data.savedAlbums.length > 0) {
+      return {
+        kind: 'albums',
+        cards: [...data.savedAlbums]
+          .sort((a, b) => {
+            const at = a.savedAt?.toMillis?.() || 0
+            const bt = b.savedAt?.toMillis?.() || 0
+            return bt - at
+          })
+          .slice(0, 5)
+          .map((a) => ({
+            id: a.id,
+            title: a.title || 'Untitled album',
+            subtitle: a.artistName || '',
+            trailing: a.year ? String(a.year) : '',
+            coverUrl: a.coverUrl || '',
+            onClick: () => navigate(`/music/album/${a.albumId || a.id}`),
+          })),
+      }
+    }
+    if (data.savedTracks.length > 0) {
+      return {
+        kind: 'tracks',
+        cards: [...data.savedTracks]
+          .sort((a, b) => {
+            const at = a.savedAt?.toMillis?.() || 0
+            const bt = b.savedAt?.toMillis?.() || 0
+            return bt - at
+          })
+          .slice(0, 5)
+          .map((t) => ({
+            id: t.id,
+            title: t.title || 'Untitled track',
+            subtitle: t.artistName || '',
+            trailing: t.albumName || '',
+            coverUrl: t.coverUrl || '',
+            onClick: () => navigate(`/listen/${t.trackId || t.id}?source=music`),
+          })),
+      }
+    }
+    return { kind: 'empty', cards: [] }
+  }, [data.savedAlbums, data.savedTracks, navigate])
 
   const shelfData = {
     audiobooks: audiobookCards,
-    podcasts: episodeCards,
-    music: trackCards,
-    youtube: videoCards,
+    podcasts: podcastCards,
+    music: musicShelf.cards,
+    youtube: channelCards,
   }
 
   const handlePlayContinue = (item) => {
@@ -228,30 +309,34 @@ export default function ListenLibrary() {
 
       {SHELVES.map((shelf) => {
         const cards = shelfData[shelf.key] || []
+        const isMusicEmpty = shelf.key === 'music' && musicShelf.kind === 'empty'
         return (
           <section key={shelf.key} className="listen-shelf">
             <header className="listen-shelf-header">
               <h2 className="listen-shelf-heading">{shelf.title}</h2>
             </header>
-            <div
-              className={`listen-shelf-grid listen-shelf-grid--cols-${shelf.cols}`}
-            >
-              {cards.map((card) => (
-                <ShelfCard
-                  key={card.id}
+            {isMusicEmpty ? (
+              <MusicColdStart onBrowse={() => navigate('/listen/discover')} />
+            ) : (
+              <div className={`listen-shelf-grid listen-shelf-grid--cols-${shelf.cols}`}>
+                {cards.map((card) => (
+                  <ShelfCard
+                    key={card.id}
+                    shape={shelf.cover}
+                    coverUrl={card.coverUrl}
+                    title={card.title}
+                    subtitle={card.subtitle}
+                    trailing={card.trailing}
+                    onClick={card.onClick}
+                  />
+                ))}
+                <AllMineTile
                   shape={shelf.cover}
-                  coverUrl={card.coverUrl}
-                  title={card.title}
-                  subtitle={card.subtitle}
-                  onClick={card.onClick}
+                  label={`All my ${shelf.title}`}
+                  onClick={() => navigate(`/listen/library/${shelf.key}`)}
                 />
-              ))}
-              <AllMineTile
-                shape={shelf.cover}
-                label={`All my ${shelf.title}`}
-                onClick={() => navigate(`/listen/library/${shelf.key}`)}
-              />
-            </div>
+              </div>
+            )}
           </section>
         )
       })}

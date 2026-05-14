@@ -5,6 +5,10 @@ import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc
 import { computePagesWithFontLoading } from '../utils/pagination'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
 import ListeningHub from '../components/listen/ListeningHub'
+import ListenSubNav from '../components/listen/ListenSubNav'
+import ListenLibrary from '../components/listen/ListenLibrary'
+import ListenDeepView from '../components/listen/ListenDeepView'
+import ListenDiscover from '../components/listen/ListenDiscover'
 // GATED: import WritingHub from '../components/write/WritingHub'
 import TutorHome from '../components/tutor/TutorHome'
 // GATED: import SpeakHub from '../components/speak/SpeakHub'
@@ -427,11 +431,23 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const params = useParams()
   const isReadRoute = location.pathname.startsWith('/read')
+  const isListenRoute = location.pathname.startsWith('/listen/')
   const readSegments = isReadRoute
     ? location.pathname.split('/').filter(Boolean) // ['read', 'discover', 'generate']
     : []
+  const listenSegments = isListenRoute
+    ? location.pathname.split('/').filter(Boolean) // ['listen', 'library', 'podcasts']
+    : []
   const READ_SUB_PAGES = ['library', 'discover']
   const DISCOVER_DOORS = ['generate', 'classics', 'import']
+  const LISTEN_SUB_PAGES = ['library', 'discover']
+  const LISTEN_MEDIUMS = ['audiobooks', 'podcasts', 'music', 'youtube']
+  const listenSubPage = isListenRoute && LISTEN_SUB_PAGES.includes(listenSegments[1])
+    ? listenSegments[1]
+    : 'library'
+  const listenMedium = listenSubPage === 'library' && LISTEN_MEDIUMS.includes(listenSegments[2])
+    ? listenSegments[2]
+    : null
   const readSubPage = isReadRoute && READ_SUB_PAGES.includes(readSegments[1])
     ? readSegments[1]
     : 'library'
@@ -453,6 +469,7 @@ const Dashboard = () => {
         : null)
   const getInitialTab = () => {
     if (isReadRoute) return 'read'
+    if (isListenRoute) return 'listen'
     const initialTab = location.state?.initialTab
     return initialTab && DASHBOARD_TABS.includes(initialTab) ? initialTab : 'read'
   }
@@ -1010,7 +1027,10 @@ const Dashboard = () => {
   }
 
   const handleTabClick = (tab) => {
-    if (tab === activeTab && !(tab === 'read' && isReadRoute)) return
+    const sameTab = tab === activeTab
+    const stickyRead = tab === 'read' && isReadRoute
+    const stickyListen = tab === 'listen' && isListenRoute
+    if (sameTab && !stickyRead && !stickyListen) return
 
     const currentIndex = DASHBOARD_TABS.indexOf(activeTab)
     const nextIndex = DASHBOARD_TABS.indexOf(tab)
@@ -1027,7 +1047,13 @@ const Dashboard = () => {
       return
     }
 
-    if (isReadRoute) {
+    if (tab === 'listen') {
+      navigate('/listen/library')
+      setActiveTab('listen')
+      return
+    }
+
+    if (isReadRoute || isListenRoute) {
       navigate('/dashboard', { state: { initialTab: tab } })
       setActiveTab(tab)
       return
@@ -2510,7 +2536,24 @@ const Dashboard = () => {
               )}
             </div>
           )}
-          {activeTab === 'listen' && <ListeningHub embedded showBackButton={false} />}
+          {activeTab === 'listen' && (
+            <div className="home-content">
+              {!isListenRoute ? (
+                <ListeningHub embedded showBackButton={false} />
+              ) : (
+                <>
+                  <ListenSubNav />
+                  <div className="read-sub-page read-listen-page">
+                    {listenSubPage === 'library' && !listenMedium && <ListenLibrary />}
+                    {listenSubPage === 'library' && listenMedium && (
+                      <ListenDeepView medium={listenMedium} />
+                    )}
+                    {listenSubPage === 'discover' && <ListenDiscover />}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* GATED: Speaking and Writing hubs replaced with development gate for MVP launch.
               To restore, uncomment the hub imports above and swap these back:

@@ -220,6 +220,31 @@ const App = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/listen" element={<Navigate to="/listen/library" replace />} />
+      <Route
+        path="/listen/library"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/listen/library/:listenMedium"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/listen/discover"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/listening/spotify/:collectionId"
         element={

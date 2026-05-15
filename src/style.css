@@ -30175,27 +30175,34 @@ body:has(.cinema-page) {
   color: var(--text-primary, #1C1A17);
 }
 
-/* Bigger, sub-nav-aligned back link on the bare podcast show page. */
+/* Bigger, sub-nav-aligned back link on the bare podcast show page.
+   Matches an inactive .read-sub-nav-item so it baselines with where
+   "Library | Discover" sits on /listen/library. */
 .media-page--bare .media-back-link {
   font-family: var(--font-supporting);
-  font-size: 1.4rem;
+  font-size: 2.2rem;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--text-primary, #1C1A17);
-  opacity: 0.65;
+  color: #1C1A17;
+  opacity: 0.45;
   margin: 0 0 1.5rem;
-  transition: opacity 160ms ease, color 160ms ease;
+  padding: 0;
+  transition: opacity 0.15s ease;
 }
 
 .media-page--bare .media-back-link:hover {
-  opacity: 1;
+  opacity: 0.8;
 }
 
 [data-theme='dark'] .media-page--bare .media-back-link {
   color: #FBFAF8;
 }
 
+/* Push .media-main down by the cumulative top spacing the regular Listen
+   chrome (.tab-panel margin-top 0.25rem + .read-sub-nav padding-top 0.5rem)
+   provides on /listen/library, so the bare show page's first content
+   row sits at the same Y. */
 .media-page--bare .media-main {
-  padding-top: 0;
+  padding-top: 0.75rem;
 }

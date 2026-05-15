@@ -71,15 +71,7 @@ export default function ListenDeepView({ medium }) {
   return (
     <div className="listen-deep-view">
       <div className="listen-deep-header">
-        <button
-          type="button"
-          className="listen-deep-back"
-          onClick={() => navigate('/listen/library')}
-        >
-          ← Library
-        </button>
         <h1 className="listen-deep-title-main">{title}</h1>
-        <span className="listen-deep-header-right" aria-hidden="true" />
       </div>
 
       <div className="listen-deep-tabs" role="tablist" aria-label={`${title} sections`}>

@@ -30207,43 +30207,58 @@ body:has(.cinema-page) {
   padding-top: 0.75rem;
 }
 
-/* Deep-view back link on the Listen hub: lives on the same vertical row as
-   the Library | Discover sub-nav (centred), pinned to the left so the sub-nav
-   stays optically centred. */
-.listen-subnav-row {
+/* Deep-view title row on the Listen hub: replaces Library | Discover entirely.
+   Medium title centred (DM Serif Display); back arrow pinned to the left of
+   the same row so the title stays optically centred. Sits at the same Y the
+   sub-nav would on /listen/library. */
+.listen-deep-title-row {
   position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1.75rem;
+  padding: 0.5rem 0 1.25rem;
+  margin: 0 auto 1.5rem;
+  width: min(1320px, 100%);
+  transform: translate(-0.25cm, 0cm);
 }
 
-.listen-subnav-back {
-  position: absolute;
-  left: 0;
-  top: 0;
-  z-index: 1;
+.listen-deep-title-back {
+  justify-self: start;
   background: none;
   border: none;
-  padding: 0.5rem 0;
+  padding: 0;
   cursor: pointer;
   font-family: var(--font-supporting);
   font-size: 2.2rem;
   font-weight: 500;
-  letter-spacing: 0;
+  line-height: 1;
   color: #1C1A17;
   opacity: 0.45;
   transition: opacity 0.15s ease;
 }
 
-.listen-subnav-back:hover {
+.listen-deep-title-back:hover {
   opacity: 0.8;
 }
 
-[data-theme='dark'] .listen-subnav-back {
+[data-theme='dark'] .listen-deep-title-back {
   color: #FBFAF8;
 }
 
-/* Deep-view header no longer needs the 3-column grid because the back link
-   has moved out of it; centre the title and let the tabs sit below. */
-.listen-deep-view .listen-deep-header {
-  display: block;
+.listen-deep-title {
+  grid-column: 2;
+  margin: 0;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 2.2rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--text-primary, #1C1A17);
   text-align: center;
-  width: 100%;
+}
+
+/* Tabs (Episodes | Shows, Tracks | Albums | Artists | Playlists, etc.) now
+   use the brand sans, not the display serif, so they read as controls. */
+.listen-deep-tab {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }

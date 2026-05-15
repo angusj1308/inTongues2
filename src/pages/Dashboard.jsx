@@ -2537,19 +2537,26 @@ const Dashboard = () => {
           )}
           {activeTab === 'listen' && (
             <div className="home-content">
-              <div className="listen-subnav-row">
-                {listenSubPage === 'library' && listenMedium && (
+              {listenSubPage === 'library' && listenMedium ? (
+                <div className="listen-deep-title-row">
                   <button
                     type="button"
-                    className="listen-subnav-back"
+                    className="listen-deep-title-back"
                     onClick={() => navigate('/listen/library')}
                     aria-label="Back to library"
                   >
-                    ← Library
+                    ←
                   </button>
-                )}
+                  <h1 className="listen-deep-title">
+                    {listenMedium === 'audiobooks' ? 'My Audiobooks'
+                      : listenMedium === 'podcasts' ? 'My Podcasts'
+                      : listenMedium === 'music' ? 'My Music'
+                      : 'My YouTube'}
+                  </h1>
+                </div>
+              ) : (
                 <ListenSubNav />
-              </div>
+              )}
               <div className="read-sub-page read-listen-page">
                 {listenSubPage === 'library' && !listenMedium && <ListenLibrary />}
                 {listenSubPage === 'library' && listenMedium && (

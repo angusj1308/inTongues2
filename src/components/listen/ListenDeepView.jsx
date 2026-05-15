@@ -70,10 +70,6 @@ export default function ListenDeepView({ medium }) {
 
   return (
     <div className="listen-deep-view">
-      <div className="listen-deep-header">
-        <h1 className="listen-deep-title-main">{title}</h1>
-      </div>
-
       <div className="listen-deep-tabs" role="tablist" aria-label={`${title} sections`}>
         {tabs.map((tab) => (
           <button

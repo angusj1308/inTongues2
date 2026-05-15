@@ -2547,7 +2547,7 @@ const Dashboard = () => {
                   >
                     ←
                   </button>
-                  <h1 className="listen-deep-title">
+                  <h1 className="listen-deep-page-title">
                     {listenMedium === 'audiobooks' ? 'My Audiobooks'
                       : listenMedium === 'podcasts' ? 'My Podcasts'
                       : listenMedium === 'music' ? 'My Music'

@@ -30168,3 +30168,10 @@ body:has(.cinema-page) {
 .media-page--bare .media-episode-detail-title {
   font-style: normal;
 }
+
+/* Save-to-library icon button on the podcast show page: filled when saved. */
+.media-page--bare .media-icon-button.is-active {
+  background: var(--text-primary, #1C1A17);
+  color: var(--bg, #FBFAF8);
+  border-color: var(--text-primary, #1C1A17);
+}

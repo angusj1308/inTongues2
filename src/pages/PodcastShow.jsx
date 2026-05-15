@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { fetchShow, fetchShowEpisodes } from '../services/podcast'
+import { fetchShow, fetchShowEpisodes, saveEpisode, unsaveEpisode } from '../services/podcast'
 import CoverArt from '../components/podcast/CoverArt'
 import EpisodeRow from '../components/podcast/EpisodeRow'
 import FollowButton from '../components/podcast/FollowButton'
@@ -83,6 +83,27 @@ const PodcastShowPage = () => {
       navigate('/read/library')
     } else {
       navigate('/dashboard', { state: { initialTab: tab } })
+    }
+  }
+
+  const handleSaveToLibrary = async (target) => {
+    if (!user?.uid || !target?.id) return
+    const isSaved = stateById.has(target.id)
+    try {
+      if (isSaved) {
+        await unsaveEpisode(user.uid, target.id)
+      } else {
+        await saveEpisode(user.uid, {
+          id: target.id,
+          title: target.title,
+          showName: show?.title || '',
+          showId: id,
+          coverUrl: target.coverUrl || show?.coverUrl || '',
+          durationMs: target.durationMs,
+        })
+      }
+    } catch (err) {
+      console.error('Failed to toggle save', err)
     }
   }
 
@@ -225,6 +246,8 @@ const PodcastShowPage = () => {
                               progressMs: state?.progressMs || 0,
                             }}
                             variant="detail"
+                            isSaved={stateById.has(ep.id)}
+                            onSaveToLibrary={handleSaveToLibrary}
                             onPlay={(target) =>
                               navigate(
                                 `/listen/${encodeURIComponent(target.id)}?source=podcast`,

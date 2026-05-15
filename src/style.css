@@ -30206,3 +30206,44 @@ body:has(.cinema-page) {
 .media-page--bare .media-main {
   padding-top: 0.75rem;
 }
+
+/* Deep-view back link on the Listen hub: lives on the same vertical row as
+   the Library | Discover sub-nav (centred), pinned to the left so the sub-nav
+   stays optically centred. */
+.listen-subnav-row {
+  position: relative;
+}
+
+.listen-subnav-back {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  background: none;
+  border: none;
+  padding: 0.5rem 0;
+  cursor: pointer;
+  font-family: var(--font-supporting);
+  font-size: 2.2rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #1C1A17;
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+}
+
+.listen-subnav-back:hover {
+  opacity: 0.8;
+}
+
+[data-theme='dark'] .listen-subnav-back {
+  color: #FBFAF8;
+}
+
+/* Deep-view header no longer needs the 3-column grid because the back link
+   has moved out of it; centre the title and let the tabs sit below. */
+.listen-deep-view .listen-deep-header {
+  display: block;
+  text-align: center;
+  width: 100%;
+}

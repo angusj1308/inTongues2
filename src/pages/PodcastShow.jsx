@@ -26,6 +26,12 @@ const PodcastShowPage = () => {
   const [loadingMore, setLoadingMore] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
 
+  // Land at the top of the show page rather than wherever the previous page
+  // was scrolled (React Router doesn't reset scroll on navigation by default).
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [id])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)

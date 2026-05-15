@@ -42,6 +42,8 @@ const EpisodeRow = ({
   variant = 'list',
   onPlay,
   onAddToPlaylist,
+  onSaveToLibrary,
+  isSaved = false,
   showTitle,
   status,
 }) => {
@@ -112,7 +114,18 @@ const EpisodeRow = ({
           >
             {buttonLabel}
           </button>
-          {onAddToPlaylist && (
+          {onSaveToLibrary && (
+            <button
+              type="button"
+              className={`media-icon-button${isSaved ? ' is-active' : ''}`}
+              aria-label={isSaved ? 'Remove from library' : 'Add to library'}
+              aria-pressed={isSaved}
+              onClick={() => onSaveToLibrary(episode)}
+            >
+              <PlusIcon />
+            </button>
+          )}
+          {onAddToPlaylist && !onSaveToLibrary && (
             <button
               type="button"
               className="media-icon-button"
@@ -148,7 +161,18 @@ const EpisodeRow = ({
         >
           <PlayIcon />
         </button>
-        {onAddToPlaylist && (
+        {onSaveToLibrary && (
+          <button
+            type="button"
+            className={`media-icon-button${isSaved ? ' is-active' : ''}`}
+            aria-label={isSaved ? 'Remove from library' : 'Add to library'}
+            aria-pressed={isSaved}
+            onClick={() => onSaveToLibrary(episode)}
+          >
+            <PlusIcon />
+          </button>
+        )}
+        {onAddToPlaylist && !onSaveToLibrary && (
           <button
             type="button"
             className="media-icon-button"

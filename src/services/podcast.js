@@ -96,6 +96,32 @@ export const unfollowShow = async (uid, showId) => {
   await deleteDoc(doc(followsCol(uid), showId))
 }
 
+// Save an episode to the user's library. Writes to the same
+// podcastEpisodeStates collection the player updates on play, so the
+// episode shows up under /listen/library/podcasts → Episodes whether the
+// user has played it or just added it.
+export const saveEpisode = async (uid, episode) => {
+  if (!uid || !episode?.id) return
+  await setDoc(
+    doc(episodeStatesCol(uid), String(episode.id)),
+    {
+      episodeId: String(episode.id),
+      title: episode.title || '',
+      showName: episode.showName || episode.showTitle || '',
+      showId: episode.showId ? String(episode.showId) : '',
+      coverUrl: episode.coverUrl || '',
+      durationMs: Number(episode.durationMs) || 0,
+      savedAt: serverTimestamp(),
+    },
+    { merge: true },
+  )
+}
+
+export const unsaveEpisode = async (uid, episodeId) => {
+  if (!uid || !episodeId) return
+  await deleteDoc(doc(episodeStatesCol(uid), String(episodeId)))
+}
+
 export const pinItem = async (uid, item, currentMaxOrder = 0) => {
   if (!uid || !item) return
   // item shape: { kind: 'show' | 'playlist', refId, title, coverUrl }

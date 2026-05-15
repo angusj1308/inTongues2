@@ -30149,3 +30149,29 @@ body:has(.cinema-page) {
 .listen-shelf-coldstart-cta:hover {
   opacity: 0.7;
 }
+
+/* Podcast show page (rendered bare, inside DashboardLayout):
+   reset the legacy cream surface, drop italics from titles, accommodate the
+   doubled cover size. Only applied under .media-page--bare so the legacy
+   podcast library / discover surfaces are untouched. */
+.media-page.media-page--bare {
+  background: transparent;
+  color: var(--text-primary, #1C1A17);
+}
+
+.media-page--bare .media-show-header {
+  grid-template-columns: 440px 1fr;
+}
+
+.media-page--bare .media-show-title,
+.media-page--bare .media-episode-list-title,
+.media-page--bare .media-episode-detail-title {
+  font-style: normal;
+}
+
+/* Save-to-library icon button on the podcast show page: filled when saved. */
+.media-page--bare .media-icon-button.is-active {
+  background: var(--text-primary, #1C1A17);
+  color: var(--bg, #FBFAF8);
+  border-color: var(--text-primary, #1C1A17);
+}

@@ -4,7 +4,6 @@ import { fetchShow, fetchShowEpisodes } from '../services/podcast'
 import CoverArt from '../components/podcast/CoverArt'
 import EpisodeRow from '../components/podcast/EpisodeRow'
 import FollowButton from '../components/podcast/FollowButton'
-import AddToPlaylistMenu from '../components/podcast/AddToPlaylistMenu'
 import UnavailableShowMessage from '../components/podcast/UnavailableShowMessage'
 import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 import DashboardLayout from '../components/layout/DashboardLayout'
@@ -17,7 +16,7 @@ const SORT_OPTIONS = [
 const PodcastShowPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, followedShows, episodeStates, playlists, isFollowed, isPinned, follow, unfollow } =
+  const { user, followedShows, episodeStates, isFollowed, isPinned, follow, unfollow } =
     usePodcastSubscriptions()
   const [show, setShow] = useState(null)
   const [episodes, setEpisodes] = useState([])
@@ -25,7 +24,6 @@ const PodcastShowPage = () => {
   const [sort, setSort] = useState('newest')
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [addMenuFor, setAddMenuFor] = useState(null) // episodeId
   const [unavailable, setUnavailable] = useState(false)
 
   useEffect(() => {
@@ -137,7 +135,7 @@ const PodcastShowPage = () => {
         ) : (
           <>
             <header className="media-show-header">
-              <CoverArt src={show.coverUrl} title={show.title} size={220} />
+              <CoverArt src={show.coverUrl} title={show.title} size={440} />
               <div className="media-show-header-meta">
                 <p className="media-eyebrow">Podcast</p>
                 <h1 className="media-show-title">{show.title}</h1>
@@ -227,7 +225,6 @@ const PodcastShowPage = () => {
                               progressMs: state?.progressMs || 0,
                             }}
                             variant="detail"
-                            onAddToPlaylist={() => setAddMenuFor(ep.id)}
                             onPlay={(target) =>
                               navigate(
                                 `/listen/${encodeURIComponent(target.id)}?source=podcast`,
@@ -244,14 +241,6 @@ const PodcastShowPage = () => {
                               )
                             }
                           />
-                          {addMenuFor === ep.id && (
-                            <AddToPlaylistMenu
-                              uid={user?.uid}
-                              episode={ep}
-                              playlists={playlists}
-                              onClose={() => setAddMenuFor(null)}
-                            />
-                          )}
                         </div>
                       )
                     })}

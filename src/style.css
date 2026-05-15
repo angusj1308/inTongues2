@@ -30169,9 +30169,8 @@ body:has(.cinema-page) {
   font-style: normal;
 }
 
-/* Save-to-library icon button on the podcast show page: filled when saved. */
-.media-page--bare .media-icon-button.is-active {
-  background: var(--text-primary, #1C1A17);
-  color: var(--bg, #FBFAF8);
-  border-color: var(--text-primary, #1C1A17);
+/* Save-to-library icon button on the podcast show page: icon swaps from
+   plus to tick when saved (no fill change). */
+.media-page--bare .media-icon-button.is-saved {
+  color: var(--text-primary, #1C1A17);
 }

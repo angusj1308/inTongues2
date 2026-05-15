@@ -13,6 +13,12 @@ const PlusIcon = () => (
   </svg>
 )
 
+const CheckIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+
 // Variants: 'list' (New Episodes / search results), 'detail' (show page row), 'tile' (Recent strip), 'pinned-tile' (140px square in Pinned strip)
 const formatDate = (input) => {
   if (!input) return ''
@@ -117,12 +123,12 @@ const EpisodeRow = ({
           {onSaveToLibrary && (
             <button
               type="button"
-              className={`media-icon-button${isSaved ? ' is-active' : ''}`}
+              className={`media-icon-button${isSaved ? ' is-saved' : ''}`}
               aria-label={isSaved ? 'Remove from library' : 'Add to library'}
               aria-pressed={isSaved}
               onClick={() => onSaveToLibrary(episode)}
             >
-              <PlusIcon />
+              {isSaved ? <CheckIcon /> : <PlusIcon />}
             </button>
           )}
           {onAddToPlaylist && !onSaveToLibrary && (
@@ -164,12 +170,12 @@ const EpisodeRow = ({
         {onSaveToLibrary && (
           <button
             type="button"
-            className={`media-icon-button${isSaved ? ' is-active' : ''}`}
+            className={`media-icon-button${isSaved ? ' is-saved' : ''}`}
             aria-label={isSaved ? 'Remove from library' : 'Add to library'}
             aria-pressed={isSaved}
             onClick={() => onSaveToLibrary(episode)}
           >
-            <PlusIcon />
+            {isSaved ? <CheckIcon /> : <PlusIcon />}
           </button>
         )}
         {onAddToPlaylist && !onSaveToLibrary && (

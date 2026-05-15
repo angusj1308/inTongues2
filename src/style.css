@@ -30246,7 +30246,7 @@ body:has(.cinema-page) {
   color: #FBFAF8;
 }
 
-.listen-deep-title {
+.listen-deep-page-title {
   grid-column: 2;
   margin: 0;
   font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;

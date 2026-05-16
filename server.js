@@ -2513,6 +2513,32 @@ app.get('/api/podcasts/show/:itunesCollectionId/episodes', async (req, res) => {
 })
 
 // Podcast transcripts via ElevenLabs Scribe ----------------------------------
+
+// Normalise a language input to an ISO-639-1 code (or null). Accepts ISO codes
+// like 'es' or 'es-AR' and language names like 'Spanish' / 'English'. A naive
+// `.slice(0, 2)` turns 'Spanish' into 'sp' which Scribe doesn't accept, so we
+// run an explicit name → code mapping first and fall back to the prefix for
+// already-ISO inputs.
+const SCRIBE_LANGUAGE_NAME_MAP = {
+  spanish: 'es', español: 'es', espanol: 'es',
+  english: 'en', inglés: 'en', ingles: 'en',
+  french: 'fr', français: 'fr', francais: 'fr',
+  italian: 'it', italiano: 'it',
+  portuguese: 'pt', português: 'pt', portugues: 'pt',
+  german: 'de', deutsch: 'de',
+  dutch: 'nl', nederlands: 'nl',
+}
+const normaliseScribeLanguage = (raw) => {
+  if (!raw) return null
+  const lower = String(raw).trim().toLowerCase()
+  if (!lower) return null
+  if (SCRIBE_LANGUAGE_NAME_MAP[lower]) return SCRIBE_LANGUAGE_NAME_MAP[lower]
+  const prefix = lower.slice(0, 2)
+  // Only return the prefix if it actually looks like an ISO-639-1 code
+  // (two letters, no digits/punctuation).
+  return /^[a-z]{2}$/.test(prefix) ? prefix : null
+}
+
 //
 // Cached at podcastTranscripts/{sha1(episodeId)}. First request transcribes
 // and stores; later requests return the cached doc immediately.
@@ -2663,7 +2689,7 @@ app.post('/api/podcasts/transcribe', async (req, res) => {
   try {
     const result = await transcribePodcastWithScribe({
       audioUrl,
-      languageCode: language ? String(language).toLowerCase().slice(0, 2) : null,
+      languageCode: normaliseScribeLanguage(language),
       episodeId,
     })
     try {

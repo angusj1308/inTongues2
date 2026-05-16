@@ -30284,10 +30284,9 @@ body:has(.cinema-page) {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 1.75rem;
-  padding: 0.5rem 0 1.25rem;
-  margin: 0 auto 1.5rem;
+  padding: 0.5rem 0 0;
+  margin: 0 auto;
   width: min(1320px, 100%);
-  transform: translate(-0.25cm, 0cm);
 }
 
 .listen-deep-title-back {
@@ -30318,7 +30317,7 @@ body:has(.cinema-page) {
   margin: 0;
   font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 2.2rem;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1;
   color: var(--text-primary, #1C1A17);
   text-align: center;

@@ -164,7 +164,6 @@ const PodcastShowPage = () => {
             <header className="media-show-header">
               <CoverArt src={show.coverUrl} title={show.title} size={440} />
               <div className="media-show-header-meta">
-                <p className="media-eyebrow">Podcast</p>
                 <h1 className="media-show-title">{show.title}</h1>
                 {show.host && <p className="media-show-host">{show.host}</p>}
                 {show.description && (
@@ -177,9 +176,6 @@ const PodcastShowPage = () => {
                     onFollow={handleFollow}
                     onUnfollow={handleUnfollow}
                   />
-                  <button type="button" className="media-primary-button ui-text">
-                    Play Latest
-                  </button>
                 </div>
                 <dl className="media-show-stats">
                   {show.episodeCount != null && (

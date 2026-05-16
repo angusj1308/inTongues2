@@ -9879,6 +9879,7 @@ body.active-pass-locked {
 .player-title {
   margin: clamp(8px, 1.6vw, 12px) 0 clamp(10px, 1.8vw, 14px);
   text-align: center;
+  font-weight: 400;
 }
 
 .player-surface {

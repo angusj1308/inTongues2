@@ -2545,7 +2545,7 @@ const Dashboard = () => {
                     onClick={() => navigate('/listen/library')}
                     aria-label="Back to library"
                   >
-                    ←
+                    ← Library
                   </button>
                   <h1 className="listen-deep-page-title">
                     {listenMedium === 'audiobooks' ? 'My Audiobooks'

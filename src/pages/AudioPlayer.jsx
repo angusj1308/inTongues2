@@ -22,6 +22,7 @@ import {
   PALETTE_ORDER,
   DEFAULT_PALETTE,
   resolvePalette,
+  READER_PALETTE_ORDER,
   DEFAULT_READER_PALETTE,
   resolveReaderPalette,
 } from '../constants/highlightColors'
@@ -385,6 +386,35 @@ const AudioPlayer = () => {
       console.error('Failed to update palette:', err)
     })
   }
+
+  // Reader palette (yellow / pink / green / orange / blue / purple) — drives
+  // both the transcript highlight colour AND the swatch popover in the
+  // header. Mirrors Reader.jsx so the listener uses the same picker UI.
+  const [palettePopoverOpen, setPalettePopoverOpen] = useState(false)
+  const palettePopoverRef = useRef(null)
+  const currentReaderPaletteName =
+    profile?.readerHighlightPalette || DEFAULT_READER_PALETTE
+  const currentReaderPalette = resolveReaderPalette(currentReaderPaletteName)
+
+  const selectReaderPalette = (name) => {
+    if (!READER_PALETTE_ORDER.includes(name)) return
+    setPalettePopoverOpen(false)
+    if (name === currentReaderPaletteName) return
+    updateProfile?.({ readerHighlightPalette: name }).catch?.((err) => {
+      console.error('Failed to update reader palette:', err)
+    })
+  }
+
+  useEffect(() => {
+    if (!palettePopoverOpen) return undefined
+    const onPointerDown = (event) => {
+      if (!palettePopoverRef.current) return
+      if (palettePopoverRef.current.contains(event.target)) return
+      setPalettePopoverOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [palettePopoverOpen])
 
   const currentFontId = profile?.readerFont || DEFAULT_READER_FONT
   const currentFont = resolveReaderFont(currentFontId)
@@ -2548,18 +2578,53 @@ const AudioPlayer = () => {
                 >
                   Aa
                 </button>
-                <button
-                  className="reader-header-button icon-button reader-palette-trigger"
-                  type="button"
-                  aria-label={`Highlight palette: ${currentPalette.label}. Click to change.`}
-                  title={`Highlight: ${currentPalette.label}`}
-                  onClick={(e) => {
-                    cyclePalette()
-                    e.currentTarget.blur()
-                  }}
-                >
-                  <span className="palette-circle" />
-                </button>
+                <div className="reader-palette-popover-wrap" ref={palettePopoverRef}>
+                  <button
+                    className={`reader-header-button icon-button reader-palette-trigger ${palettePopoverOpen ? 'is-open' : ''}`}
+                    type="button"
+                    aria-label={`Highlight palette: ${currentReaderPalette.label}. Click to change.`}
+                    aria-expanded={palettePopoverOpen}
+                    title={`Highlight: ${currentReaderPalette.label}`}
+                    onClick={(e) => {
+                      setPalettePopoverOpen((prev) => !prev)
+                      e.currentTarget.blur()
+                    }}
+                  >
+                    <span
+                      className="palette-circle"
+                      style={{
+                        background: (darkMode
+                          ? currentReaderPalette.dark
+                          : currentReaderPalette.light).new,
+                      }}
+                    />
+                  </button>
+                  {palettePopoverOpen && (
+                    <div className="reader-palette-popover" role="listbox" aria-label="Highlighter colour">
+                      {READER_PALETTE_ORDER.map((name) => {
+                        const palette = resolveReaderPalette(name)
+                        const shade = darkMode ? palette.dark : palette.light
+                        const isActive = name === currentReaderPaletteName
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            role="option"
+                            aria-selected={isActive}
+                            className={`reader-palette-swatch ${isActive ? 'is-active' : ''}`}
+                            title={palette.label}
+                            onClick={() => selectReaderPalette(name)}
+                          >
+                            <span
+                              className="reader-palette-swatch-circle"
+                              style={{ background: shade.new }}
+                            />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   className={`reader-header-button icon-button ${tutorOpen ? 'is-active' : ''}`}

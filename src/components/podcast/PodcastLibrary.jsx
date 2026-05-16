@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { pinItem, unpinByRef, fetchShowEpisodes } from '../../services/podcast'
+import { pinItem, unpinByRef, playPodcastEpisode } from '../../services/podcast'
 import ShowTile from './ShowTile'
 import PlaylistTile from './PlaylistTile'
 import ContinueListening from './ContinueListening'
@@ -82,34 +82,7 @@ const PodcastLibrary = () => {
   // Library entry points (Continue Listening, Recent, pinned strips) only
   // hold the cached state record — `audioUrl` lives on the RSS feed. Resolve
   // it just-in-time before opening the player.
-  const playEpisode = async (item) => {
-    if (!item) return
-    const episodeId = String(item.id || item.episodeId || '')
-    if (!episodeId) return
-    const showId = String(item.showId || '')
-    let resolved = item
-    if (!item.audioUrl && showId) {
-      const { episodes = [] } = await fetchShowEpisodes(showId)
-      resolved =
-        episodes.find((e) => String(e.id) === episodeId) ||
-        episodes.find((e) => e.title === item.title) ||
-        item
-    }
-    if (!resolved?.audioUrl) return
-    navigate(
-      `/listen/${encodeURIComponent(resolved.id || episodeId)}?source=podcast`,
-      {
-        state: {
-          episode: {
-            ...resolved,
-            showId,
-            showName: item.showName || resolved.showName || '',
-            coverUrl: resolved.coverUrl || item.coverUrl || '',
-          },
-        },
-      },
-    )
-  }
+  const playEpisode = (item) => playPodcastEpisode(item, navigate)
 
   const handleTogglePinShow = async (show) => {
     if (!user?.uid || !show) return

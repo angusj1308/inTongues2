@@ -7930,10 +7930,27 @@ pre {
 }
 
 /* Suppress the default focus halo around the track — slider already
-   communicates state via the thumb. */
+   communicates state via the thumb. Cover both :focus and :focus-visible
+   (Safari + some Chromium states draw the ring on :focus regardless of
+   keyboard vs mouse), plus the Firefox dotted-border pseudo-element. */
+.listening-lab-page .extensive-shell .audible-progress,
+.listening-lab-page .extensive-shell .audible-progress:focus,
+.listening-lab-page .extensive-shell .audible-progress:focus-visible,
+.listening-lab-page .extensive-shell .audible-progress:active {
+  outline: none;
+  box-shadow: none;
+}
+
+.listening-lab-page .extensive-shell .audible-progress:focus::-webkit-slider-runnable-track,
+.listening-lab-page .extensive-shell .audible-progress:focus::-moz-range-track,
 .listening-lab-page .extensive-shell .audible-progress:focus-visible::-webkit-slider-runnable-track,
 .listening-lab-page .extensive-shell .audible-progress:focus-visible::-moz-range-track {
   box-shadow: none;
+  outline: none;
+}
+
+.listening-lab-page .extensive-shell .audible-progress::-moz-focus-outer {
+  border: 0;
 }
 
 .listening-lab-page .extensive-shell .audible-progress::-webkit-slider-thumb {

@@ -30161,6 +30161,18 @@ body:has(.cinema-page) {
 
 .media-page--bare .media-show-header {
   grid-template-columns: 440px 1fr;
+  align-items: stretch;
+}
+
+.media-page--bare .media-show-header-meta {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Push the action row + stats list to the bottom edge of the artwork. */
+.media-page--bare .media-show-actions {
+  margin-top: auto;
 }
 
 .media-page--bare .media-show-title,

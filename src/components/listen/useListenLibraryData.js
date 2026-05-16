@@ -119,7 +119,7 @@ export function toContinueCandidate(medium, item) {
         id: item.id,
         title: item.storyTitle || item.title || 'Untitled',
         creator: item.author || '',
-        coverUrl: item.coverImageUrl || item.coverUrl || '',
+        coverUrl: item.coverImageUrlSquare || item.coverImageUrl || item.coverUrl || '',
         progress,
         lastPlayedAt: ts,
         playHref: `/listen/${item.id}`,

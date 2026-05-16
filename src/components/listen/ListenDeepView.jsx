@@ -102,7 +102,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
       id: b.id,
       title: b.storyTitle || b.title || 'Untitled',
       author: b.author || '',
-      coverUrl: b.coverImageUrl || '',
+      coverUrl: b.coverImageUrlSquare || b.coverImageUrl || '',
       progress: Number(b.progress) || 0,
     }))
     if (activeTab === 'All') {
@@ -111,7 +111,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
         thumb: b.coverUrl,
         title: b.title,
         subtitle: b.author,
-        shape: 'portrait',
+        shape: 'square',
         trailing: b.progress > 0 ? `${b.progress}%` : '',
         onClick: () => navigate(`/listen/${b.id}`),
       }))
@@ -122,7 +122,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
         thumb: b.coverUrl,
         title: b.title,
         subtitle: b.author,
-        shape: 'portrait',
+        shape: 'square',
         trailing: `${b.progress}%`,
         onClick: () => navigate(`/listen/${b.id}`),
       }))
@@ -133,7 +133,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
         thumb: b.coverUrl,
         title: b.title,
         subtitle: b.author,
-        shape: 'portrait',
+        shape: 'square',
         trailing: 'Finished',
         onClick: () => navigate(`/listen/${b.id}`),
       }))

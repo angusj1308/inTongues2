@@ -993,7 +993,10 @@ const AudioPlayer = () => {
           body: JSON.stringify({
             episodeId: id,
             audioUrl: storyMeta.fullAudioUrl,
-            language: storyMeta.language || '',
+            // Normalise to an ISO-639-1 code (e.g. 'Spanish' → 'es'); the
+            // server's previous `.slice(0, 2).toLowerCase()` produced 'sp'
+            // for 'Spanish' which Scribe rejects/ignores.
+            language: normalizeLanguageCode(storyMeta.language) || '',
           }),
         })
         if (!res.ok) {

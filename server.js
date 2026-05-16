@@ -2513,6 +2513,32 @@ app.get('/api/podcasts/show/:itunesCollectionId/episodes', async (req, res) => {
 })
 
 // Podcast transcripts via ElevenLabs Scribe ----------------------------------
+
+// Normalise a language input to an ISO-639-1 code (or null). Accepts ISO codes
+// like 'es' or 'es-AR' and language names like 'Spanish' / 'English'. A naive
+// `.slice(0, 2)` turns 'Spanish' into 'sp' which Scribe doesn't accept, so we
+// run an explicit name → code mapping first and fall back to the prefix for
+// already-ISO inputs.
+const SCRIBE_LANGUAGE_NAME_MAP = {
+  spanish: 'es', español: 'es', espanol: 'es',
+  english: 'en', inglés: 'en', ingles: 'en',
+  french: 'fr', français: 'fr', francais: 'fr',
+  italian: 'it', italiano: 'it',
+  portuguese: 'pt', português: 'pt', portugues: 'pt',
+  german: 'de', deutsch: 'de',
+  dutch: 'nl', nederlands: 'nl',
+}
+const normaliseScribeLanguage = (raw) => {
+  if (!raw) return null
+  const lower = String(raw).trim().toLowerCase()
+  if (!lower) return null
+  if (SCRIBE_LANGUAGE_NAME_MAP[lower]) return SCRIBE_LANGUAGE_NAME_MAP[lower]
+  const prefix = lower.slice(0, 2)
+  // Only return the prefix if it actually looks like an ISO-639-1 code
+  // (two letters, no digits/punctuation).
+  return /^[a-z]{2}$/.test(prefix) ? prefix : null
+}
+
 //
 // Cached at podcastTranscripts/{sha1(episodeId)}. First request transcribes
 // and stores; later requests return the cached doc immediately.
@@ -2637,14 +2663,39 @@ app.post('/api/podcasts/transcribe', async (req, res) => {
 
   const docId = sha1Hex(episodeId)
   const docRef = firestore.collection('podcastTranscripts').doc(docId)
+  const storagePath = `podcastTranscripts/${docId}.json`
 
   try {
     const cached = await docRef.get()
     if (cached.exists) {
       const data = cached.data() || {}
+      // New layout: bulk transcript lives in Cloud Storage at transcriptUrl.
+      if (data.transcriptUrl) {
+        try {
+          const fetchStart = Date.now()
+          const payloadRes = await fetch(data.transcriptUrl)
+          if (payloadRes.ok) {
+            const payload = await payloadRes.json()
+            console.log(
+              `${tag} cache HIT (storage) — ${payload?.wordTimestamps?.length || 0} words (${Date.now() - reqStart}ms, fetch ${Date.now() - fetchStart}ms)`,
+            )
+            return res.json({
+              status: 'cached',
+              wordTimestamps: payload.wordTimestamps || [],
+              sentenceSegments: payload.sentenceSegments || [],
+              text: payload.text || '',
+              language: data.language || payload.language || '',
+            })
+          }
+          console.warn(`${tag} storage fetch failed: ${payloadRes.status}, refreshing`)
+        } catch (err) {
+          console.warn(`${tag} storage fetch error: ${err.message}, refreshing`)
+        }
+      }
+      // Legacy layout: inline wordTimestamps in the Firestore doc.
       if (Array.isArray(data.wordTimestamps) && data.wordTimestamps.length) {
         console.log(
-          `${tag} cache HIT — ${data.wordTimestamps.length} words (${Date.now() - reqStart}ms)`,
+          `${tag} cache HIT (inline) — ${data.wordTimestamps.length} words (${Date.now() - reqStart}ms)`,
         )
         return res.json({
           status: 'cached',
@@ -2663,28 +2714,66 @@ app.post('/api/podcasts/transcribe', async (req, res) => {
   try {
     const result = await transcribePodcastWithScribe({
       audioUrl,
-      languageCode: language ? String(language).toLowerCase().slice(0, 2) : null,
+      languageCode: normaliseScribeLanguage(language),
       episodeId,
     })
+
+    // Bulk transcript → Cloud Storage. The full Scribe payload can exceed
+    // Firestore's 1 MB per-document cap for long episodes, so the heavy
+    // arrays live in a Storage file and Firestore only carries the pointer.
+    let transcriptUrl = null
     try {
-      await docRef.set(
-        {
-          episodeId,
-          audioUrl,
-          source: 'scribe',
-          wordTimestamps: result.wordTimestamps,
-          sentenceSegments: result.sentenceSegments,
-          text: result.text,
-          language: result.language,
-          languageProbability: result.languageProbability,
-          transcribedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true },
+      const uploadStart = Date.now()
+      const payload = JSON.stringify({
+        wordTimestamps: result.wordTimestamps,
+        sentenceSegments: result.sentenceSegments,
+        text: result.text,
+        language: result.language,
+      })
+      const file = bucket.file(storagePath)
+      await file.save(Buffer.from(payload, 'utf8'), {
+        contentType: 'application/json; charset=utf-8',
+        metadata: { cacheControl: 'public, max-age=31536000' },
+      })
+      await file.makePublic()
+      transcriptUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+      console.log(
+        `${tag} uploaded transcript (${(payload.length / 1024).toFixed(1)} KB) to storage in ${Date.now() - uploadStart}ms`,
       )
+    } catch (err) {
+      console.warn(`${tag} storage upload failed: ${err.message}`)
+    }
+
+    try {
+      const docPayload = {
+        episodeId,
+        audioUrl,
+        source: 'scribe',
+        text: result.text,
+        language: result.language,
+        languageProbability: result.languageProbability,
+        wordCount: result.wordTimestamps?.length || 0,
+        sentenceCount: result.sentenceSegments?.length || 0,
+        transcribedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }
+      if (transcriptUrl) {
+        docPayload.transcriptUrl = transcriptUrl
+        // Make sure any legacy inline arrays from previous schema are cleared
+        // so we don't blow the 1 MB cap with stale data.
+        docPayload.wordTimestamps = admin.firestore.FieldValue.delete()
+        docPayload.sentenceSegments = admin.firestore.FieldValue.delete()
+      } else {
+        // Storage upload failed — best-effort inline write so smaller
+        // transcripts still cache. Will silently fail again on large docs.
+        docPayload.wordTimestamps = result.wordTimestamps
+        docPayload.sentenceSegments = result.sentenceSegments
+      }
+      await docRef.set(docPayload, { merge: true })
       console.log(`${tag} cached to Firestore (podcastTranscripts/${docId})`)
     } catch (err) {
       console.warn(`${tag} cache write failed: ${err.message}`)
     }
+
     console.log(`${tag} done in ${Date.now() - reqStart}ms`)
     res.json({
       status: 'fresh',

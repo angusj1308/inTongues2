@@ -139,6 +139,8 @@ export function toContinueCandidate(medium, item) {
       return {
         medium: 'podcast',
         id: item.episodeId || item.id,
+        episodeId: item.episodeId || item.id,
+        showId: item.showId || '',
         title: item.title || 'Untitled episode',
         creator: item.showName || '',
         coverUrl: item.coverUrl || '',

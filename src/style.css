@@ -30186,6 +30186,16 @@ body:has(.cinema-page) {
   font-weight: 400;
 }
 
+.media-page--bare .media-episode-detail-title,
+.media-page--bare .media-episode-list-title {
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-weight: 400;
+}
+
+.media-page--bare .media-episode-detail-description {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 /* Save-to-library icon button on the podcast show page: icon swaps from
    plus to tick when saved (no fill change). */
 .media-page--bare .media-icon-button.is-saved {

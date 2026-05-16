@@ -7899,22 +7899,47 @@ pre {
 /* Progress bar — match cinema-extensive's minimal look: 1px line + always
    visible round knob. No gradient fill — position is communicated by the
    knob alone. */
+/* 4-px track: played portion paints solid black across the full 4 px;
+   unplayed portion shows a 1-px centred line via a stacked gradient. */
 .listening-lab-page .extensive-shell .audible-progress::-webkit-slider-runnable-track {
-  height: 1px;
-  background: rgba(0, 0, 0, 0.5);
+  height: 4px;
+  background:
+    linear-gradient(to right, #000 var(--progress, 0%), transparent var(--progress, 0%)),
+    linear-gradient(
+      to bottom,
+      transparent calc(50% - 0.5px),
+      rgba(0, 0, 0, 0.5) calc(50% - 0.5px),
+      rgba(0, 0, 0, 0.5) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    );
   border: none;
 }
 
 .listening-lab-page .extensive-shell .audible-progress::-moz-range-track {
-  height: 1px;
-  background: rgba(0, 0, 0, 0.5);
+  height: 4px;
+  background:
+    linear-gradient(to right, #000 var(--progress, 0%), transparent var(--progress, 0%)),
+    linear-gradient(
+      to bottom,
+      transparent calc(50% - 0.5px),
+      rgba(0, 0, 0, 0.5) calc(50% - 0.5px),
+      rgba(0, 0, 0, 0.5) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    );
   border: none;
+}
+
+/* Suppress the default focus halo around the track — slider already
+   communicates state via the thumb. */
+.listening-lab-page .extensive-shell .audible-progress:focus-visible::-webkit-slider-runnable-track,
+.listening-lab-page .extensive-shell .audible-progress:focus-visible::-moz-range-track {
+  box-shadow: none;
 }
 
 .listening-lab-page .extensive-shell .audible-progress::-webkit-slider-thumb {
   width: 10px;
   height: 10px;
-  margin-top: -4.5px;
+  margin-top: -3px;
   border-radius: 50%;
   background: #000;
   border: none;

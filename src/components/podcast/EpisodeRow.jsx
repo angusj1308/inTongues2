@@ -1,5 +1,43 @@
+import { useEffect, useRef, useState } from 'react'
 import CoverArt from './CoverArt'
 import { cleanPodcastDescription } from '../../utils/cleanPodcastDescription'
+
+// Inline expand/collapse for the show-page episode description preview.
+// Renders the cleaned description with a 3-line clamp; when the underlying
+// text overflows that clamp, shows a "more" affordance that toggles to
+// "less" when the user expands. No animation — instant per spec note that
+// anything longer feels sluggish when scanning long episode lists.
+function EpisodeDescriptionPreview({ text }) {
+  const ref = useRef(null)
+  const [overflows, setOverflows] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    if (!ref.current) return
+    setOverflows(ref.current.scrollHeight > ref.current.clientHeight + 1)
+  }, [text])
+
+  return (
+    <div className="media-episode-detail-description-wrap">
+      <p
+        ref={ref}
+        className={`media-episode-detail-description${expanded ? ' is-expanded' : ''}`}
+      >
+        {text}
+      </p>
+      {overflows && (
+        <button
+          type="button"
+          className="media-episode-detail-toggle"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+        >
+          {expanded ? 'less' : 'more'}
+        </button>
+      )}
+    </div>
+  )
+}
 
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -113,7 +151,7 @@ const EpisodeRow = ({
           {description && (() => {
             const previewText = cleanPodcastDescription(description, descriptionLang)
             return previewText
-              ? <p className="media-episode-detail-description">{previewText}</p>
+              ? <EpisodeDescriptionPreview text={previewText} />
               : null
           })()}
         </div>

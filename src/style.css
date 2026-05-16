@@ -30194,6 +30194,46 @@ body:has(.cinema-page) {
 
 .media-page--bare .media-episode-detail-description {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-line-clamp: 3;
+}
+
+.media-page--bare .media-episode-detail-description.is-expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.media-episode-detail-description-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.media-episode-detail-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #6B6862);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 140ms ease;
+}
+
+.media-episode-detail-toggle:hover {
+  color: var(--text-primary, #1C1A17);
+}
+
+[data-theme='dark'] .media-episode-detail-toggle {
+  color: rgba(251, 250, 248, 0.6);
+}
+
+[data-theme='dark'] .media-episode-detail-toggle:hover {
+  color: #FBFAF8;
 }
 
 /* Save-to-library icon button on the podcast show page: icon swaps from

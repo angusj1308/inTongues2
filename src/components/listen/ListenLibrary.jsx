@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import useListenLibraryData, { pickContinueListening } from './useListenLibraryData'
 
 const SHELVES = [
-  { key: 'audiobooks', title: 'Audiobooks', cover: 'portrait', cols: 6 },
+  { key: 'audiobooks', title: 'Audiobooks', cover: 'square', cols: 6 },
   { key: 'podcasts', title: 'Podcasts', cover: 'square', cols: 6 },
   { key: 'music', title: 'Music', cover: 'square', cols: 6 },
   { key: 'youtube', title: 'YouTube', cover: 'wide', cols: 4 },
@@ -35,9 +35,7 @@ function continueCtaLabel(item) {
 
 function ContinueListeningHero({ item, onPlay }) {
   if (!item) return null
-  const coverShape = item.medium === 'audiobook' ? 'portrait'
-    : item.medium === 'video' ? 'wide'
-    : 'square'
+  const coverShape = item.medium === 'video' ? 'wide' : 'square'
   const coverClass = `listen-continue-cover listen-continue-cover--${coverShape}`
   const showProgress = item.medium !== 'music'
   const progressPct = Math.max(0, Math.min(100, Number(item.progress) || 0))
@@ -168,7 +166,7 @@ export default function ListenLibrary() {
         title: b.storyTitle || b.title || 'Untitled',
         subtitle: b.author || '',
         trailing: '',
-        coverUrl: b.coverImageUrl || '',
+        coverUrl: b.coverImageUrlSquare || b.coverImageUrl || '',
         onClick: () => navigate(`/listen/${b.id}`),
       })),
     [data.audiobooks, navigate],

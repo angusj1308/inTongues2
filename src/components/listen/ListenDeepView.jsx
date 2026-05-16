@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { playPodcastEpisode } from '../../services/podcast'
 import useListenLibraryData from './useListenLibraryData'
 
 const TITLES = {
@@ -167,6 +168,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
         id: e.id,
         title: e.title || 'Untitled episode',
         showName: e.showName,
+        showId: e.showId,
         coverUrl: e.coverUrl,
         durationMs: e.durationMs,
         episodeId: e.episodeId || e.id,
@@ -177,7 +179,18 @@ function buildRows({ medium, activeTab, data, navigate }) {
         subtitle: e.showName,
         shape: 'square',
         trailing: formatDuration(e.durationMs),
-        onClick: () => navigate(`/listen/${e.episodeId}?source=podcast`),
+        onClick: () => playPodcastEpisode(
+          {
+            id: e.episodeId,
+            episodeId: e.episodeId,
+            title: e.title,
+            showName: e.showName,
+            showId: e.showId,
+            coverUrl: e.coverUrl,
+            durationMs: e.durationMs,
+          },
+          navigate,
+        ),
       }))
     }
     if (activeTab === 'Shows') {

@@ -345,3 +345,39 @@ export const fetchShowEpisodes = async (showId, { cursor, sort = 'newest', limit
     return { episodes: [], nextCursor: null, available: true }
   }
 }
+
+// Resolve an episode-state row (which carries metadata but no audioUrl) into
+// a full playable episode object and navigate to the AudioPlayer with it.
+// Used by both the legacy podcast library and the new Listen hub deep view
+// so that any "play episode" click does the same RSS-resolve dance the
+// AudioPlayer needs (it reads location.state.episode for audioUrl).
+export const playPodcastEpisode = async (item, navigate) => {
+  if (!item || !navigate) return
+  const episodeId = String(item.id || item.episodeId || '')
+  if (!episodeId) return
+  const showId = String(item.showId || '')
+
+  let resolved = item
+  if (!item.audioUrl && showId) {
+    const { episodes = [] } = await fetchShowEpisodes(showId)
+    resolved =
+      episodes.find((e) => String(e.id) === episodeId)
+      || episodes.find((e) => e.title === item.title)
+      || item
+  }
+  if (!resolved?.audioUrl) return
+
+  navigate(
+    `/listen/${encodeURIComponent(resolved.id || episodeId)}?source=podcast`,
+    {
+      state: {
+        episode: {
+          ...resolved,
+          showId,
+          showName: item.showName || resolved.showName || '',
+          coverUrl: resolved.coverUrl || item.coverUrl || '',
+        },
+      },
+    },
+  )
+}

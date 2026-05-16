@@ -30194,7 +30194,7 @@ body:has(.cinema-page) {
 
 .media-page--bare .media-episode-detail-description {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .media-page--bare .media-episode-detail-description.is-expanded {

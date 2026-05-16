@@ -203,17 +203,5 @@ export function pickContinueListening(data) {
   })
   if (!candidates.length) return null
   candidates.sort((a, b) => b.lastPlayedAt - a.lastPlayedAt)
-  // TEMP debug — remove after the Continue Listening hero is confirmed working
-  if (typeof window !== 'undefined') {
-    // eslint-disable-next-line no-console
-    console.log(
-      '[continue-listening:pick] top 5 by lastPlayedAt:',
-      candidates.slice(0, 5).map((c) => ({
-        medium: c.medium,
-        title: c.title,
-        lastPlayedAt: new Date(c.lastPlayedAt).toISOString(),
-      })),
-    )
-  }
   return candidates[0]
 }

@@ -1734,7 +1734,13 @@ const AudioPlayer = () => {
         return
       }
     }
-    if (!stored?.timestamp || !Number.isFinite(stored.timestamp)) return
+    if (!stored?.timestamp || !Number.isFinite(stored.timestamp)) {
+      // Nothing to restore — mark restoration "complete" so the save effect
+      // can proceed. Without this the save effect's guard locks forever on
+      // first-ever plays and lastPlayedAt never gets written.
+      hasRestoredPositionRef.current = true
+      return
+    }
 
     // Clamp to valid range
     const restoredTime = Math.min(Math.max(stored.timestamp, 0), durationSeconds)
@@ -1788,14 +1794,6 @@ const AudioPlayer = () => {
         if (isPodcast) {
           const docRef = doc(db, 'users', user.uid, 'podcastEpisodeStates', id)
           const dur = Math.round((durationSeconds || 0) * 1000)
-          // TEMP debug — remove after the Continue Listening hero is confirmed working
-          console.log('[continue-listening:save:podcast]', {
-            id,
-            progressSeconds: currentProgress,
-            durationSeconds,
-            title: storyMeta.title,
-            showId: storyMeta.showId,
-          })
           await setDoc(
             docRef,
             {
@@ -1815,13 +1813,6 @@ const AudioPlayer = () => {
           const collectionName = isSpotify ? 'spotifyItems' : 'stories'
           const docRef = doc(db, 'users', user.uid, collectionName, id)
           const progress = Math.min(100, Math.round((currentProgress / durationSeconds) * 100))
-          // TEMP debug — remove after the Continue Listening hero is confirmed working
-          console.log(`[continue-listening:save:${collectionName}]`, {
-            id,
-            progress,
-            durationSeconds,
-            title: storyMeta.title,
-          })
           // setDoc with merge so the doc gets created if it doesn't exist
           // yet (some spotify tracks are played before any other surface has
           // written a state doc for them) — updateDoc would silently fail.
@@ -1836,7 +1827,7 @@ const AudioPlayer = () => {
           )
         }
       } catch (err) {
-        console.warn('[continue-listening:save] Failed to save listening progress:', err)
+        console.debug('Failed to save listening progress:', err)
       }
     }
 

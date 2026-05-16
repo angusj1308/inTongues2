@@ -1,4 +1,5 @@
 import CoverArt from './CoverArt'
+import { cleanPodcastDescription } from '../../utils/cleanPodcastDescription'
 
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -52,6 +53,7 @@ const EpisodeRow = ({
   isSaved = false,
   showTitle,
   status,
+  descriptionLang,
 }) => {
   if (!episode) return null
 
@@ -108,9 +110,12 @@ const EpisodeRow = ({
             {played && <span className="media-status-played">Played</span>}
           </div>
           <h3 className="media-episode-detail-title">{title}</h3>
-          {description && (
-            <p className="media-episode-detail-description">{description}</p>
-          )}
+          {description && (() => {
+            const previewText = cleanPodcastDescription(description, descriptionLang)
+            return previewText
+              ? <p className="media-episode-detail-description">{previewText}</p>
+              : null
+          })()}
         </div>
         <div className="media-episode-detail-actions">
           <button

@@ -248,6 +248,7 @@ const PodcastShowPage = () => {
                               progressMs: state?.progressMs || 0,
                             }}
                             variant="detail"
+                            descriptionLang={show.language || ep.language || ''}
                             isSaved={stateById.has(ep.id)}
                             onSaveToLibrary={handleSaveToLibrary}
                             onPlay={(target) =>

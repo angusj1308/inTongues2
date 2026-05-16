@@ -15,11 +15,17 @@ const getPopupPosition = (rect) => {
   return { x, y }
 }
 
-const formatTime = (seconds) => {
+const formatTime = (seconds, referenceSeconds) => {
   if (!Number.isFinite(seconds)) return '0:00'
   const floored = Math.max(0, Math.floor(seconds))
-  const mins = Math.floor(floored / 60)
+  const ref = Number.isFinite(referenceSeconds) ? referenceSeconds : seconds
+  const showHours = floored >= 3600 || ref >= 3600
+  const hrs = Math.floor(floored / 3600)
+  const mins = Math.floor((floored % 3600) / 60)
   const secs = floored % 60
+  if (showHours) {
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
@@ -665,7 +671,7 @@ const ExtensiveMode = ({
           style={{ '--progress': `${progressPercent}%` }}
         />
         <div className="progress-times ui-text">
-          <span className="muted tiny">{formatTime(playbackPositionSeconds)}</span>
+          <span className="muted tiny">{formatTime(playbackPositionSeconds, playbackDurationSeconds)}</span>
           <span className="muted tiny">{playbackDurationSeconds ? formatTime(playbackDurationSeconds) : '0:00'}</span>
         </div>
       </div>

@@ -111,7 +111,10 @@ export function toContinueCandidate(medium, item) {
   if (!item) return null
   switch (medium) {
     case 'audiobook': {
-      const ts = tsOf(item.lastPlayedAt, item.lastOpenedAt)
+      // Only count real plays, not Read-tab opens. lastOpenedAt is stamped
+      // by Dashboard.jsx::handleOpenBook when a book is opened in the reader
+      // — using it here lets Read-tab activity hijack the Listen hero.
+      const ts = tsOf(item.lastPlayedAt)
       if (!ts) return null
       const progress = Number(item.progress) || 0
       return {

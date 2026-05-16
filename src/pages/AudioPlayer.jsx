@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
@@ -1754,61 +1754,89 @@ const AudioPlayer = () => {
     setProgressSeconds(restoredTime)
   }, [durationSeconds, getStoredPosition, id, isPodcast, isSpotify, podcastEpisodeFromState])
 
-  // Save position to localStorage and Firestore when it changes (debounced)
+  // Save position to localStorage and Firestore.
+  //
+  // The previous implementation was a 2-second debounce with progressSeconds
+  // in the effect deps. Because progressSeconds updates every ~100ms during
+  // playback, the timer was being cleared and re-armed continuously — the
+  // Firestore write only fired when playback was idle for 2+ seconds (i.e.
+  // user paused). On unmount-while-playing the cleanup just cleared the
+  // pending timer, losing the write entirely. That meant straight-through
+  // listening sessions left lastPlayedAt unwritten, so Continue Listening
+  // never saw the play.
+  //
+  // New pattern (mirrors IntonguesCinema's writePlayhead):
+  //   - latest progressSeconds is stashed in a ref so the interval can read
+  //     fresh values without the effect re-running on every tick
+  //   - setInterval(save, 5000) writes every 5 seconds while the component
+  //     is mounted, regardless of pause state
+  //   - unmount cleanup calls save() one more time to flush
+  const progressSecondsRef = useRef(0)
+  useEffect(() => {
+    progressSecondsRef.current = progressSeconds
+  }, [progressSeconds])
+
   useEffect(() => {
     if (!id || !durationSeconds || durationSeconds <= 0) return undefined
-    if (!hasRestoredPositionRef.current) return undefined // Wait for restore first
+    if (!hasRestoredPositionRef.current) return undefined
+    if (!user?.uid) return undefined
 
-    const timeoutId = setTimeout(async () => {
-      savePosition(id, progressSeconds)
-
-      // Also save progress to Firestore for stats tracking
-      if (user?.uid) {
-        try {
-          if (isPodcast) {
-            // Mirror saveEpisodeProgress so the Library's Continue Listening
-            // tile picks this up.
-            const docRef = doc(db, 'users', user.uid, 'podcastEpisodeStates', id)
-            const dur = Math.round((durationSeconds || 0) * 1000)
-            await setDoc(
-              docRef,
-              {
-                episodeId: id,
-                progressMs: Math.round(progressSeconds * 1000),
-                durationMs: dur,
-                lastPlayedAt: serverTimestamp(),
-                played: durationSeconds > 0 && progressSeconds >= durationSeconds - 1,
-                title: storyMeta.title || '',
-                showName: storyMeta.subtitle || '',
-                showId: storyMeta.showId || '',
-                coverUrl: storyMeta.coverImageUrl || '',
-              },
-              { merge: true },
-            )
-          } else {
-            const collectionName = isSpotify ? 'spotifyItems' : 'stories'
-            const docRef = doc(db, 'users', user.uid, collectionName, id)
-            const progress = Math.min(100, Math.round((progressSeconds / durationSeconds) * 100))
-            await updateDoc(docRef, {
+    const save = async () => {
+      const currentProgress = progressSecondsRef.current
+      savePosition(id, currentProgress)
+      try {
+        if (isPodcast) {
+          const docRef = doc(db, 'users', user.uid, 'podcastEpisodeStates', id)
+          const dur = Math.round((durationSeconds || 0) * 1000)
+          await setDoc(
+            docRef,
+            {
+              episodeId: id,
+              progressMs: Math.round(currentProgress * 1000),
+              durationMs: dur,
+              lastPlayedAt: serverTimestamp(),
+              played: durationSeconds > 0 && currentProgress >= durationSeconds - 1,
+              title: storyMeta.title || '',
+              showName: storyMeta.subtitle || '',
+              showId: storyMeta.showId || '',
+              coverUrl: storyMeta.coverImageUrl || '',
+            },
+            { merge: true },
+          )
+        } else {
+          const collectionName = isSpotify ? 'spotifyItems' : 'stories'
+          const docRef = doc(db, 'users', user.uid, collectionName, id)
+          const progress = Math.min(100, Math.round((currentProgress / durationSeconds) * 100))
+          // setDoc with merge so the doc gets created if it doesn't exist
+          // yet (some spotify tracks are played before any other surface has
+          // written a state doc for them) — updateDoc would silently fail.
+          await setDoc(
+            docRef,
+            {
               progress,
               duration: durationSeconds,
               lastPlayedAt: serverTimestamp(),
-            })
-          }
-        } catch (err) {
-          // Silently fail - this is non-critical
-          console.debug('Failed to save listening progress:', err)
+            },
+            { merge: true },
+          )
         }
+      } catch (err) {
+        console.debug('Failed to save listening progress:', err)
       }
-    }, 2000) // Debounce 2 seconds for Firestore
+    }
 
-    return () => clearTimeout(timeoutId)
+    const interval = setInterval(save, 5000)
+    return () => {
+      clearInterval(interval)
+      // Flush a final write on unmount so navigate-away-while-playing still
+      // updates lastPlayedAt. Errors are swallowed by save's own try/catch.
+      save()
+    }
   }, [
     durationSeconds,
     id,
     isPodcast,
     isSpotify,
-    progressSeconds,
     savePosition,
     storyMeta.coverImageUrl,
     storyMeta.showId,

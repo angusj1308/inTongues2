@@ -4,10 +4,10 @@ import { useAuth } from '../../context/AuthContext'
 import useListenLibraryData, { pickContinueListening } from './useListenLibraryData'
 
 const SHELVES = [
-  { key: 'audiobooks', title: 'Audiobooks', cover: 'square', cols: 6 },
   { key: 'podcasts', title: 'Podcasts', cover: 'square', cols: 6 },
-  { key: 'music', title: 'Music', cover: 'square', cols: 6 },
   { key: 'youtube', title: 'YouTube', cover: 'wide', cols: 4 },
+  { key: 'music', title: 'Music', cover: 'square', cols: 6 },
+  { key: 'audiobooks', title: 'Audiobooks', cover: 'square', cols: 6 },
 ]
 
 function continueSubtitle(item) {

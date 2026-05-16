@@ -30180,7 +30180,7 @@ body:has(.cinema-page) {
    "Library | Discover" sits on /listen/library. */
 .media-page--bare .media-back-link {
   font-family: var(--font-supporting);
-  font-size: 2.2rem;
+  font-size: 1.1rem;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -30230,7 +30230,7 @@ body:has(.cinema-page) {
   padding: 0;
   cursor: pointer;
   font-family: var(--font-supporting);
-  font-size: 2.2rem;
+  font-size: 1.1rem;
   font-weight: 500;
   line-height: 1;
   color: #1C1A17;

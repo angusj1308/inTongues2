@@ -29862,9 +29862,9 @@ body:has(.cinema-page) {
 .listen-deep-row {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
   width: 100%;
-  padding: 0.75rem 0.25rem;
+  padding: 1.5rem 0.25rem;
   background: none;
   border: none;
   border-bottom: 1px solid var(--divider, #E8E5E0);
@@ -29894,18 +29894,18 @@ body:has(.cinema-page) {
 }
 
 .listen-deep-thumb--square {
-  width: 56px;
-  height: 56px;
+  width: 112px;
+  height: 112px;
 }
 
 .listen-deep-thumb--portrait {
-  width: 44px;
-  height: 64px;
+  width: 88px;
+  height: 128px;
 }
 
 .listen-deep-thumb--wide {
-  width: 96px;
-  height: 56px;
+  width: 192px;
+  height: 112px;
 }
 
 .listen-deep-thumb img {

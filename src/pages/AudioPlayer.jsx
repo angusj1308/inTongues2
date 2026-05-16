@@ -1788,6 +1788,14 @@ const AudioPlayer = () => {
         if (isPodcast) {
           const docRef = doc(db, 'users', user.uid, 'podcastEpisodeStates', id)
           const dur = Math.round((durationSeconds || 0) * 1000)
+          // TEMP debug — remove after the Continue Listening hero is confirmed working
+          console.log('[continue-listening:save:podcast]', {
+            id,
+            progressSeconds: currentProgress,
+            durationSeconds,
+            title: storyMeta.title,
+            showId: storyMeta.showId,
+          })
           await setDoc(
             docRef,
             {
@@ -1807,6 +1815,13 @@ const AudioPlayer = () => {
           const collectionName = isSpotify ? 'spotifyItems' : 'stories'
           const docRef = doc(db, 'users', user.uid, collectionName, id)
           const progress = Math.min(100, Math.round((currentProgress / durationSeconds) * 100))
+          // TEMP debug — remove after the Continue Listening hero is confirmed working
+          console.log(`[continue-listening:save:${collectionName}]`, {
+            id,
+            progress,
+            durationSeconds,
+            title: storyMeta.title,
+          })
           // setDoc with merge so the doc gets created if it doesn't exist
           // yet (some spotify tracks are played before any other surface has
           // written a state doc for them) — updateDoc would silently fail.
@@ -1821,7 +1836,7 @@ const AudioPlayer = () => {
           )
         }
       } catch (err) {
-        console.debug('Failed to save listening progress:', err)
+        console.warn('[continue-listening:save] Failed to save listening progress:', err)
       }
     }
 

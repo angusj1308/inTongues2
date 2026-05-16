@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { playPodcastEpisode } from '../../services/podcast'
 import useListenLibraryData, { pickContinueListening } from './useListenLibraryData'
 
 const SHELVES = [
@@ -298,7 +299,25 @@ export default function ListenLibrary() {
   }
 
   const handlePlayContinue = (item) => {
-    if (item?.playHref) navigate(item.playHref)
+    if (!item) return
+    // Podcasts need the RSS-resolve-then-pass-state dance so the AudioPlayer
+    // gets the audioUrl. Other mediums can take the direct navigate path.
+    if (item.medium === 'podcast') {
+      playPodcastEpisode(
+        {
+          id: item.episodeId,
+          episodeId: item.episodeId,
+          title: item.title,
+          showName: item.creator,
+          showId: item.showId,
+          coverUrl: item.coverUrl,
+          durationMs: item.durationMs,
+        },
+        navigate,
+      )
+      return
+    }
+    if (item.playHref) navigate(item.playHref)
   }
 
   return (

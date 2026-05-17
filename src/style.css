@@ -30143,6 +30143,11 @@ body:has(.cinema-page) {
 .listen-deep-row .media-icon-button {
   flex-shrink: 0;
   margin-left: 1rem;
+  /* Inset from the row's right edge so the '+' sits roughly under the
+     centre of the Follow / Following pill on adjacent show rows
+     (the pill is ~80px wide flush at the edge; the icon is 32px).
+     Library remove '×' overrides this back to 1rem via its own rule. */
+  margin-right: 1.25rem;
   width: 32px;
   height: 32px;
   display: inline-flex;

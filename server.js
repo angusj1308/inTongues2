@@ -5193,7 +5193,36 @@ app.get('/api/youtube/search', async (req, res) => {
         throw new Error(`YouTube search failed: ${response.status} ${body.slice(0, 200)}`)
       }
       const payload = await response.json()
-      const results = (payload.items || [])
+      const items = payload.items || []
+
+      // Channel avatars in search.list are unreliable (often stale placeholder
+      // URLs that 404). Re-fetch the real ones via channels.list in one batched
+      // request keyed by all channel IDs in the result set.
+      const channelIds = items
+        .map((it) => (it.id?.channelId && !it.id?.videoId ? it.id.channelId : null))
+        .filter(Boolean)
+      const channelThumbs = new Map()
+      if (channelIds.length > 0) {
+        const chUrl = new URL('https://www.googleapis.com/youtube/v3/channels')
+        chUrl.searchParams.set('part', 'snippet')
+        chUrl.searchParams.set('id', channelIds.join(','))
+        chUrl.searchParams.set('key', YOUTUBE_API_KEY)
+        try {
+          const chRes = await fetch(chUrl.toString())
+          if (chRes.ok) {
+            const chData = await chRes.json()
+            ;(chData.items || []).forEach((ch) => {
+              const t = ch.snippet?.thumbnails || {}
+              const pick = t.medium || t.high || t.default || {}
+              if (ch.id && pick.url) channelThumbs.set(ch.id, pick.url)
+            })
+          }
+        } catch (err) {
+          console.warn('channels.list thumbnail lookup failed', err)
+        }
+      }
+
+      const results = items
         .map((item) => {
           const snippet = item.snippet || {}
           const thumbs = snippet.thumbnails || {}
@@ -5221,7 +5250,7 @@ app.get('/api/youtube/search', async (req, res) => {
               channelTitle: snippet.channelTitle || snippet.title || '',
               description: snippet.description || '',
               publishedAt: snippet.publishedAt || '',
-              thumbnailUrl: thumb.url || '',
+              thumbnailUrl: channelThumbs.get(channelId) || thumb.url || '',
               youtubeUrl: `https://www.youtube.com/channel/${channelId}`,
             }
           }

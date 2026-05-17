@@ -69,17 +69,25 @@ const formatPublishedDate = (raw) => {
 
 const joinTrailing = (...parts) => parts.filter(Boolean).join(' · ')
 
-function Row({ thumb, title, subtitle, trailing, trailingNatural, shape = 'square', onClick, onRemove }) {
+function Row({ thumb, title, subtitle, eyebrow, trailing, trailingNatural, shape = 'square', onClick, onRemove }) {
   const handleRowClick = (e) => {
     if (e.target.closest('[data-row-remove]')) return
     onClick?.()
   }
+  const eyebrowParts = Array.isArray(eyebrow) ? eyebrow.filter(Boolean) : (eyebrow ? [eyebrow] : [])
   return (
     <div className="listen-deep-row" onClick={handleRowClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : -1}>
       <div className={`listen-deep-thumb listen-deep-thumb--${shape}`}>
         {thumb ? <img src={thumb} alt="" /> : <span className="listen-deep-thumb-fallback">{title?.[0] || '·'}</span>}
       </div>
       <div className="listen-deep-meta">
+        {eyebrowParts.length > 0 && (
+          <div className="listen-deep-eyebrow">
+            {eyebrowParts.map((part, i) => (
+              <span key={i}>{part}</span>
+            ))}
+          </div>
+        )}
         <p className="listen-deep-title">{title}</p>
         {subtitle && <p className="listen-deep-sub">{subtitle}</p>}
       </div>
@@ -243,9 +251,12 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
           title: e.title,
           subtitle: e.showName,
           shape: 'square',
+          eyebrow: dubbing
+            ? undefined
+            : [formatPublishedDate(e.publishedAt), formatLongDuration(e.durationMs)],
           trailing: dubbing
             ? (e.dubStatus === 'failed' ? 'Dub failed' : 'Dubbing…')
-            : joinTrailing(formatPublishedDate(e.publishedAt), formatLongDuration(e.durationMs)),
+            : undefined,
           trailingNatural: !dubbing,
           onClick: dubbing ? undefined : () => playPodcastEpisode(
             {
@@ -350,11 +361,10 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         title: v.title,
         subtitle: v.channelTitle,
         shape: 'wide',
-        trailing: joinTrailing(
+        eyebrow: [
           formatPublishedDate(v.publishedAt),
           formatLongDuration((Number(v.durationSeconds) || 0) * 1000),
-        ),
-        trailingNatural: true,
+        ],
         onClick: () => navigate(`/cinema/${v.id}`),
         onRemove: uid ? () => deleteYoutubeVideo(uid, v.id).catch((err) => console.warn('deleteYoutubeVideo', err)) : undefined,
       }))

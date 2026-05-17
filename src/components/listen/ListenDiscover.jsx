@@ -441,6 +441,7 @@ export default function ListenDiscover() {
         title: v.title || 'Untitled video',
         subtitle: v.channelTitle || '',
         shape: 'wide',
+        trailing: v.durationSeconds ? formatDuration(Number(v.durationSeconds) * 1000) : '',
         onClick: () => v.youtubeUrl && window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer'),
         action: {
           label: alreadyImported ? '✓ Added' : (isPending ? '…' : '+'),

@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { doc, updateDoc } from 'firebase/firestore'
+import db from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
-import { playPodcastEpisode, unsaveEpisode, unfollowShow } from '../../services/podcast'
+import { playPodcastEpisode, unsaveEpisode, unfollowShow, fetchShowEpisodes } from '../../services/podcast'
 import { deleteYoutubeVideo } from '../../services/youtube'
 import { unfollowChannel } from '../../services/youtubeChannels'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
@@ -134,6 +136,46 @@ export default function ListenDeepView({ medium }) {
     () => buildRows({ medium, activeTab, data, navigate, uid: user?.uid }),
     [medium, activeTab, data, navigate, user?.uid],
   )
+
+  // Backfill publishedAt for podcast episodes that were saved before we
+  // started persisting that field. Group by showId, hit the RSS feed once
+  // per show, then write the date back so the eyebrow renders correctly on
+  // the next snapshot. No-op once every doc has publishedAt.
+  useEffect(() => {
+    if (medium !== 'podcasts' || !user?.uid) return undefined
+    const missingByShow = new Map()
+    ;(data.episodeStates || []).forEach((e) => {
+      if (e.publishedAt) return
+      const sid = e.showId
+      const eid = e.episodeId || e.id
+      if (!sid || !eid) return
+      const arr = missingByShow.get(sid) || []
+      arr.push(eid)
+      missingByShow.set(sid, arr)
+    })
+    if (missingByShow.size === 0) return undefined
+    let cancelled = false
+    ;(async () => {
+      for (const [showId, ids] of missingByShow) {
+        try {
+          const { episodes = [] } = await fetchShowEpisodes(showId)
+          if (cancelled) return
+          const byId = new Map(episodes.map((ep) => [String(ep.id), ep.publishedAt]))
+          for (const id of ids) {
+            const pubAt = byId.get(String(id))
+            if (!pubAt) continue
+            updateDoc(
+              doc(db, 'users', user.uid, 'podcastEpisodeStates', String(id)),
+              { publishedAt: pubAt },
+            ).catch(() => {})
+          }
+        } catch (err) {
+          console.warn('publishedAt backfill failed for show', showId, err)
+        }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [medium, user?.uid, data.episodeStates])
 
   if (!title) return null
 

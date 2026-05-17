@@ -4,7 +4,7 @@ import { doc, updateDoc } from 'firebase/firestore'
 import db from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
 import { playPodcastEpisode, unsaveEpisode, unfollowShow, fetchShowEpisodes } from '../../services/podcast'
-import { deleteYoutubeVideo } from '../../services/youtube'
+import { deleteYoutubeVideo, fetchYoutubeVideosMeta } from '../../services/youtube'
 import { unfollowChannel } from '../../services/youtubeChannels'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 import useListenLibraryData from './useListenLibraryData'
@@ -176,6 +176,46 @@ export default function ListenDeepView({ medium }) {
     })()
     return () => { cancelled = true }
   }, [medium, user?.uid, data.episodeStates])
+
+  // YouTube equivalent: batch-fetch publishedAt (and durationSeconds, since
+  // older imports often lack it too) for videos that pre-date the field.
+  // One quota unit per 50 IDs, then write back per-doc.
+  useEffect(() => {
+    if (medium !== 'youtube' || !user?.uid) return undefined
+    const missing = (data.youtubeVideos || []).filter(
+      (v) => v.videoId && (!v.publishedAt || !Number.isFinite(Number(v.durationSeconds))),
+    )
+    if (missing.length === 0) return undefined
+    let cancelled = false
+    ;(async () => {
+      // Chunk by 50 (YouTube videos.list cap).
+      for (let i = 0; i < missing.length; i += 50) {
+        const chunk = missing.slice(i, i + 50)
+        try {
+          const meta = await fetchYoutubeVideosMeta(chunk.map((v) => v.videoId))
+          if (cancelled) return
+          const byVideoId = new Map(meta.map((m) => [m.videoId, m]))
+          for (const v of chunk) {
+            const m = byVideoId.get(v.videoId)
+            if (!m) continue
+            const patch = {}
+            if (!v.publishedAt && m.publishedAt) patch.publishedAt = m.publishedAt
+            if (!Number.isFinite(Number(v.durationSeconds)) && Number.isFinite(Number(m.durationSeconds))) {
+              patch.durationSeconds = Number(m.durationSeconds)
+            }
+            if (Object.keys(patch).length === 0) continue
+            updateDoc(
+              doc(db, 'users', user.uid, 'youtubeVideos', v.id),
+              patch,
+            ).catch(() => {})
+          }
+        } catch (err) {
+          console.warn('YouTube publishedAt backfill chunk failed', err)
+        }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [medium, user?.uid, data.youtubeVideos])
 
   if (!title) return null
 

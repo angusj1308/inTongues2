@@ -82,6 +82,7 @@ const YoutubeChannelPage = () => {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState('')
 
   const [followedChannels, setFollowedChannels] = useState([])
   const [pendingFollow, setPendingFollow] = useState(false)
@@ -113,32 +114,40 @@ const YoutubeChannelPage = () => {
     let cancelled = false
     setLoading(true)
     setNotFound(false)
+    setLoadError('')
     setChannel(null)
     setVideos([])
     setNextCursor(null)
     ;(async () => {
+      let channelData = null
+      let channelErr = null
       try {
-        const [channelData, videosData] = await Promise.all([
-          fetchYoutubeChannel(id).catch(() => null),
-          fetchYoutubeChannelVideos(id, {}).catch(() => ({ videos: [], nextCursor: null, creditsPerMinute: 0 })),
-        ])
-        if (cancelled) return
-        if (!channelData) {
-          setNotFound(true)
-          setLoading(false)
-          return
-        }
-        setChannel(channelData)
-        setVideos(videosData.videos || [])
-        setNextCursor(videosData.nextCursor || null)
-        setCreditsPerMinute(videosData.creditsPerMinute || 0)
-        setLoading(false)
+        channelData = await fetchYoutubeChannel(id)
       } catch (err) {
-        if (cancelled) return
-        console.error('Channel load failed', err)
-        setNotFound(true)
-        setLoading(false)
+        channelErr = err
+        console.error('fetchYoutubeChannel failed', err)
       }
+      let videosData = { videos: [], nextCursor: null, creditsPerMinute: 0 }
+      try {
+        videosData = await fetchYoutubeChannelVideos(id, {})
+      } catch (err) {
+        console.error('fetchYoutubeChannelVideos failed', err)
+      }
+      if (cancelled) return
+      if (!channelData) {
+        if (channelErr) {
+          setLoadError(`Couldn't load channel: ${channelErr.message || 'network error'}`)
+        } else {
+          setNotFound(true)
+        }
+        setLoading(false)
+        return
+      }
+      setChannel(channelData)
+      setVideos(videosData.videos || [])
+      setNextCursor(videosData.nextCursor || null)
+      setCreditsPerMinute(videosData.creditsPerMinute || 0)
+      setLoading(false)
     })()
     return () => {
       cancelled = true
@@ -289,6 +298,8 @@ const YoutubeChannelPage = () => {
 
             {loading ? (
               <p className="media-placeholder">Loading…</p>
+            ) : loadError ? (
+              <p className="media-placeholder">{loadError}</p>
             ) : notFound || !channel ? (
               <p className="media-placeholder">Channel not found.</p>
             ) : (

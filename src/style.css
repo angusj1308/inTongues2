@@ -8031,7 +8031,7 @@ pre {
 
 [data-theme='dark'] .listening-lab-page .extensive-shell .audible-progress::-webkit-slider-thumb,
 [data-theme='dark'] .listening-lab-page .extensive-shell .audible-progress::-moz-range-thumb {
-  background: var(--reader-text, #e8e0d4);
+  background: #e8e0d4;
 }
 
 /* Transport buttons (prev / ±5s / play / ±5s / next) */
@@ -8045,11 +8045,19 @@ pre {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* Primary play button — inverted so it pops on the dark page bg. */
-[data-theme='dark'] .listening-lab-page .extensive-shell .transport-btn-primary {
-  background: var(--reader-text, #e8e0d4);
+/* Primary play button — inverted so it pops on the dark page bg. The
+   actual class on the JSX is `.transport-primary` (not `transport-btn-primary`). */
+[data-theme='dark'] .listening-lab-page .extensive-shell .transport-primary {
+  background: #e8e0d4;
   color: #1c1a17;
-  border-color: var(--reader-text, #e8e0d4);
+  border-color: #e8e0d4;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='dark'] .listening-lab-page .extensive-shell .transport-primary .material-symbols-outlined,
+[data-theme='dark'] .listening-lab-page .extensive-shell .transport-primary .playpause-icon {
+  color: #1c1a17;
+  fill: #1c1a17;
 }
 
 /* Secondary row (Timer / Speed / Transcript) */

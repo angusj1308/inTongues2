@@ -52,6 +52,23 @@ const formatLongDuration = (ms) => {
   return `${min}min`
 }
 
+const formatPublishedDate = (raw) => {
+  if (!raw) return ''
+  let d
+  if (typeof raw === 'number') {
+    // Heuristic: <1e12 means unix seconds, otherwise milliseconds.
+    d = new Date(raw < 1e12 ? raw * 1000 : raw)
+  } else if (typeof raw?.toDate === 'function') {
+    d = raw.toDate()
+  } else {
+    d = new Date(raw)
+  }
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+const joinTrailing = (...parts) => parts.filter(Boolean).join(' · ')
+
 function Row({ thumb, title, subtitle, trailing, trailingNatural, shape = 'square', onClick, onRemove }) {
   const handleRowClick = (e) => {
     if (e.target.closest('[data-row-remove]')) return
@@ -214,6 +231,7 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         showId: e.showId,
         coverUrl: e.coverUrl,
         durationMs: e.durationMs,
+        publishedAt: e.publishedAt,
         episodeId: e.episodeId || e.id,
         isDubbed: e.isDubbed,
         dubStatus: e.dubStatus,
@@ -227,7 +245,7 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
           shape: 'square',
           trailing: dubbing
             ? (e.dubStatus === 'failed' ? 'Dub failed' : 'Dubbing…')
-            : formatLongDuration(e.durationMs),
+            : joinTrailing(formatPublishedDate(e.publishedAt), formatLongDuration(e.durationMs)),
           trailingNatural: !dubbing,
           onClick: dubbing ? undefined : () => playPodcastEpisode(
             {
@@ -324,12 +342,19 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         title: v.title || 'Untitled video',
         channelTitle: v.channelTitle || '',
         coverUrl: v.coverUrl || v.thumbnailUrl || getYouTubeThumbnailFromVideo(v),
+        durationSeconds: v.durationSeconds,
+        publishedAt: v.publishedAt,
       }))).map((v) => ({
         id: v.id,
         thumb: v.coverUrl,
         title: v.title,
         subtitle: v.channelTitle,
         shape: 'wide',
+        trailing: joinTrailing(
+          formatPublishedDate(v.publishedAt),
+          formatLongDuration((Number(v.durationSeconds) || 0) * 1000),
+        ),
+        trailingNatural: true,
         onClick: () => navigate(`/cinema/${v.id}`),
         onRemove: uid ? () => deleteYoutubeVideo(uid, v.id).catch((err) => console.warn('deleteYoutubeVideo', err)) : undefined,
       }))

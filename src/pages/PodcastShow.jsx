@@ -142,6 +142,7 @@ const PodcastShowPage = () => {
         showId: id,
         coverUrl: target.coverUrl || show?.coverUrl || '',
         durationMs: target.durationMs,
+        publishedAt: target.publishedAt || '',
       })
     } catch (err) {
       console.error('Failed to save', err)
@@ -162,6 +163,7 @@ const PodcastShowPage = () => {
           showId: id,
           coverUrl: dubModal.episode.coverUrl || show?.coverUrl || '',
           durationMs: dubModal.episode.durationMs,
+          publishedAt: dubModal.episode.publishedAt || '',
         },
         sourceLanguage: dubModal.sourceLanguage,
         targetLanguage: dubModal.targetLanguage,

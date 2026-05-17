@@ -233,6 +233,7 @@ const YoutubeChannelPage = () => {
         youtubeUrl: v.youtubeUrl,
         uid: user.uid,
         language: targetLanguage || 'auto',
+        publishedAt: v.publishedAt || '',
       })
       setSessionImported((prev) => new Set(prev).add(v.videoId))
     } catch (err) {
@@ -254,6 +255,7 @@ const YoutubeChannelPage = () => {
         uid: user.uid,
         sourceLanguage: sourceLanguage || 'auto',
         targetLanguage,
+        publishedAt: v.publishedAt || '',
       })
       setSessionImported((prev) => new Set(prev).add(v.videoId))
       setDubModal(null)

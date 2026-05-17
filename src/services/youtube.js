@@ -25,21 +25,21 @@ export const searchYouTube = async ({ query, language, max } = {}) => {
 const importEndpoint = `${API_BASE}/api/youtube/import`
 const dubEndpoint = `${API_BASE}/api/youtube/dub`
 
-export const importYoutubeVideo = async ({ title, youtubeUrl, uid, language }) => {
+export const importYoutubeVideo = async ({ title, youtubeUrl, uid, language, publishedAt }) => {
   const res = await fetch(importEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, youtubeUrl, uid, language }),
+    body: JSON.stringify({ title, youtubeUrl, uid, language, publishedAt }),
   })
   if (!res.ok) throw new Error(await res.text().catch(() => `Import failed (${res.status})`))
   return res.json()
 }
 
-export const dubYoutubeVideo = async ({ title, youtubeUrl, uid, sourceLanguage, targetLanguage }) => {
+export const dubYoutubeVideo = async ({ title, youtubeUrl, uid, sourceLanguage, targetLanguage, publishedAt }) => {
   const res = await fetch(dubEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, youtubeUrl, uid, sourceLanguage, targetLanguage }),
+    body: JSON.stringify({ title, youtubeUrl, uid, sourceLanguage, targetLanguage, publishedAt }),
   })
   if (!res.ok) throw new Error(await res.text().catch(() => `Dub failed (${res.status})`))
   return res.json()

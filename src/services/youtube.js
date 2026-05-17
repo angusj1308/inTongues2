@@ -36,3 +36,28 @@ export const dubYoutubeVideo = async ({ title, youtubeUrl, uid, sourceLanguage, 
   if (!res.ok) throw new Error(await res.text().catch(() => `Dub failed (${res.status})`))
   return res.json()
 }
+
+export const fetchYoutubeChannel = async (channelId) => {
+  if (!channelId) return null
+  const res = await fetch(`${API_BASE}/api/youtube/channel/${encodeURIComponent(channelId)}`)
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Channel fetch failed (${res.status})`)
+  return res.json()
+}
+
+export const fetchYoutubeChannelVideos = async (channelId, { cursor, max } = {}) => {
+  if (!channelId) return { videos: [], nextCursor: null, creditsPerMinute: 0 }
+  const params = new URLSearchParams()
+  if (cursor) params.set('cursor', cursor)
+  if (max) params.set('max', String(max))
+  const qs = params.toString()
+  const url = `${API_BASE}/api/youtube/channel/${encodeURIComponent(channelId)}/videos${qs ? `?${qs}` : ''}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Channel videos failed (${res.status})`)
+  const data = await res.json()
+  return {
+    videos: Array.isArray(data?.videos) ? data.videos : [],
+    nextCursor: data?.nextCursor || null,
+    creditsPerMinute: Number(data?.creditsPerMinute) || 0,
+  }
+}

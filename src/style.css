@@ -30320,6 +30320,135 @@ body:has(.cinema-page) {
   cursor: default;
 }
 
+/* YouTube channel page (mirrors podcast show page layout). */
+.yt-channel-cover {
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #d6d3d1 0%, #a8a29e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yt-channel-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.yt-channel-cover-fallback {
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 5rem;
+  color: #57534e;
+}
+
+@media (max-width: 720px) {
+  .yt-channel-cover {
+    width: 180px;
+    height: 180px;
+  }
+  .yt-channel-cover-fallback {
+    font-size: 3rem;
+  }
+}
+
+.yt-channel-video-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.yt-channel-video-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem 0.25rem;
+  border-bottom: 1px solid var(--divider, #E8E5E0);
+}
+
+[data-theme='dark'] .yt-channel-video-row {
+  border-bottom-color: var(--divider, #2E2A24);
+}
+
+.yt-channel-video-thumb {
+  flex-shrink: 0;
+  width: 192px;
+  height: 108px;
+  background: linear-gradient(135deg, #d6d3d1 0%, #a8a29e 100%);
+  border: none;
+  padding: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.yt-channel-video-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.yt-channel-video-thumb-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #57534e;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.4rem;
+}
+
+.yt-channel-video-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.yt-channel-video-title {
+  margin: 0;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--text-primary, #1C1A17);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.yt-channel-video-sub {
+  margin: 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #6B6862);
+}
+
+.yt-channel-video-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .yt-channel-video-thumb {
+    width: 128px;
+    height: 72px;
+  }
+  .yt-channel-video-title {
+    font-size: 0.95rem;
+  }
+}
+
 .listen-deep-empty {
   margin: 2rem 0;
   text-align: center;

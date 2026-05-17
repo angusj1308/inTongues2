@@ -5491,6 +5491,50 @@ app.get('/api/youtube/channel/:channelId/videos', async (req, res) => {
   }
 })
 
+app.get('/api/youtube/videos-meta', async (req, res) => {
+  if (!YOUTUBE_API_KEY) return res.status(503).json({ error: 'YouTube API key not configured' })
+  const ids = String(req.query.ids || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 50)
+  if (ids.length === 0) return res.json({ videos: [] })
+
+  try {
+    const data = await cached(
+      cacheKey(['youtube-videos-meta', 'v1', ids.slice().sort().join(',')]),
+      60 * 60,
+      async () => {
+        const url = new URL('https://www.googleapis.com/youtube/v3/videos')
+        url.searchParams.set('part', 'snippet,contentDetails')
+        url.searchParams.set('id', ids.join(','))
+        url.searchParams.set('key', YOUTUBE_API_KEY)
+        const r = await fetch(url.toString())
+        if (!r.ok) {
+          const body = await r.text().catch(() => '')
+          throw new Error(`videos.list failed: ${r.status} ${body.slice(0, 200)}`)
+        }
+        const payload = await r.json()
+        const items = payload.items || []
+        return {
+          videos: items.map((v) => ({
+            videoId: v.id,
+            publishedAt: v.snippet?.publishedAt || '',
+            durationSeconds: parseIsoDurationToSeconds(v.contentDetails?.duration) || null,
+            channelTitle: v.snippet?.channelTitle || '',
+            defaultAudioLanguage: v.snippet?.defaultAudioLanguage || '',
+            defaultLanguage: v.snippet?.defaultLanguage || '',
+          })),
+        }
+      },
+    )
+    res.json(data)
+  } catch (err) {
+    console.error('videos-meta error', err)
+    res.status(502).json({ error: 'videos-meta lookup failed' })
+  }
+})
+
 app.post('/api/youtube/import', async (req, res) => {
   const { title, youtubeUrl, uid, language, publishedAt } = req.body || {}
   const trimmedTitle = (title || '').trim()

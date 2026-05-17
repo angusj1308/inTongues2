@@ -8,6 +8,15 @@ export const deleteYoutubeVideo = async (uid, docId) => {
   await deleteDoc(doc(db, 'users', uid, 'youtubeVideos', docId))
 }
 
+export const fetchYoutubeVideosMeta = async (videoIds = []) => {
+  if (!videoIds.length) return []
+  const params = new URLSearchParams({ ids: videoIds.slice(0, 50).join(',') })
+  const res = await fetch(`${API_BASE}/api/youtube/videos-meta?${params}`)
+  if (!res.ok) return []
+  const data = await res.json()
+  return Array.isArray(data?.videos) ? data.videos : []
+}
+
 export const searchYouTube = async ({ query, language, max } = {}) => {
   if (!query?.trim()) return { results: [], creditsPerMinute: 0 }
   const params = new URLSearchParams({ q: query.trim() })

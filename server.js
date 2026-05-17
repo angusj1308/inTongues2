@@ -5492,7 +5492,7 @@ app.get('/api/youtube/channel/:channelId/videos', async (req, res) => {
 })
 
 app.post('/api/youtube/import', async (req, res) => {
-  const { title, youtubeUrl, uid, language } = req.body || {}
+  const { title, youtubeUrl, uid, language, publishedAt } = req.body || {}
   const trimmedTitle = (title || '').trim()
   const trimmedUrl = (youtubeUrl || '').trim()
   const trimmedLanguage = (language || '').trim()
@@ -5520,6 +5520,7 @@ app.post('/api/youtube/import', async (req, res) => {
     channelTitle: metadata.channelTitle || 'Unknown channel',
     ...(Number.isFinite(metadata.durationSeconds) && { durationSeconds: metadata.durationSeconds }),
     ...(trimmedLanguage && { language: trimmedLanguage }),
+    ...(publishedAt ? { publishedAt } : {}),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     source: 'youtube',
     status: 'importing',
@@ -5776,7 +5777,7 @@ async function processYouTubeDubbing(uid, videoDocId, youtubeUrl, sourceLanguage
 }
 
 app.post('/api/youtube/dub', async (req, res) => {
-  const { title, youtubeUrl, uid, sourceLanguage, targetLanguage } = req.body || {}
+  const { title, youtubeUrl, uid, sourceLanguage, targetLanguage, publishedAt } = req.body || {}
   const trimmedTitle = (title || '').trim()
   const trimmedUrl = (youtubeUrl || '').trim()
 
@@ -5802,6 +5803,7 @@ app.post('/api/youtube/dub', async (req, res) => {
     videoId,
     channelTitle: metadata.channelTitle || 'Unknown channel',
     ...(Number.isFinite(metadata.durationSeconds) && { durationSeconds: metadata.durationSeconds }),
+    ...(publishedAt ? { publishedAt } : {}),
     language: targetLanguage,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     source: 'youtube',
@@ -5917,6 +5919,7 @@ app.post('/api/podcasts/dub', async (req, res) => {
     showId,
     coverUrl,
     durationMs,
+    publishedAt,
     sourceLanguage,
     targetLanguage,
   } = req.body || {}
@@ -5938,6 +5941,7 @@ app.post('/api/podcasts/dub', async (req, res) => {
     showId: showId ? String(showId) : '',
     coverUrl: coverUrl || '',
     durationMs: Number(durationMs) || 0,
+    ...(publishedAt ? { publishedAt } : {}),
     savedAt: admin.firestore.FieldValue.serverTimestamp(),
     isDubbed: true,
     dubStatus: 'dubbing',

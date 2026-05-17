@@ -453,18 +453,6 @@ const YoutubeChannelPage = () => {
                               </button>
                             ))}
                           </div>
-                          {filterActive && (
-                            <>
-                              <div className="yt-filter-divider" />
-                              <button
-                                type="button"
-                                className="yt-filter-reset"
-                                onClick={() => { setSort('newest'); setLengthFilter('all') }}
-                              >
-                                Reset
-                              </button>
-                            </>
-                          )}
                         </div>
                       )}
                     </div>

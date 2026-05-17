@@ -173,26 +173,33 @@ function buildRows({ medium, activeTab, data, navigate }) {
         coverUrl: e.coverUrl,
         durationMs: e.durationMs,
         episodeId: e.episodeId || e.id,
-      }))).map((e) => ({
-        id: e.id,
-        thumb: e.coverUrl,
-        title: e.title,
-        subtitle: e.showName,
-        shape: 'square',
-        trailing: formatDuration(e.durationMs),
-        onClick: () => playPodcastEpisode(
-          {
-            id: e.episodeId,
-            episodeId: e.episodeId,
-            title: e.title,
-            showName: e.showName,
-            showId: e.showId,
-            coverUrl: e.coverUrl,
-            durationMs: e.durationMs,
-          },
-          navigate,
-        ),
-      }))
+        isDubbed: e.isDubbed,
+        dubStatus: e.dubStatus,
+      }))).map((e) => {
+        const dubbing = e.isDubbed && e.dubStatus && e.dubStatus !== 'ready'
+        return {
+          id: e.id,
+          thumb: e.coverUrl,
+          title: e.title,
+          subtitle: e.showName,
+          shape: 'square',
+          trailing: dubbing
+            ? (e.dubStatus === 'failed' ? 'Dub failed' : 'Dubbing…')
+            : formatDuration(e.durationMs),
+          onClick: dubbing ? undefined : () => playPodcastEpisode(
+            {
+              id: e.episodeId,
+              episodeId: e.episodeId,
+              title: e.title,
+              showName: e.showName,
+              showId: e.showId,
+              coverUrl: e.coverUrl,
+              durationMs: e.durationMs,
+            },
+            navigate,
+          ),
+        }
+      })
     }
     if (activeTab === 'Shows') {
       return sortByTitle(data.followedShows.map((s) => ({

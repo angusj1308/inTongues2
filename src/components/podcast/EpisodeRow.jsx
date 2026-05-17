@@ -89,6 +89,7 @@ const EpisodeRow = ({
   onAddToPlaylist,
   onSaveToLibrary,
   isSaved = false,
+  playable = true,
   showTitle,
   status,
   descriptionLang,
@@ -156,13 +157,15 @@ const EpisodeRow = ({
           })()}
         </div>
         <div className="media-episode-detail-actions">
-          <button
-            type="button"
-            className="media-secondary-button ui-text"
-            onClick={() => onPlay?.(episode)}
-          >
-            {buttonLabel}
-          </button>
+          {playable && (
+            <button
+              type="button"
+              className="media-secondary-button ui-text"
+              onClick={() => onPlay?.(episode)}
+            >
+              {buttonLabel}
+            </button>
+          )}
           {onSaveToLibrary && (
             <button
               type="button"
@@ -202,14 +205,16 @@ const EpisodeRow = ({
         {durationMs && <span>{formatDuration(durationMs)}</span>}
       </div>
       <div className="media-episode-list-actions">
-        <button
-          type="button"
-          className="media-icon-button"
-          aria-label="Play episode"
-          onClick={() => onPlay?.(episode)}
-        >
-          <PlayIcon />
-        </button>
+        {playable && (
+          <button
+            type="button"
+            className="media-icon-button"
+            aria-label="Play episode"
+            onClick={() => onPlay?.(episode)}
+          >
+            <PlayIcon />
+          </button>
+        )}
         {onSaveToLibrary && (
           <button
             type="button"

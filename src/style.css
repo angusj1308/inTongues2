@@ -30376,6 +30376,10 @@ body:has(.cinema-page) {
   position: relative;
   display: inline-flex;
   margin-left: auto;
+  /* Right inset matches the video row's + button:
+     .yt-channel-video-row has padding-right 0.25rem and
+     .yt-channel-video-actions adds margin-right 1rem. */
+  margin-right: 1.25rem;
 }
 
 .yt-filter-trigger {

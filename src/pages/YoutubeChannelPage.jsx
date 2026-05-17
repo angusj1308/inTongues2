@@ -406,48 +406,64 @@ const YoutubeChannelPage = () => {
                       {filterOpen && (
                         <div className="yt-filter-pop" role="menu">
                           <div className="yt-filter-group">
-                            <p className="yt-filter-label">Sort</p>
+                            <div className="yt-filter-label">Sort</div>
                             {[
                               { v: 'newest', l: 'Newest first' },
                               { v: 'oldest', l: 'Oldest first' },
                             ].map((opt) => (
-                              <label key={opt.v} className="yt-filter-opt">
-                                <input
-                                  type="radio"
-                                  name="yt-sort"
-                                  checked={sort === opt.v}
-                                  onChange={() => setSort(opt.v)}
-                                />
+                              <button
+                                key={opt.v}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={sort === opt.v}
+                                className={`yt-filter-opt${sort === opt.v ? ' is-selected' : ''}`}
+                                onClick={() => setSort(opt.v)}
+                              >
                                 <span>{opt.l}</span>
-                              </label>
+                                {sort === opt.v && (
+                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                )}
+                              </button>
                             ))}
                           </div>
+                          <div className="yt-filter-divider" />
                           <div className="yt-filter-group">
-                            <p className="yt-filter-label">Length</p>
+                            <div className="yt-filter-label">Length</div>
                             {[
                               { v: 'all', l: 'All' },
-                              { v: 'long', l: '20min and over' },
-                              { v: 'short', l: 'Under 20min' },
+                              { v: 'long', l: '20 min and over' },
+                              { v: 'short', l: 'Under 20 min' },
                             ].map((opt) => (
-                              <label key={opt.v} className="yt-filter-opt">
-                                <input
-                                  type="radio"
-                                  name="yt-length"
-                                  checked={lengthFilter === opt.v}
-                                  onChange={() => setLengthFilter(opt.v)}
-                                />
+                              <button
+                                key={opt.v}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={lengthFilter === opt.v}
+                                className={`yt-filter-opt${lengthFilter === opt.v ? ' is-selected' : ''}`}
+                                onClick={() => setLengthFilter(opt.v)}
+                              >
                                 <span>{opt.l}</span>
-                              </label>
+                                {lengthFilter === opt.v && (
+                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                )}
+                              </button>
                             ))}
                           </div>
                           {filterActive && (
-                            <button
-                              type="button"
-                              className="yt-filter-reset"
-                              onClick={() => { setSort('newest'); setLengthFilter('all') }}
-                            >
-                              Reset
-                            </button>
+                            <>
+                              <div className="yt-filter-divider" />
+                              <button
+                                type="button"
+                                className="yt-filter-reset"
+                                onClick={() => { setSort('newest'); setLengthFilter('all') }}
+                              >
+                                Reset
+                              </button>
+                            </>
                           )}
                         </div>
                       )}

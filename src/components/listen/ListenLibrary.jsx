@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { playPodcastEpisode } from '../../services/podcast'
+import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 import useListenLibraryData, { pickContinueListening } from './useListenLibraryData'
 
 const SHELVES = [
@@ -217,15 +218,16 @@ export default function ListenLibrary() {
     const channels = new Map()
     data.youtubeVideos.forEach((v) => {
       const key = v.channelId || v.channelTitle || 'Unknown'
+      const thumb = v.coverUrl || v.thumbnailUrl || getYouTubeThumbnailFromVideo(v)
       const existing = channels.get(key) || {
         id: key,
         title: v.channelTitle || 'Unknown channel',
-        coverUrl: v.coverUrl || v.thumbnailUrl || '',
+        coverUrl: thumb,
         count: 0,
       }
       existing.count += 1
       if (!existing.coverUrl) {
-        existing.coverUrl = v.coverUrl || v.thumbnailUrl || ''
+        existing.coverUrl = thumb
       }
       channels.set(key, existing)
     })

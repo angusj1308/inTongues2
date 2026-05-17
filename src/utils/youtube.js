@@ -30,3 +30,12 @@ export const getYouTubeThumbnailUrl = (url) => {
 
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
 }
+
+// 16:9 thumbnail. Use for wide shelf cards where hqdefault's 4:3 letterbox
+// shows black bars.
+export const getYouTubeThumbnailFromVideo = (video) => {
+  if (!video) return ''
+  const videoId = video.videoId || extractYouTubeId(video.youtubeUrl)
+  if (!videoId) return ''
+  return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+}

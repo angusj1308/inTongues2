@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { searchPodcasts, showIdOf, episodeIdOf } from '../../services/podcast'
 import { searchMusic } from '../../services/music'
-import { searchYouTube } from '../../services/youtube'
-import { resolveSupportedLanguageLabel } from '../../constants/languages'
+import { searchYouTube, importYoutubeVideo, dubYoutubeVideo } from '../../services/youtube'
+import {
+  subscribeFollowedChannels,
+  followChannel,
+  unfollowChannel,
+} from '../../services/youtubeChannels'
+import {
+  resolveSupportedLanguageLabel,
+  toLanguageCode,
+} from '../../constants/languages'
+import useListenLibraryData from './useListenLibraryData'
 
 const RAILS = [
   { key: 'audiobooks', title: 'Recommended Audiobooks', shape: 'portrait', cols: 6 },
@@ -27,17 +36,41 @@ const formatDuration = (ms) => {
 }
 
 function ResultRow({ row }) {
+  const handlePreview = (e) => {
+    if (!row.onClick) return
+    if (e.target.closest('[data-row-action]')) return
+    row.onClick()
+  }
   return (
-    <button type="button" className="listen-deep-row" onClick={row.onClick}>
+    <div className="listen-deep-row" onClick={handlePreview} role="button" tabIndex={0}>
       <div className={`listen-deep-thumb listen-deep-thumb--${row.shape || 'square'}`}>
-        {row.coverUrl ? <img src={row.coverUrl} alt="" /> : <span className="listen-deep-thumb-fallback">{row.title?.[0] || '·'}</span>}
+        {row.coverUrl ? (
+          <img src={row.coverUrl} alt="" loading="lazy" />
+        ) : (
+          <span className="listen-deep-thumb-fallback">{row.title?.[0] || '·'}</span>
+        )}
       </div>
       <div className="listen-deep-meta">
         <p className="listen-deep-title">{row.title}</p>
         {row.subtitle && <p className="listen-deep-sub">{row.subtitle}</p>}
       </div>
       {row.trailing && <span className="listen-deep-trailing">{row.trailing}</span>}
-    </button>
+      {row.action && (
+        <button
+          type="button"
+          data-row-action
+          className={`listen-deep-action${row.action.active ? ' is-active' : ''}${row.action.done ? ' is-done' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            row.action.onClick?.()
+          }}
+          disabled={row.action.disabled}
+          aria-label={row.action.ariaLabel || row.action.label}
+        >
+          {row.action.label}
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -73,18 +106,92 @@ function Rail({ title, cols, shape, items, emptyLabel }) {
   )
 }
 
+function DubConfirmModal({ open, video, estimatedCredits, durationMin, onCancel, onConfirm, pending }) {
+  useEffect(() => {
+    if (!open) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') onCancel() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onCancel])
+
+  if (!open) return null
+  return (
+    <div className="listen-dub-modal-backdrop" onClick={onCancel}>
+      <div className="listen-dub-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <h3 className="listen-dub-modal-title">Translate this video?</h3>
+        <p className="listen-dub-modal-body">
+          {video?.title ? <strong>{video.title}</strong> : 'This video'} appears to be in a different language than your target.
+          {' '}
+          Dubbing it to your target language will use approximately{' '}
+          <strong>{estimatedCredits.toLocaleString()} credits</strong>
+          {durationMin > 0 && <> (≈{durationMin} min of audio)</>}.
+          {' '}Do you wish to continue?
+        </p>
+        <div className="listen-dub-modal-actions">
+          <button type="button" className="listen-dub-modal-btn" onClick={onCancel} disabled={pending}>
+            Cancel
+          </button>
+          <button type="button" className="listen-dub-modal-btn is-primary" onClick={onConfirm} disabled={pending}>
+            {pending ? 'Starting…' : 'Continue'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ListenDiscover() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
   const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
-  const [results, setResults] = useState({ podcasts: [], music: { artists: [], albums: [], tracks: [] }, youtube: [] })
+  const [results, setResults] = useState({
+    podcasts: [],
+    music: { artists: [], albums: [], tracks: [] },
+    youtube: [],
+    creditsPerMinute: 0,
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [pendingImports, setPendingImports] = useState(() => new Set())
+  const [sessionImported, setSessionImported] = useState(() => new Set())
+  const [followedChannels, setFollowedChannels] = useState([])
+  const [pendingFollow, setPendingFollow] = useState(() => new Set())
+  const [dubModal, setDubModal] = useState(null)
+  const [dubPending, setDubPending] = useState(false)
   const requestId = useRef(0)
+
+  const libraryData = useListenLibraryData(user?.uid)
+  const importedVideoIds = useMemo(() => {
+    const set = new Set()
+    ;(libraryData.youtubeVideos || []).forEach((v) => {
+      if (v.videoId) set.add(v.videoId)
+    })
+    return set
+  }, [libraryData.youtubeVideos])
+
+  const followedChannelIds = useMemo(() => {
+    const set = new Set()
+    followedChannels.forEach((c) => {
+      if (c.channelId) set.add(c.channelId)
+    })
+    return set
+  }, [followedChannels])
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setFollowedChannels([])
+      return undefined
+    }
+    return subscribeFollowedChannels(user.uid, setFollowedChannels)
+  }, [user?.uid])
 
   const activeLanguage = useMemo(
     () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
+    [profile?.lastUsedLanguage],
+  )
+  const targetLangCode = useMemo(
+    () => toLanguageCode(profile?.lastUsedLanguage) || '',
     [profile?.lastUsedLanguage],
   )
 
@@ -94,25 +201,26 @@ export default function ListenDiscover() {
     e?.preventDefault?.()
     const q = query.trim()
     if (!q) {
-      setResults({ podcasts: [], music: { artists: [], albums: [], tracks: [] }, youtube: [] })
+      setResults({ podcasts: [], music: { artists: [], albums: [], tracks: [] }, youtube: [], creditsPerMinute: 0 })
       return
     }
     const id = ++requestId.current
     setLoading(true)
     setError('')
     try {
-      const [podcastResults, musicResults, youtubeResults] = await Promise.all([
+      const [podcastResults, musicResults, youtubeResponse] = await Promise.all([
         searchPodcasts({ query: q, language: activeLanguage || undefined }).catch(() => []),
         searchMusic({ query: q, language: activeLanguage || undefined, uid: user?.uid }).catch(
           () => ({ artists: [], albums: [], tracks: [] }),
         ),
-        searchYouTube({ query: q }).catch(() => []),
+        searchYouTube({ query: q }).catch(() => ({ results: [], creditsPerMinute: 0 })),
       ])
       if (id !== requestId.current) return
       setResults({
         podcasts: podcastResults || [],
         music: musicResults || { artists: [], albums: [], tracks: [] },
-        youtube: youtubeResults || [],
+        youtube: youtubeResponse?.results || [],
+        creditsPerMinute: youtubeResponse?.creditsPerMinute || 0,
       })
     } catch (err) {
       if (id !== requestId.current) return
@@ -125,7 +233,7 @@ export default function ListenDiscover() {
   // Re-run search when query changes (debounced for free-typing)
   useEffect(() => {
     if (!hasQuery) {
-      setResults({ podcasts: [], music: { artists: [], albums: [], tracks: [] }, youtube: [] })
+      setResults({ podcasts: [], music: { artists: [], albums: [], tracks: [] }, youtube: [], creditsPerMinute: 0 })
       setActiveFilter('All')
       return undefined
     }
@@ -135,15 +243,102 @@ export default function ListenDiscover() {
     return () => clearTimeout(handle)
   }, [query, hasQuery, handleSubmit])
 
+  const markPending = (videoId, on) => {
+    setPendingImports((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(videoId)
+      else next.delete(videoId)
+      return next
+    })
+  }
+
+  const fireImport = useCallback(async (v, { sourceLanguage, targetLanguage }) => {
+    if (!user?.uid) return
+    markPending(v.videoId, true)
+    try {
+      await importYoutubeVideo({
+        title: v.title || 'Untitled video',
+        youtubeUrl: v.youtubeUrl,
+        uid: user.uid,
+        language: targetLanguage || 'auto',
+      })
+      setSessionImported((prev) => new Set(prev).add(v.videoId))
+    } catch (err) {
+      console.error('Import failed', err)
+      setError('Import failed. Try again.')
+    } finally {
+      markPending(v.videoId, false)
+    }
+  }, [user?.uid])
+
+  const fireDub = useCallback(async (v, { sourceLanguage, targetLanguage }) => {
+    if (!user?.uid) return
+    setDubPending(true)
+    try {
+      await dubYoutubeVideo({
+        title: v.title || 'Untitled video',
+        youtubeUrl: v.youtubeUrl,
+        uid: user.uid,
+        sourceLanguage: sourceLanguage || 'auto',
+        targetLanguage,
+      })
+      setSessionImported((prev) => new Set(prev).add(v.videoId))
+      setDubModal(null)
+    } catch (err) {
+      console.error('Dub failed', err)
+      setError('Dub failed. Try again.')
+    } finally {
+      setDubPending(false)
+    }
+  }, [user?.uid])
+
+  const handleVideoAdd = useCallback((v) => {
+    if (!user?.uid || !v?.videoId) return
+    const target = targetLangCode || 'auto'
+    const rawSrc = v.defaultAudioLanguage || v.defaultLanguage || v.detectedLanguage || ''
+    const normSrc = rawSrc ? toLanguageCode(rawSrc) : ''
+    if (!normSrc || !target || normSrc === target) {
+      fireImport(v, { sourceLanguage: 'auto', targetLanguage: target })
+    } else {
+      setDubModal({
+        video: v,
+        sourceLanguage: normSrc,
+        targetLanguage: target,
+      })
+    }
+  }, [user?.uid, targetLangCode, fireImport])
+
+  const handleChannelFollow = useCallback(async (c) => {
+    if (!user?.uid || !c?.channelId) return
+    const channelId = c.channelId
+    setPendingFollow((prev) => new Set(prev).add(channelId))
+    try {
+      if (followedChannelIds.has(channelId)) {
+        await unfollowChannel(user.uid, channelId)
+      } else {
+        await followChannel(user.uid, {
+          id: channelId,
+          title: c.title || '',
+          description: c.description || '',
+          coverUrl: c.thumbnailUrl || '',
+        })
+      }
+    } catch (err) {
+      console.error('Channel follow toggle failed', err)
+    } finally {
+      setPendingFollow((prev) => {
+        const next = new Set(prev)
+        next.delete(channelId)
+        return next
+      })
+    }
+  }, [user?.uid, followedChannelIds])
+
   // Flatten search results into one row list keyed by medium, then filter by chip
   const resultRows = useMemo(() => {
     const rows = []
     // Podcasts: split show vs episode
     ;(results.podcasts || []).forEach((p) => {
-      // The podcast search endpoint returns iTunes/Spotify-shaped raw rows.
-      // Use the same field names the legacy podcast search row uses
-      // (coverArtUrl, author, itunesCollectionId/Episode, …) so covers,
-      // subtitles, and navigation actually work.
       const cover = p.coverArtUrl || p.coverUrl || p.image || ''
       if (p.type === 'episode') {
         const episodeId = episodeIdOf(p)
@@ -213,11 +408,12 @@ export default function ListenDiscover() {
         onClick: () => ar.id && navigate(`/music/artist/${ar.id}`),
       })
     })
-    // YouTube: search-only preview rows. Import flow is intentionally not wired
-    // yet — clicking just opens the video/channel on youtube.com so users can
-    // verify they found the right one.
+    // YouTube. Row click previews on youtube.com in a new tab; the trailing
+    // action button is the actual import / follow trigger.
     ;(results.youtube || []).forEach((v) => {
       if (v.kind === 'channel') {
+        const isFollowed = followedChannelIds.has(v.channelId)
+        const isPending = pendingFollow.has(v.channelId)
         rows.push({
           id: `yt-ch-${v.channelId}`,
           medium: 'YouTube',
@@ -226,9 +422,18 @@ export default function ListenDiscover() {
           subtitle: 'Channel',
           shape: 'square',
           onClick: () => v.youtubeUrl && window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer'),
+          action: {
+            label: isPending ? '…' : (isFollowed ? 'Following' : 'Follow'),
+            active: isFollowed,
+            disabled: isPending,
+            ariaLabel: isFollowed ? `Unfollow ${v.title}` : `Follow ${v.title}`,
+            onClick: () => handleChannelFollow(v),
+          },
         })
         return
       }
+      const alreadyImported = importedVideoIds.has(v.videoId) || sessionImported.has(v.videoId)
+      const isPending = pendingImports.has(v.videoId)
       rows.push({
         id: `yt-${v.videoId}`,
         medium: 'YouTube',
@@ -237,15 +442,40 @@ export default function ListenDiscover() {
         subtitle: v.channelTitle || '',
         shape: 'wide',
         onClick: () => v.youtubeUrl && window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer'),
+        action: {
+          label: alreadyImported ? '✓ Added' : (isPending ? '…' : '+'),
+          done: alreadyImported,
+          disabled: alreadyImported || isPending,
+          ariaLabel: alreadyImported ? 'Already in your library' : 'Add to library',
+          onClick: () => handleVideoAdd(v),
+        },
       })
     })
     return rows
-  }, [results, navigate])
+  }, [
+    results,
+    navigate,
+    importedVideoIds,
+    sessionImported,
+    pendingImports,
+    followedChannelIds,
+    pendingFollow,
+    handleVideoAdd,
+    handleChannelFollow,
+  ])
 
   const visibleRows = useMemo(() => {
     if (activeFilter === 'All') return resultRows
     return resultRows.filter((r) => r.medium === activeFilter)
   }, [resultRows, activeFilter])
+
+  const dubEstimate = useMemo(() => {
+    if (!dubModal?.video) return { credits: 0, minutes: 0 }
+    const dur = Number(dubModal.video.durationSeconds) || 0
+    const minutes = Math.ceil(dur / 60)
+    const credits = minutes * (Number(results.creditsPerMinute) || 0)
+    return { credits, minutes }
+  }, [dubModal, results.creditsPerMinute])
 
   return (
     <div className="listen-discover">
@@ -313,6 +543,19 @@ export default function ListenDiscover() {
           )}
         </div>
       )}
+
+      <DubConfirmModal
+        open={!!dubModal}
+        video={dubModal?.video}
+        estimatedCredits={dubEstimate.credits}
+        durationMin={dubEstimate.minutes}
+        pending={dubPending}
+        onCancel={() => !dubPending && setDubModal(null)}
+        onConfirm={() => dubModal && fireDub(dubModal.video, {
+          sourceLanguage: dubModal.sourceLanguage,
+          targetLanguage: dubModal.targetLanguage,
+        })}
+      />
     </div>
   )
 }

@@ -747,7 +747,7 @@ const ActiveMode = ({
                             title="Change playback speed"
                           >
                             <span className="secondary-glyph">
-                              <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                              <span className="secondary-speed-icon">{formatRate(playbackRate || 1)}x</span>
                             </span>
                             <span className="secondary-label">Speed</span>
                           </button>
@@ -767,7 +767,7 @@ const ActiveMode = ({
                                     onClick={() => handlePlaybackRateChange(rate)}
                                   >
                                     <span className="speed-option-indicator" aria-hidden="true" />
-                                    <span className="speed-option-label">x{formatRate(rate)}</span>
+                                    <span className="speed-option-label">{formatRate(rate)}x</span>
                                   </button>
                                 ))}
                               </div>

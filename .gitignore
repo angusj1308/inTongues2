@@ -30,6 +30,9 @@ serviceAccountKey.json
 .env
 .env.*
 
+# Apple MusicKit signing key — never commit
+data/*.p8
+
 # Python
 __pycache__/
 *.pyc

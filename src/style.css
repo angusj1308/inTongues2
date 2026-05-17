@@ -30611,6 +30611,10 @@ body:has(.cinema-page) {
   color: var(--text-secondary, #6B6862);
 }
 
+.listen-deep-row .media-icon-button.listen-deep-remove {
+  margin-right: 1rem;
+}
+
 .listen-deep-row .media-icon-button.listen-deep-remove:hover:not(:disabled) {
   background: rgba(122, 59, 59, 0.12);
   color: #7a3b3b;

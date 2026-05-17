@@ -71,6 +71,24 @@ function ResultRow({ row }) {
   const action = row.action
   const renderAction = () => {
     if (!action) return null
+    if (action.variant === 'follow') {
+      return (
+        <button
+          type="button"
+          data-row-action
+          className={`media-follow-button small${action.active ? ' is-followed' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            action.onClick?.()
+          }}
+          disabled={action.disabled}
+          aria-pressed={!!action.active}
+          aria-label={action.ariaLabel || action.label}
+        >
+          {action.label}
+        </button>
+      )
+    }
     if (action.variant === 'icon') {
       return (
         <button
@@ -445,6 +463,7 @@ export default function ListenDiscover() {
           shape: 'square',
           onClick: () => v.channelId && navigate(`/youtube/channel/${v.channelId}`),
           action: {
+            variant: 'follow',
             label: isPending ? '…' : (isFollowed ? 'Following' : 'Follow'),
             active: isFollowed,
             disabled: isPending,

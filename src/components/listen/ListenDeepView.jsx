@@ -281,7 +281,22 @@ function buildRows({ medium, activeTab, data, navigate }) {
         onClick: () => navigate(`/cinema/${v.id}`),
       }))
     }
-    return [] // Channels — no follow data
+    if (activeTab === 'Channels') {
+      return sortByTitle((data.followedYoutubeChannels || []).map((c) => ({
+        id: c.id || c.channelId,
+        channelId: c.channelId || c.id,
+        title: c.title || 'Untitled channel',
+        coverUrl: c.coverUrl || '',
+      }))).map((c) => ({
+        id: c.id,
+        thumb: c.coverUrl,
+        title: c.title,
+        subtitle: 'Channel',
+        shape: 'square',
+        onClick: () => c.channelId && navigate(`/youtube/channel/${c.channelId}`),
+      }))
+    }
+    return []
   }
 
   return []

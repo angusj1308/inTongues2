@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { searchPodcasts, showIdOf, episodeIdOf } from '../../services/podcast'
+import {
+  searchPodcasts,
+  showIdOf,
+  episodeIdOf,
+  followShow,
+  unfollowShow,
+  saveEpisode,
+  fetchShowEpisodes,
+  dubPodcastEpisode,
+} from '../../services/podcast'
 import { searchMusic } from '../../services/music'
 import { searchYouTube, importYoutubeVideo, dubYoutubeVideo } from '../../services/youtube'
 import {
@@ -210,6 +219,27 @@ export default function ListenDiscover() {
     return set
   }, [libraryData.youtubeVideos])
 
+  const followedShowIds = useMemo(() => {
+    const set = new Set()
+    ;(libraryData.followedShows || []).forEach((s) => {
+      const id = s.showId || s.id
+      if (id) set.add(String(id))
+    })
+    return set
+  }, [libraryData.followedShows])
+
+  const savedEpisodeIds = useMemo(() => {
+    const set = new Set()
+    ;(libraryData.episodeStates || []).forEach((e) => {
+      const id = e.episodeId || e.id
+      if (id) set.add(String(id))
+    })
+    return set
+  }, [libraryData.episodeStates])
+
+  const [pendingShowFollow, setPendingShowFollow] = useState(() => new Set())
+  const [pendingEpisodeSave, setPendingEpisodeSave] = useState(() => new Set())
+
   const followedChannelIds = useMemo(() => {
     const set = new Set()
     followedChannels.forEach((c) => {
@@ -376,6 +406,114 @@ export default function ListenDiscover() {
     }
   }, [user?.uid, followedChannelIds])
 
+  const handleShowFollow = useCallback(async (p, showId) => {
+    if (!user?.uid || !showId) return
+    setPendingShowFollow((prev) => new Set(prev).add(showId))
+    try {
+      if (followedShowIds.has(showId)) {
+        await unfollowShow(user.uid, showId)
+      } else {
+        await followShow(user.uid, {
+          id: showId,
+          title: p.title || '',
+          host: p.author || '',
+          coverUrl: p.coverArtUrl || p.coverUrl || p.image || '',
+          language: p.language || '',
+          category: p.primaryGenre || p.category || '',
+        })
+      }
+    } catch (err) {
+      console.error('Show follow toggle failed', err)
+    } finally {
+      setPendingShowFollow((prev) => {
+        const next = new Set(prev)
+        next.delete(showId)
+        return next
+      })
+    }
+  }, [user?.uid, followedShowIds])
+
+  const handleEpisodeSave = useCallback(async (p, episodeId) => {
+    if (!user?.uid || !episodeId) return
+    if (savedEpisodeIds.has(episodeId)) return
+    setPendingEpisodeSave((prev) => new Set(prev).add(episodeId))
+    try {
+      const durSeconds = typeof p.duration === 'number'
+        ? p.duration
+        : (typeof p.durationMs === 'number' ? Math.round(p.durationMs / 1000) : 0)
+      const publishedAt = p.publishDate
+        ? new Date(p.publishDate * 1000).toISOString()
+        : (p.publishedAt || '')
+      const showId = p.itunesCollectionId || p.collectionId || ''
+      const baseMeta = {
+        id: episodeId,
+        title: p.title || '',
+        showName: p.showTitle || p.collectionName || p.showName || '',
+        showId,
+        coverUrl: p.coverArtUrl || p.coverUrl || p.image || '',
+        durationMs: durSeconds * 1000,
+        publishedAt,
+      }
+
+      // iTunes Search doesn't expose language. Fetch the show's RSS so we
+      // can decide silent-save vs. dub-confirm. Server caches the RSS for
+      // 1h, so subsequent clicks on the same show return ~instantly.
+      let showLang = ''
+      let rssAudioUrl = ''
+      let creditsPerMin = 0
+      if (showId) {
+        try {
+          const data = await fetchShowEpisodes(showId)
+          const match = (data.episodes || []).find(
+            (e) => String(e.id) === String(episodeId),
+          )
+            || (data.episodes || []).find((e) => e.title === p.title)
+          if (match) {
+            showLang = match.language || ''
+            rssAudioUrl = match.audioUrl || ''
+          }
+          creditsPerMin = data.creditsPerMinute || 0
+        } catch (err) {
+          console.warn('RSS lookup failed', err)
+        }
+      }
+
+      const target = targetLangCode || 'auto'
+      const normSrc = showLang ? toLanguageCode(showLang) : ''
+      if (!normSrc || !target || normSrc === target) {
+        // Same language (or unknown) → silent save with the metadata we have.
+        await saveEpisode(user.uid, baseMeta)
+      } else {
+        // Cross-language → open dub modal with credit estimate. Pre-fill
+        // audioUrl from RSS so the modal's Continue path can fire the dub.
+        setDubModal({
+          kind: 'podcast',
+          episode: {
+            id: episodeId,
+            title: p.title || '',
+            audioUrl: rssAudioUrl,
+            showName: baseMeta.showName,
+            showId,
+            coverUrl: baseMeta.coverUrl,
+            durationMs: baseMeta.durationMs,
+            publishedAt,
+          },
+          sourceLanguage: normSrc,
+          targetLanguage: target,
+          creditsPerMinute: creditsPerMin,
+        })
+      }
+    } catch (err) {
+      console.error('Episode save failed', err)
+    } finally {
+      setPendingEpisodeSave((prev) => {
+        const next = new Set(prev)
+        next.delete(episodeId)
+        return next
+      })
+    }
+  }, [user?.uid, savedEpisodeIds, targetLangCode])
+
   // Flatten search results into one row list keyed by medium, then filter by chip
   const resultRows = useMemo(() => {
     const rows = []
@@ -389,6 +527,8 @@ export default function ListenDiscover() {
         const epSeconds = typeof p.duration === 'number'
           ? p.duration
           : (typeof p.durationMs === 'number' ? Math.round(p.durationMs / 1000) : 0)
+        const alreadySaved = savedEpisodeIds.has(String(episodeId))
+        const savePending = pendingEpisodeSave.has(episodeId)
         rows.push({
           id: `pod-ep-${episodeId || Math.random()}`,
           medium: 'Podcasts',
@@ -401,6 +541,13 @@ export default function ListenDiscover() {
           // No in-app play from browse surfaces. Tapping the row navigates
           // to the show page where the user can use '+' to add the episode.
           onClick: () => episodeShowId && navigate(`/podcasts/show/${episodeShowId}`),
+          action: episodeId ? {
+            variant: 'icon',
+            done: alreadySaved,
+            disabled: alreadySaved || savePending,
+            ariaLabel: alreadySaved ? 'Already in your library' : 'Add to library',
+            onClick: () => handleEpisodeSave(p, episodeId),
+          } : undefined,
         })
       } else {
         const showId = showIdOf(p)
@@ -409,6 +556,8 @@ export default function ListenDiscover() {
         if (p.episodeCount > 0) {
           metaParts.push(p.episodeCount === 1 ? '1 episode' : `${p.episodeCount} episodes`)
         }
+        const isFollowed = followedShowIds.has(String(showId))
+        const followPending = pendingShowFollow.has(showId)
         rows.push({
           id: `pod-show-${showId || Math.random()}`,
           medium: 'Podcasts',
@@ -417,6 +566,14 @@ export default function ListenDiscover() {
           subtitle: metaParts.join(' · '),
           shape: 'square',
           onClick: () => showId && navigate(`/podcasts/show/${showId}`),
+          action: showId ? {
+            variant: 'follow',
+            label: followPending ? '…' : (isFollowed ? 'Following' : 'Follow'),
+            active: isFollowed,
+            disabled: followPending,
+            ariaLabel: isFollowed ? `Unfollow ${p.title}` : `Follow ${p.title}`,
+            onClick: () => handleShowFollow(p, showId),
+          } : undefined,
         })
       }
     })
@@ -510,8 +667,14 @@ export default function ListenDiscover() {
     pendingImports,
     followedChannelIds,
     pendingFollow,
+    followedShowIds,
+    pendingShowFollow,
+    savedEpisodeIds,
+    pendingEpisodeSave,
     handleVideoAdd,
     handleChannelFollow,
+    handleShowFollow,
+    handleEpisodeSave,
   ])
 
   const visibleRows = useMemo(() => {
@@ -520,12 +683,40 @@ export default function ListenDiscover() {
   }, [resultRows, activeFilter])
 
   const dubEstimate = useMemo(() => {
-    if (!dubModal?.video) return { credits: 0, minutes: 0 }
-    const dur = Number(dubModal.video.durationSeconds) || 0
-    const minutes = Math.ceil(dur / 60)
-    const credits = minutes * (Number(results.creditsPerMinute) || 0)
-    return { credits, minutes }
+    if (!dubModal) return { credits: 0, minutes: 0 }
+    if (dubModal.kind === 'podcast' && dubModal.episode) {
+      const ms = Number(dubModal.episode.durationMs) || 0
+      const minutes = Math.ceil(ms / 60000)
+      const credits = minutes * (Number(dubModal.creditsPerMinute) || 0)
+      return { credits, minutes }
+    }
+    if (dubModal.video) {
+      const dur = Number(dubModal.video.durationSeconds) || 0
+      const minutes = Math.ceil(dur / 60)
+      const credits = minutes * (Number(results.creditsPerMinute) || 0)
+      return { credits, minutes }
+    }
+    return { credits: 0, minutes: 0 }
   }, [dubModal, results.creditsPerMinute])
+
+  const firePodcastDub = useCallback(async () => {
+    if (!user?.uid || !dubModal?.episode || dubModal.kind !== 'podcast') return
+    setDubPending(true)
+    try {
+      await dubPodcastEpisode({
+        uid: user.uid,
+        episode: dubModal.episode,
+        sourceLanguage: dubModal.sourceLanguage,
+        targetLanguage: dubModal.targetLanguage,
+      })
+      setDubModal(null)
+    } catch (err) {
+      console.error('Podcast dub failed', err)
+      setError('Dub failed. Try again.')
+    } finally {
+      setDubPending(false)
+    }
+  }, [user?.uid, dubModal])
 
   return (
     <div className="listen-discover">
@@ -596,15 +787,22 @@ export default function ListenDiscover() {
 
       <DubConfirmModal
         open={!!dubModal}
-        video={dubModal?.video}
+        video={dubModal?.kind === 'podcast' ? dubModal.episode : dubModal?.video}
         estimatedCredits={dubEstimate.credits}
         durationMin={dubEstimate.minutes}
         pending={dubPending}
         onCancel={() => !dubPending && setDubModal(null)}
-        onConfirm={() => dubModal && fireDub(dubModal.video, {
-          sourceLanguage: dubModal.sourceLanguage,
-          targetLanguage: dubModal.targetLanguage,
-        })}
+        onConfirm={() => {
+          if (!dubModal) return
+          if (dubModal.kind === 'podcast') {
+            firePodcastDub()
+          } else {
+            fireDub(dubModal.video, {
+              sourceLanguage: dubModal.sourceLanguage,
+              targetLanguage: dubModal.targetLanguage,
+            })
+          }
+        }}
       />
     </div>
   )

@@ -5342,6 +5342,168 @@ app.get('/api/youtube/search', async (req, res) => {
   }
 })
 
+app.get('/api/youtube/channel/:channelId', async (req, res) => {
+  if (!YOUTUBE_API_KEY) return res.status(503).json({ error: 'YouTube API key not configured' })
+  const channelId = String(req.params.channelId || '').trim()
+  if (!channelId) return res.status(400).json({ error: 'channelId required' })
+  try {
+    const data = await cached(cacheKey(['youtube-channel', 'v1', channelId]), 60 * 60, async () => {
+      const apiUrl = new URL('https://www.googleapis.com/youtube/v3/channels')
+      apiUrl.searchParams.set('part', 'snippet,statistics,contentDetails,brandingSettings')
+      apiUrl.searchParams.set('id', channelId)
+      apiUrl.searchParams.set('key', YOUTUBE_API_KEY)
+      const response = await fetch(apiUrl.toString())
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        throw new Error(`channels.list failed: ${response.status} ${body.slice(0, 200)}`)
+      }
+      const payload = await response.json()
+      const item = (payload.items || [])[0]
+      if (!item) return null
+      const thumbs = item.snippet?.thumbnails || {}
+      const cover = thumbs.high?.url || thumbs.medium?.url || thumbs.default?.url || ''
+      const bannerRaw = item.brandingSettings?.image?.bannerExternalUrl || ''
+      const uploadsPlaylistId = item.contentDetails?.relatedPlaylists?.uploads || ''
+      return {
+        channelId: item.id,
+        title: item.snippet?.title || '',
+        description: item.snippet?.description || '',
+        coverUrl: cover,
+        bannerUrl: bannerRaw,
+        country: item.snippet?.country || '',
+        customUrl: item.snippet?.customUrl || '',
+        publishedAt: item.snippet?.publishedAt || '',
+        subscriberCount: Number(item.statistics?.subscriberCount) || null,
+        videoCount: Number(item.statistics?.videoCount) || null,
+        viewCount: Number(item.statistics?.viewCount) || null,
+        hiddenSubscriberCount: !!item.statistics?.hiddenSubscriberCount,
+        uploadsPlaylistId,
+        youtubeUrl: `https://www.youtube.com/channel/${item.id}`,
+      }
+    })
+    if (!data) return res.status(404).json({ error: 'Channel not found' })
+    res.json(data)
+  } catch (err) {
+    console.error('YouTube channel fetch error', err)
+    res.status(502).json({ error: 'YouTube channel lookup failed' })
+  }
+})
+
+app.get('/api/youtube/channel/:channelId/videos', async (req, res) => {
+  if (!YOUTUBE_API_KEY) return res.status(503).json({ error: 'YouTube API key not configured' })
+  const channelId = String(req.params.channelId || '').trim()
+  if (!channelId) return res.status(400).json({ error: 'channelId required' })
+  const cursor = String(req.query.cursor || '').trim()
+  const max = Math.max(1, Math.min(parseInt(req.query.max || '24', 10) || 24, 50))
+  try {
+    const data = await cached(
+      cacheKey(['youtube-channel-videos', 'v1', channelId, cursor, String(max)]),
+      60 * 60,
+      async () => {
+        // Resolve the uploads playlist id from the channels.list cache (re-uses
+        // the per-channel cache above; cost on cold path: 1 quota unit).
+        const chMeta = await cached(cacheKey(['youtube-channel', 'v1', channelId]), 60 * 60, async () => {
+          const u = new URL('https://www.googleapis.com/youtube/v3/channels')
+          u.searchParams.set('part', 'contentDetails,snippet,statistics,brandingSettings')
+          u.searchParams.set('id', channelId)
+          u.searchParams.set('key', YOUTUBE_API_KEY)
+          const r = await fetch(u.toString())
+          if (!r.ok) throw new Error(`channels.list failed: ${r.status}`)
+          const p = await r.json()
+          const it = (p.items || [])[0]
+          if (!it) return null
+          return {
+            channelId: it.id,
+            uploadsPlaylistId: it.contentDetails?.relatedPlaylists?.uploads || '',
+          }
+        })
+        const uploads = chMeta?.uploadsPlaylistId
+        if (!uploads) return { videos: [], nextCursor: null }
+
+        const pUrl = new URL('https://www.googleapis.com/youtube/v3/playlistItems')
+        pUrl.searchParams.set('part', 'snippet,contentDetails')
+        pUrl.searchParams.set('playlistId', uploads)
+        pUrl.searchParams.set('maxResults', String(max))
+        if (cursor) pUrl.searchParams.set('pageToken', cursor)
+        pUrl.searchParams.set('key', YOUTUBE_API_KEY)
+        const pRes = await fetch(pUrl.toString())
+        if (!pRes.ok) {
+          const body = await pRes.text().catch(() => '')
+          throw new Error(`playlistItems.list failed: ${pRes.status} ${body.slice(0, 200)}`)
+        }
+        const pPayload = await pRes.json()
+        const items = pPayload.items || []
+        const videoIds = items
+          .map((it) => it.contentDetails?.videoId || null)
+          .filter(Boolean)
+
+        // Batch videos.list to get durations + language fields (snippet on
+        // playlistItems doesn't include them).
+        const videoDetails = new Map()
+        if (videoIds.length > 0) {
+          const vUrl = new URL('https://www.googleapis.com/youtube/v3/videos')
+          vUrl.searchParams.set('part', 'snippet,contentDetails')
+          vUrl.searchParams.set('id', videoIds.join(','))
+          vUrl.searchParams.set('key', YOUTUBE_API_KEY)
+          try {
+            const vRes = await fetch(vUrl.toString())
+            if (vRes.ok) {
+              const vData = await vRes.json()
+              ;(vData.items || []).forEach((v) => {
+                if (!v.id) return
+                videoDetails.set(v.id, {
+                  defaultAudioLanguage: v.snippet?.defaultAudioLanguage || '',
+                  defaultLanguage: v.snippet?.defaultLanguage || '',
+                  durationSeconds: parseIsoDurationToSeconds(v.contentDetails?.duration) || null,
+                })
+              })
+            }
+          } catch (err) {
+            console.warn('videos.list metadata lookup failed (channel videos)', err)
+          }
+        }
+
+        const videos = items.map((it) => {
+          const videoId = it.contentDetails?.videoId || ''
+          const snip = it.snippet || {}
+          const thumbs = snip.thumbnails || {}
+          const thumb = thumbs.medium?.url || thumbs.high?.url || thumbs.default?.url || ''
+          const meta = videoDetails.get(videoId) || {}
+          const title = snip.title || ''
+          const description = snip.description || ''
+          const detectedLanguage = (!meta.defaultAudioLanguage && !meta.defaultLanguage)
+            ? detectLanguageFromText(`${title} ${description}`)
+            : ''
+          return {
+            videoId,
+            title,
+            description,
+            channelId,
+            channelTitle: snip.channelTitle || snip.videoOwnerChannelTitle || '',
+            publishedAt: it.contentDetails?.videoPublishedAt || snip.publishedAt || '',
+            thumbnailUrl: thumb || (videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : ''),
+            youtubeUrl: videoId ? `https://www.youtube.com/watch?v=${videoId}` : '',
+            defaultAudioLanguage: meta.defaultAudioLanguage || '',
+            defaultLanguage: meta.defaultLanguage || '',
+            detectedLanguage,
+            durationSeconds: meta.durationSeconds || null,
+          }
+        }).filter((v) => v.videoId)
+
+        return {
+          videos,
+          nextCursor: pPayload.nextPageToken || null,
+          creditsPerMinute: ELEVENLABS_CREDITS_PER_MINUTE,
+        }
+      },
+    )
+    res.json(data)
+  } catch (err) {
+    console.error('YouTube channel videos error', err)
+    res.status(502).json({ error: 'YouTube channel videos lookup failed' })
+  }
+})
+
 app.post('/api/youtube/import', async (req, res) => {
   const { title, youtubeUrl, uid, language } = req.body || {}
   const trimmedTitle = (title || '').trim()

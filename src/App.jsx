@@ -18,6 +18,7 @@ import IntonguesCinema from './pages/IntonguesCinema'
 import SpotifyCollectionPage from './pages/SpotifyCollectionPage'
 import { PodcastsLibraryPage, PodcastsDiscoverPage } from './pages/Podcasts'
 import PodcastShowPage from './pages/PodcastShow'
+import YoutubeChannelPage from './pages/YoutubeChannelPage'
 import PodcastEpisodePage from './pages/PodcastEpisode'
 import PodcastSearchResultsPage from './pages/PodcastSearchResults'
 import PodcastCategoryResultsPage from './pages/PodcastCategoryResults'
@@ -266,6 +267,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <PodcastShowPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/youtube/channel/:id"
+        element={
+          <ProtectedRoute>
+            <YoutubeChannelPage />
           </ProtectedRoute>
         }
       />

@@ -30597,6 +30597,7 @@ body:has(.cinema-page) {
   gap: 0.5rem;
   align-items: center;
   flex-shrink: 0;
+  margin-right: 1rem;
 }
 
 @media (max-width: 720px) {

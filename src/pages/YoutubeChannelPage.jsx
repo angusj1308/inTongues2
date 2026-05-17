@@ -82,6 +82,11 @@ const YoutubeChannelPage = () => {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState('')
+
+  const [sort, setSort] = useState('newest') // 'newest' | 'oldest'
+  const [lengthFilter, setLengthFilter] = useState('all') // 'all' | 'long' | 'short'
+  const [filterOpen, setFilterOpen] = useState(false)
 
   const [followedChannels, setFollowedChannels] = useState([])
   const [pendingFollow, setPendingFollow] = useState(false)
@@ -113,32 +118,40 @@ const YoutubeChannelPage = () => {
     let cancelled = false
     setLoading(true)
     setNotFound(false)
+    setLoadError('')
     setChannel(null)
     setVideos([])
     setNextCursor(null)
     ;(async () => {
+      let channelData = null
+      let channelErr = null
       try {
-        const [channelData, videosData] = await Promise.all([
-          fetchYoutubeChannel(id).catch(() => null),
-          fetchYoutubeChannelVideos(id, {}).catch(() => ({ videos: [], nextCursor: null, creditsPerMinute: 0 })),
-        ])
-        if (cancelled) return
-        if (!channelData) {
-          setNotFound(true)
-          setLoading(false)
-          return
-        }
-        setChannel(channelData)
-        setVideos(videosData.videos || [])
-        setNextCursor(videosData.nextCursor || null)
-        setCreditsPerMinute(videosData.creditsPerMinute || 0)
-        setLoading(false)
+        channelData = await fetchYoutubeChannel(id)
       } catch (err) {
-        if (cancelled) return
-        console.error('Channel load failed', err)
-        setNotFound(true)
-        setLoading(false)
+        channelErr = err
+        console.error('fetchYoutubeChannel failed', err)
       }
+      let videosData = { videos: [], nextCursor: null, creditsPerMinute: 0 }
+      try {
+        videosData = await fetchYoutubeChannelVideos(id, {})
+      } catch (err) {
+        console.error('fetchYoutubeChannelVideos failed', err)
+      }
+      if (cancelled) return
+      if (!channelData) {
+        if (channelErr) {
+          setLoadError(`Couldn't load channel: ${channelErr.message || 'network error'}`)
+        } else {
+          setNotFound(true)
+        }
+        setLoading(false)
+        return
+      }
+      setChannel(channelData)
+      setVideos(videosData.videos || [])
+      setNextCursor(videosData.nextCursor || null)
+      setCreditsPerMinute(videosData.creditsPerMinute || 0)
+      setLoading(false)
     })()
     return () => {
       cancelled = true
@@ -264,6 +277,35 @@ const YoutubeChannelPage = () => {
     }
   }, [user?.uid, targetLangCode, fireImport])
 
+  const visibleVideos = useMemo(() => {
+    const LONG_MIN_SECONDS = 20 * 60
+    const filtered = videos.filter((v) => {
+      const d = Number(v.durationSeconds) || 0
+      if (lengthFilter === 'long') return d >= LONG_MIN_SECONDS
+      if (lengthFilter === 'short') return d > 0 && d < LONG_MIN_SECONDS
+      return true
+    })
+    if (sort === 'oldest') return [...filtered].reverse()
+    return filtered
+  }, [videos, sort, lengthFilter])
+
+  const filterActive = sort !== 'newest' || lengthFilter !== 'all'
+
+  useEffect(() => {
+    if (!filterOpen) return undefined
+    const onDocClick = (e) => {
+      if (e.target.closest('[data-filter-root]')) return
+      setFilterOpen(false)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setFilterOpen(false) }
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [filterOpen])
+
   const dubEstimate = useMemo(() => {
     if (!dubModal?.video) return { credits: 0, minutes: 0 }
     const dur = Number(dubModal.video.durationSeconds) || 0
@@ -289,6 +331,8 @@ const YoutubeChannelPage = () => {
 
             {loading ? (
               <p className="media-placeholder">Loading…</p>
+            ) : loadError ? (
+              <p className="media-placeholder">{loadError}</p>
             ) : notFound || !channel ? (
               <p className="media-placeholder">Channel not found.</p>
             ) : (
@@ -343,17 +387,86 @@ const YoutubeChannelPage = () => {
                 <section className="media-section">
                   <div className="media-section-row">
                     <h2 className="media-section-header">Videos</h2>
+                    <div className="yt-filter-root" data-filter-root>
+                      <button
+                        type="button"
+                        className={`yt-filter-trigger${filterActive ? ' is-active' : ''}`}
+                        aria-haspopup="true"
+                        aria-expanded={filterOpen}
+                        aria-label="Sort and filter videos"
+                        onClick={() => setFilterOpen((o) => !o)}
+                      >
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+                          <line x1="4" y1="6" x2="20" y2="6" />
+                          <line x1="7" y1="12" x2="17" y2="12" />
+                          <line x1="10" y1="18" x2="14" y2="18" />
+                        </svg>
+                        {filterActive && <span className="yt-filter-dot" aria-hidden="true" />}
+                      </button>
+                      {filterOpen && (
+                        <div className="yt-filter-pop" role="menu">
+                          <div className="yt-filter-group">
+                            <p className="yt-filter-label">Sort</p>
+                            {[
+                              { v: 'newest', l: 'Newest first' },
+                              { v: 'oldest', l: 'Oldest first' },
+                            ].map((opt) => (
+                              <label key={opt.v} className="yt-filter-opt">
+                                <input
+                                  type="radio"
+                                  name="yt-sort"
+                                  checked={sort === opt.v}
+                                  onChange={() => setSort(opt.v)}
+                                />
+                                <span>{opt.l}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <div className="yt-filter-group">
+                            <p className="yt-filter-label">Length</p>
+                            {[
+                              { v: 'all', l: 'All' },
+                              { v: 'long', l: '20min and over' },
+                              { v: 'short', l: 'Under 20min' },
+                            ].map((opt) => (
+                              <label key={opt.v} className="yt-filter-opt">
+                                <input
+                                  type="radio"
+                                  name="yt-length"
+                                  checked={lengthFilter === opt.v}
+                                  onChange={() => setLengthFilter(opt.v)}
+                                />
+                                <span>{opt.l}</span>
+                              </label>
+                            ))}
+                          </div>
+                          {filterActive && (
+                            <button
+                              type="button"
+                              className="yt-filter-reset"
+                              onClick={() => { setSort('newest'); setLengthFilter('all') }}
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {actionError && (
                     <p className="media-empty-line" style={{ color: '#a45252' }}>{actionError}</p>
                   )}
 
-                  {videos.length === 0 ? (
-                    <p className="media-empty-line">No videos available.</p>
+                  {visibleVideos.length === 0 ? (
+                    <p className="media-empty-line">
+                      {videos.length === 0
+                        ? 'No videos available.'
+                        : 'No videos match the current filters.'}
+                    </p>
                   ) : (
                     <div className="yt-channel-video-list">
-                      {videos.map((v) => {
+                      {visibleVideos.map((v) => {
                         const docId = importedByVideoId.get(v.videoId)
                         const alreadyImported = !!docId || sessionImported.has(v.videoId)
                         const isPending = pendingImports.has(v.videoId)

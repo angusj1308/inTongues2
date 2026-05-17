@@ -41,7 +41,12 @@ export const fetchYoutubeChannel = async (channelId) => {
   if (!channelId) return null
   const res = await fetch(`${API_BASE}/api/youtube/channel/${encodeURIComponent(channelId)}`)
   if (res.status === 404) return null
-  if (!res.ok) throw new Error(`Channel fetch failed (${res.status})`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    const err = new Error(`Channel fetch failed (${res.status}) ${body.slice(0, 200)}`)
+    err.status = res.status
+    throw err
+  }
   return res.json()
 }
 

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { playPodcastEpisode } from '../../services/podcast'
+import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 import useListenLibraryData from './useListenLibraryData'
 
 const TITLES = {
@@ -270,7 +271,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
         id: v.id,
         title: v.title || 'Untitled video',
         channelTitle: v.channelTitle || '',
-        coverUrl: v.coverUrl || v.thumbnailUrl || '',
+        coverUrl: v.coverUrl || v.thumbnailUrl || getYouTubeThumbnailFromVideo(v),
       }))).map((v) => ({
         id: v.id,
         thumb: v.coverUrl,

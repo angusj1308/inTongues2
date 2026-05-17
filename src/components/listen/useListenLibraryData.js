@@ -10,6 +10,7 @@ import {
   subscribeSavedAlbums,
   subscribeSavedTracks,
 } from '../../services/music'
+import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 
 // Reads every Listen library source the existing front-end already uses, in
 // one hook so callers don't have to repeat the Firestore wiring.
@@ -174,7 +175,7 @@ export function toContinueCandidate(medium, item) {
         id: item.id,
         title: item.title || 'Untitled video',
         creator: item.channelTitle || '',
-        coverUrl: item.coverUrl || item.thumbnailUrl || '',
+        coverUrl: item.coverUrl || item.thumbnailUrl || getYouTubeThumbnailFromVideo(item),
         progress,
         lastPlayedAt: ts,
         playHref: `/cinema/${item.id}`,

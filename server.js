@@ -5165,6 +5165,61 @@ async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode =
   }
 }
 
+app.get('/api/youtube/search', async (req, res) => {
+  const queryTerm = String(req.query.q || '').trim()
+  if (!queryTerm) return res.json({ results: [] })
+
+  if (!YOUTUBE_API_KEY) {
+    return res.status(503).json({ error: 'YOUTUBE_API_KEY is not configured', results: [] })
+  }
+
+  const max = Math.max(1, Math.min(25, parseInt(req.query.max, 10) || 12))
+  const language = String(req.query.lang || '').trim()
+  const cacheTag = cacheKey(['youtube-search', queryTerm.toLowerCase(), language, String(max)])
+
+  try {
+    const data = await cached(cacheTag, 60 * 60, async () => {
+      const apiUrl = new URL('https://www.googleapis.com/youtube/v3/search')
+      apiUrl.searchParams.set('part', 'snippet')
+      apiUrl.searchParams.set('type', 'video')
+      apiUrl.searchParams.set('maxResults', String(max))
+      apiUrl.searchParams.set('q', queryTerm)
+      if (language) apiUrl.searchParams.set('relevanceLanguage', language)
+      apiUrl.searchParams.set('key', YOUTUBE_API_KEY)
+
+      const response = await fetch(apiUrl.toString())
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        throw new Error(`YouTube search failed: ${response.status} ${body.slice(0, 200)}`)
+      }
+      const payload = await response.json()
+      const results = (payload.items || [])
+        .filter((item) => item?.id?.videoId)
+        .map((item) => {
+          const videoId = item.id.videoId
+          const snippet = item.snippet || {}
+          const thumbs = snippet.thumbnails || {}
+          const thumb = thumbs.medium || thumbs.high || thumbs.default || {}
+          return {
+            videoId,
+            title: snippet.title || '',
+            channelTitle: snippet.channelTitle || '',
+            channelId: snippet.channelId || '',
+            description: snippet.description || '',
+            publishedAt: snippet.publishedAt || '',
+            thumbnailUrl: thumb.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+            youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          }
+        })
+      return { results }
+    })
+    res.json(data)
+  } catch (err) {
+    console.error('YouTube search error', err)
+    res.status(502).json({ error: 'YouTube search failed', results: [] })
+  }
+})
+
 app.post('/api/youtube/import', async (req, res) => {
   const { title, youtubeUrl, uid, language } = req.body || {}
   const trimmedTitle = (title || '').trim()

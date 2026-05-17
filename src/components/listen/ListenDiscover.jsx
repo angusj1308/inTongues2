@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { searchPodcasts, showIdOf, episodeIdOf } from '../../services/podcast'
 import { searchMusic } from '../../services/music'
+import { searchYouTube } from '../../services/youtube'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 
 const RAILS = [
@@ -77,7 +78,7 @@ export default function ListenDiscover() {
   const { profile, user } = useAuth()
   const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
-  const [results, setResults] = useState({ podcasts: [], music: { artists: [], albums: [], tracks: [] } })
+  const [results, setResults] = useState({ podcasts: [], music: { artists: [], albums: [], tracks: [] }, youtube: [] })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const requestId = useRef(0)
@@ -93,21 +94,26 @@ export default function ListenDiscover() {
     e?.preventDefault?.()
     const q = query.trim()
     if (!q) {
-      setResults({ podcasts: [], music: { artists: [], albums: [], tracks: [] } })
+      setResults({ podcasts: [], music: { artists: [], albums: [], tracks: [] }, youtube: [] })
       return
     }
     const id = ++requestId.current
     setLoading(true)
     setError('')
     try {
-      const [podcastResults, musicResults] = await Promise.all([
+      const [podcastResults, musicResults, youtubeResults] = await Promise.all([
         searchPodcasts({ query: q, language: activeLanguage || undefined }).catch(() => []),
         searchMusic({ query: q, language: activeLanguage || undefined, uid: user?.uid }).catch(
           () => ({ artists: [], albums: [], tracks: [] }),
         ),
+        searchYouTube({ query: q }).catch(() => []),
       ])
       if (id !== requestId.current) return
-      setResults({ podcasts: podcastResults || [], music: musicResults || { artists: [], albums: [], tracks: [] } })
+      setResults({
+        podcasts: podcastResults || [],
+        music: musicResults || { artists: [], albums: [], tracks: [] },
+        youtube: youtubeResults || [],
+      })
     } catch (err) {
       if (id !== requestId.current) return
       setError('Search failed. Try again.')
@@ -119,7 +125,7 @@ export default function ListenDiscover() {
   // Re-run search when query changes (debounced for free-typing)
   useEffect(() => {
     if (!hasQuery) {
-      setResults({ podcasts: [], music: { artists: [], albums: [], tracks: [] } })
+      setResults({ podcasts: [], music: { artists: [], albums: [], tracks: [] }, youtube: [] })
       setActiveFilter('All')
       return undefined
     }
@@ -205,6 +211,20 @@ export default function ListenDiscover() {
         subtitle: '',
         shape: 'square',
         onClick: () => ar.id && navigate(`/music/artist/${ar.id}`),
+      })
+    })
+    // YouTube: search-only preview rows. Import flow is intentionally not wired
+    // yet — clicking just opens the video on youtube.com so users can verify
+    // they found the right one.
+    ;(results.youtube || []).forEach((v) => {
+      rows.push({
+        id: `yt-${v.videoId}`,
+        medium: 'YouTube',
+        coverUrl: v.thumbnailUrl || '',
+        title: v.title || 'Untitled video',
+        subtitle: v.channelTitle || '',
+        shape: 'wide',
+        onClick: () => v.youtubeUrl && window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer'),
       })
     })
     return rows

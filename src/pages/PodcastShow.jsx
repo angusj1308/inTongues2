@@ -308,6 +308,13 @@ const PodcastShowPage = () => {
                   <div className="media-episode-detail-list">
                     {episodes.map((ep) => {
                       const state = stateById.get(ep.id)
+                      const epLang = toLanguageCode(ep.language || show?.language || '')
+                      const langMatch = !targetLangCode || !epLang || epLang === targetLangCode
+                      // Foreign-language episodes are only playable once a dub
+                      // is ready. Same-language episodes are always playable.
+                      const playable = langMatch
+                        ? true
+                        : (state ? (state.isDubbed ? state.dubStatus === 'ready' : true) : false)
                       return (
                         <div key={ep.id} className="media-episode-detail-wrapper">
                           <EpisodeRow
@@ -319,6 +326,7 @@ const PodcastShowPage = () => {
                             variant="detail"
                             descriptionLang={show.language || ep.language || ''}
                             isSaved={stateById.has(ep.id)}
+                            playable={playable}
                             onSaveToLibrary={handleSaveToLibrary}
                             onPlay={(target) =>
                               navigate(

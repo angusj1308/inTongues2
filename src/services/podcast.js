@@ -173,27 +173,36 @@ export const createPlaylist = async (uid, { name, description }) => {
 // Episode progress: stored at users/{uid}/podcastEpisodeStates/{episodeId}.
 // `subscribeEpisodeStates` already reads this for Continue Listening, so the
 // Library tile updates automatically once the player writes here.
+//
+// Uses updateDoc, NOT setDoc — playback should never implicitly add an
+// episode to the library. The episode has to have been '+ added' first (which
+// creates the doc via saveEpisode or /api/podcasts/dub). Silent no-op when
+// the doc doesn't exist.
 export const saveEpisodeProgress = async (
   uid,
   episodeId,
   { progressMs = 0, durationMs = 0, coverUrl = '', title = '', showName = '', showId = '', played = false } = {},
 ) => {
   if (!uid || !episodeId) return
-  await setDoc(
-    doc(episodeStatesCol(uid), episodeId),
-    {
-      episodeId,
-      progressMs: Math.max(0, Math.round(progressMs)),
-      durationMs: Math.max(0, Math.round(durationMs)),
-      lastPlayedAt: serverTimestamp(),
-      played: !!played,
-      coverUrl,
-      title,
-      showName,
-      showId,
-    },
-    { merge: true },
-  )
+  try {
+    await updateDoc(
+      doc(episodeStatesCol(uid), episodeId),
+      {
+        progressMs: Math.max(0, Math.round(progressMs)),
+        durationMs: Math.max(0, Math.round(durationMs)),
+        lastPlayedAt: serverTimestamp(),
+        played: !!played,
+        ...(coverUrl ? { coverUrl } : {}),
+        ...(title ? { title } : {}),
+        ...(showName ? { showName } : {}),
+        ...(showId ? { showId } : {}),
+      },
+    )
+  } catch (err) {
+    // 'not-found' = episode hasn't been '+ added'. Silent no-op so playback
+    // (which still works via the show page → state.episode) doesn't fail.
+    if (err?.code !== 'not-found') console.warn('saveEpisodeProgress', err)
+  }
 }
 
 export const markEpisodePlayed = async (uid, episodeId, durationMs = 0, meta = {}) => {

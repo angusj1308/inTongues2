@@ -30588,6 +30588,39 @@ body:has(.cinema-page) {
   }
 }
 
+.listen-deep-remove {
+  flex-shrink: 0;
+  margin-left: 0.75rem;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--text-secondary, #6B6862);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.listen-deep-row:hover .listen-deep-remove,
+.listen-deep-row:focus-within .listen-deep-remove,
+.listen-deep-remove:focus {
+  opacity: 1;
+}
+
+.listen-deep-remove:hover {
+  background: rgba(122, 59, 59, 0.12);
+  color: #7a3b3b;
+}
+
+[data-theme='dark'] .listen-deep-remove:hover {
+  background: rgba(220, 120, 120, 0.18);
+  color: #e0a8a8;
+}
+
 .listen-deep-empty {
   margin: 2rem 0;
   text-align: center;

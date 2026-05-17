@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { playPodcastEpisode } from '../../services/podcast'
+import { playPodcastEpisode, unsaveEpisode, unfollowShow } from '../../services/podcast'
+import { deleteYoutubeVideo } from '../../services/youtube'
+import { unfollowChannel } from '../../services/youtubeChannels'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 import useListenLibraryData from './useListenLibraryData'
 
@@ -38,9 +40,13 @@ const formatDuration = (ms) => {
   return `${hr}:${remMin.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`
 }
 
-function Row({ thumb, title, subtitle, trailing, shape = 'square', onClick }) {
+function Row({ thumb, title, subtitle, trailing, shape = 'square', onClick, onRemove }) {
+  const handleRowClick = (e) => {
+    if (e.target.closest('[data-row-remove]')) return
+    onClick?.()
+  }
   return (
-    <button type="button" className="listen-deep-row" onClick={onClick}>
+    <div className="listen-deep-row" onClick={handleRowClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : -1}>
       <div className={`listen-deep-thumb listen-deep-thumb--${shape}`}>
         {thumb ? <img src={thumb} alt="" /> : <span className="listen-deep-thumb-fallback">{title?.[0] || '·'}</span>}
       </div>
@@ -49,7 +55,24 @@ function Row({ thumb, title, subtitle, trailing, shape = 'square', onClick }) {
         {subtitle && <p className="listen-deep-sub">{subtitle}</p>}
       </div>
       {trailing && <span className="listen-deep-trailing">{trailing}</span>}
-    </button>
+      {onRemove && (
+        <button
+          type="button"
+          data-row-remove
+          className="listen-deep-remove"
+          aria-label={`Remove ${title || 'item'} from library`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove()
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -66,7 +89,10 @@ export default function ListenDeepView({ medium }) {
   const title = TITLES[medium]
   const tabs = TABS[medium] || []
 
-  const rows = useMemo(() => buildRows({ medium, activeTab, data, navigate }), [medium, activeTab, data, navigate])
+  const rows = useMemo(
+    () => buildRows({ medium, activeTab, data, navigate, uid: user?.uid }),
+    [medium, activeTab, data, navigate, user?.uid],
+  )
 
   if (!title) return null
 
@@ -98,7 +124,7 @@ export default function ListenDeepView({ medium }) {
   )
 }
 
-function buildRows({ medium, activeTab, data, navigate }) {
+function buildRows({ medium, activeTab, data, navigate, uid }) {
   if (medium === 'audiobooks') {
     const books = data.audiobooks.map((b) => ({
       id: b.id,
@@ -198,6 +224,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
             },
             navigate,
           ),
+          onRemove: uid ? () => unsaveEpisode(uid, e.episodeId).catch((err) => console.warn('unsaveEpisode', err)) : undefined,
         }
       })
     }
@@ -215,6 +242,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
         subtitle: s.host,
         shape: 'square',
         onClick: () => navigate(`/podcasts/show/${s.showId}`),
+        onRemove: uid ? () => unfollowShow(uid, s.showId).catch((err) => console.warn('unfollowShow', err)) : undefined,
       }))
     }
     return []
@@ -286,6 +314,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
         subtitle: v.channelTitle,
         shape: 'wide',
         onClick: () => navigate(`/cinema/${v.id}`),
+        onRemove: uid ? () => deleteYoutubeVideo(uid, v.id).catch((err) => console.warn('deleteYoutubeVideo', err)) : undefined,
       }))
     }
     if (activeTab === 'Channels') {
@@ -301,6 +330,7 @@ function buildRows({ medium, activeTab, data, navigate }) {
         subtitle: 'Channel',
         shape: 'square',
         onClick: () => c.channelId && navigate(`/youtube/channel/${c.channelId}`),
+        onRemove: uid ? () => unfollowChannel(uid, c.channelId).catch((err) => console.warn('unfollowChannel', err)) : undefined,
       }))
     }
     return []

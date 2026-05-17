@@ -481,11 +481,8 @@ const YoutubeChannelPage = () => {
                             <button
                               type="button"
                               className="yt-channel-video-thumb"
-                              onClick={() => {
-                                if (docId) navigate(`/cinema/${docId}`)
-                                else if (v.youtubeUrl) window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer')
-                              }}
-                              aria-label={`Open ${decodeHtmlEntities(v.title)}`}
+                              onClick={() => v.youtubeUrl && window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer')}
+                              aria-label={`Preview ${decodeHtmlEntities(v.title)} on YouTube`}
                             >
                               {v.thumbnailUrl ? (
                                 <img src={v.thumbnailUrl} alt="" loading="lazy" />
@@ -502,15 +499,6 @@ const YoutubeChannelPage = () => {
                               </p>
                             </div>
                             <div className="yt-channel-video-actions">
-                              {docId ? (
-                                <button
-                                  type="button"
-                                  className="media-follow-button small"
-                                  onClick={() => navigate(`/cinema/${docId}`)}
-                                >
-                                  Play
-                                </button>
-                              ) : null}
                               <button
                                 type="button"
                                 className={`media-icon-button${alreadyImported ? ' is-saved' : ''}`}

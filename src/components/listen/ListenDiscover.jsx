@@ -383,6 +383,9 @@ export default function ListenDiscover() {
       if (p.type === 'episode') {
         const episodeId = episodeIdOf(p)
         const showName = p.showTitle || p.collectionName || p.showName || ''
+        const epSeconds = typeof p.duration === 'number'
+          ? p.duration
+          : (typeof p.durationMs === 'number' ? Math.round(p.durationMs / 1000) : 0)
         rows.push({
           id: `pod-ep-${episodeId || Math.random()}`,
           medium: 'Podcasts',
@@ -390,9 +393,8 @@ export default function ListenDiscover() {
           title: p.title || 'Untitled episode',
           subtitle: showName,
           shape: 'square',
-          trailing: formatDuration(
-            typeof p.duration === 'number' ? p.duration * 1000 : p.durationMs,
-          ),
+          trailing: formatVideoDuration(epSeconds),
+          trailingNatural: true,
           onClick: () => episodeId && navigate(`/listen/${episodeId}?source=podcast`),
         })
       } else {

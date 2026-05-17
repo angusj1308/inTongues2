@@ -214,9 +214,21 @@ export default function ListenDiscover() {
       })
     })
     // YouTube: search-only preview rows. Import flow is intentionally not wired
-    // yet — clicking just opens the video on youtube.com so users can verify
-    // they found the right one.
+    // yet — clicking just opens the video/channel on youtube.com so users can
+    // verify they found the right one.
     ;(results.youtube || []).forEach((v) => {
+      if (v.kind === 'channel') {
+        rows.push({
+          id: `yt-ch-${v.channelId}`,
+          medium: 'YouTube',
+          coverUrl: v.thumbnailUrl || '',
+          title: v.title || 'Unknown channel',
+          subtitle: 'Channel',
+          shape: 'square',
+          onClick: () => v.youtubeUrl && window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer'),
+        })
+        return
+      }
       rows.push({
         id: `yt-${v.videoId}`,
         medium: 'YouTube',

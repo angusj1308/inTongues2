@@ -1,4 +1,12 @@
+import { deleteDoc, doc } from 'firebase/firestore'
+import db from '../firebase'
+
 const API_BASE = 'http://localhost:4000'
+
+export const deleteYoutubeVideo = async (uid, docId) => {
+  if (!uid || !docId) return
+  await deleteDoc(doc(db, 'users', uid, 'youtubeVideos', docId))
+}
 
 export const searchYouTube = async ({ query, language, max } = {}) => {
   if (!query?.trim()) return { results: [], creditsPerMinute: 0 }

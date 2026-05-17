@@ -383,6 +383,7 @@ export default function ListenDiscover() {
       if (p.type === 'episode') {
         const episodeId = episodeIdOf(p)
         const showName = p.showTitle || p.collectionName || p.showName || ''
+        const episodeShowId = p.itunesCollectionId || p.collectionId || p.showId || ''
         const epSeconds = typeof p.duration === 'number'
           ? p.duration
           : (typeof p.durationMs === 'number' ? Math.round(p.durationMs / 1000) : 0)
@@ -395,7 +396,9 @@ export default function ListenDiscover() {
           shape: 'square',
           trailing: formatVideoDuration(epSeconds),
           trailingNatural: true,
-          onClick: () => episodeId && navigate(`/listen/${episodeId}?source=podcast`),
+          // No in-app play from browse surfaces. Tapping the row navigates
+          // to the show page where the user can use '+' to add the episode.
+          onClick: () => episodeShowId && navigate(`/podcasts/show/${episodeShowId}`),
         })
       } else {
         const showId = showIdOf(p)

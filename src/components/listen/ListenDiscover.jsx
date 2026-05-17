@@ -48,6 +48,18 @@ const formatDuration = (ms) => {
 // Long-form / video friendly: "2h 9min", "47min", "<1min". H:MM is too
 // easy to misread as MM:SS when a 2-hour podcast lands beside a 2-minute
 // clip in the same list.
+const formatPublishedDate = (raw) => {
+  if (!raw) return ''
+  let d
+  if (typeof raw === 'number') {
+    d = new Date(raw < 1e12 ? raw * 1000 : raw)
+  } else {
+    d = new Date(raw)
+  }
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 const formatVideoDuration = (seconds) => {
   const total = Number(seconds) || 0
   if (total <= 0) return ''
@@ -132,6 +144,9 @@ function ResultRow({ row }) {
       </button>
     )
   }
+  const eyebrowParts = Array.isArray(row.eyebrow)
+    ? row.eyebrow.filter(Boolean)
+    : (row.eyebrow ? [row.eyebrow] : [])
   return (
     <div className="listen-deep-row" onClick={handlePreview} role="button" tabIndex={0}>
       <div className={`listen-deep-thumb listen-deep-thumb--${row.shape || 'square'}`}>
@@ -142,6 +157,11 @@ function ResultRow({ row }) {
         )}
       </div>
       <div className="listen-deep-meta">
+        {eyebrowParts.length > 0 && (
+          <div className="listen-deep-eyebrow">
+            {eyebrowParts.map((part, i) => <span key={i}>{part}</span>)}
+          </div>
+        )}
         <p className="listen-deep-title">{row.title}</p>
         {row.subtitle && <p className="listen-deep-sub">{row.subtitle}</p>}
       </div>
@@ -529,6 +549,7 @@ export default function ListenDiscover() {
           : (typeof p.durationMs === 'number' ? Math.round(p.durationMs / 1000) : 0)
         const alreadySaved = savedEpisodeIds.has(String(episodeId))
         const savePending = pendingEpisodeSave.has(episodeId)
+        const epDateRaw = p.publishDate || p.publishedAt || p.releaseDate || ''
         rows.push({
           id: `pod-ep-${episodeId || Math.random()}`,
           medium: 'Podcasts',
@@ -536,8 +557,7 @@ export default function ListenDiscover() {
           title: p.title || 'Untitled episode',
           subtitle: showName,
           shape: 'square',
-          trailing: formatVideoDuration(epSeconds),
-          trailingNatural: true,
+          eyebrow: [formatPublishedDate(epDateRaw), formatVideoDuration(epSeconds)],
           // No in-app play from browse surfaces. Tapping the row navigates
           // to the show page where the user can use '+' to add the episode.
           onClick: () => episodeShowId && navigate(`/podcasts/show/${episodeShowId}`),
@@ -646,8 +666,7 @@ export default function ListenDiscover() {
         title: v.title || 'Untitled video',
         subtitle: v.channelTitle || '',
         shape: 'wide',
-        trailing: formatVideoDuration(v.durationSeconds),
-        trailingNatural: true,
+        eyebrow: [formatPublishedDate(v.publishedAt), formatVideoDuration(v.durationSeconds)],
         onClick: () => v.youtubeUrl && window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer'),
         action: {
           variant: 'icon',

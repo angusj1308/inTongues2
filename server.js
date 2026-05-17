@@ -5175,7 +5175,7 @@ app.get('/api/youtube/search', async (req, res) => {
 
   const max = Math.max(1, Math.min(50, parseInt(req.query.max, 10) || 25))
   const language = String(req.query.lang || '').trim()
-  const cacheTag = cacheKey(['youtube-search', queryTerm.toLowerCase(), language, String(max)])
+  const cacheTag = cacheKey(['youtube-search', 'v2', queryTerm.toLowerCase(), language, String(max)])
 
   try {
     const data = await cached(cacheTag, 60 * 60, async () => {

@@ -8029,9 +8029,14 @@ pre {
     );
 }
 
-[data-theme='dark'] .listening-lab-page .extensive-shell .audible-progress::-webkit-slider-thumb,
+[data-theme='dark'] .listening-lab-page .extensive-shell .audible-progress::-webkit-slider-thumb {
+  background-color: #e8e0d4 !important;
+  background-image: none !important;
+}
+
 [data-theme='dark'] .listening-lab-page .extensive-shell .audible-progress::-moz-range-thumb {
-  background: #e8e0d4;
+  background-color: #e8e0d4 !important;
+  background-image: none !important;
 }
 
 /* Transport buttons (prev / ±5s / play / ±5s / next) */

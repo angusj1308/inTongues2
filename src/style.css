@@ -30116,6 +30116,164 @@ body:has(.cinema-page) {
   color: var(--text-secondary, #6B6862);
 }
 
+.listen-deep-action {
+  flex-shrink: 0;
+  margin-left: 1rem;
+  min-width: 88px;
+  padding: 0.55rem 1rem;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-primary, #1C1A17);
+  background: transparent;
+  border: 1px solid var(--divider, #C9C6C0);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.listen-deep-action:hover:not(:disabled) {
+  background: var(--text-primary, #1C1A17);
+  color: var(--bg-primary, #FBFAF8);
+  border-color: var(--text-primary, #1C1A17);
+}
+
+.listen-deep-action:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.listen-deep-action.is-active {
+  background: var(--text-primary, #1C1A17);
+  color: var(--bg-primary, #FBFAF8);
+  border-color: var(--text-primary, #1C1A17);
+}
+
+.listen-deep-action.is-done {
+  color: var(--text-secondary, #6B6862);
+  border-color: transparent;
+}
+
+[data-theme='dark'] .listen-deep-action {
+  border-color: var(--divider, #3a352e);
+  color: var(--text-primary, #FBFAF8);
+}
+
+[data-theme='dark'] .listen-deep-action:hover:not(:disabled),
+[data-theme='dark'] .listen-deep-action.is-active {
+  background: var(--text-primary, #FBFAF8);
+  color: var(--bg-primary, #1C1A17);
+  border-color: var(--text-primary, #FBFAF8);
+}
+
+.listen-dub-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 13, 11, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1.5rem;
+}
+
+.listen-dub-modal {
+  background: var(--bg-primary, #FBFAF8);
+  color: var(--text-primary, #1C1A17);
+  max-width: 460px;
+  width: 100%;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme='dark'] .listen-dub-modal {
+  background: #1C1A17;
+  color: #FBFAF8;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.listen-dub-modal-title {
+  margin: 0 0 0.75rem 0;
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+}
+
+.listen-dub-modal-body {
+  margin: 0 0 1.5rem 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #6B6862);
+}
+
+[data-theme='dark'] .listen-dub-modal-body {
+  color: #c8c4bd;
+}
+
+.listen-dub-modal-body strong {
+  color: var(--text-primary, #1C1A17);
+}
+
+[data-theme='dark'] .listen-dub-modal-body strong {
+  color: #FBFAF8;
+}
+
+.listen-dub-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.listen-dub-modal-btn {
+  padding: 0.6rem 1.25rem;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid var(--divider, #C9C6C0);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.listen-dub-modal-btn:hover:not(:disabled) {
+  background: rgba(28, 26, 23, 0.05);
+}
+
+.listen-dub-modal-btn.is-primary {
+  background: var(--text-primary, #1C1A17);
+  color: var(--bg-primary, #FBFAF8);
+  border-color: var(--text-primary, #1C1A17);
+}
+
+.listen-dub-modal-btn.is-primary:hover:not(:disabled) {
+  opacity: 0.88;
+  background: var(--text-primary, #1C1A17);
+}
+
+[data-theme='dark'] .listen-dub-modal-btn {
+  border-color: #3a352e;
+}
+
+[data-theme='dark'] .listen-dub-modal-btn:hover:not(:disabled) {
+  background: rgba(251, 250, 248, 0.06);
+}
+
+[data-theme='dark'] .listen-dub-modal-btn.is-primary {
+  background: #FBFAF8;
+  color: #1C1A17;
+  border-color: #FBFAF8;
+}
+
+.listen-dub-modal-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .listen-deep-empty {
   margin: 2rem 0;
   text-align: center;

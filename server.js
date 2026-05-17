@@ -84,6 +84,7 @@ const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173'
 const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
+const ELEVENLABS_CREDITS_PER_MINUTE = parseInt(process.env.ELEVENLABS_CREDITS_PER_MINUTE || '1000', 10)
 
 // Gate for verbose import-pipeline logging. Default: off (a single summary
 // banner prints per import). Set IMPORT_VERBOSE=true to restore the full
@@ -1327,6 +1328,41 @@ const fetchYoutubeMetadata = async (videoId) => {
   const durationSeconds = parseIsoDurationToSeconds(item?.contentDetails?.duration)
 
   return { channelTitle, durationSeconds }
+}
+
+// Stopword-based language detector for the 4 MVP languages. Returns a 2-letter
+// code or '' when nothing scores high enough. Good enough to answer "is this
+// clearly NOT the user's target language?" — wrong answers just mean the user
+// sees a needless dub-confirm modal (which they can cancel).
+const LANG_STOPWORDS = {
+  en: ['the', 'and', 'you', 'for', 'this', 'with', 'that', 'have', 'are', 'how', 'what', 'why', 'when', 'will', 'from', 'about', 'they'],
+  es: ['el', 'la', 'los', 'las', 'que', 'de', 'en', 'un', 'una', 'por', 'con', 'para', 'como', 'qué', 'más', 'pero', 'esto'],
+  fr: ['le', 'la', 'les', 'des', 'un', 'une', 'et', 'est', 'que', 'qui', 'pour', 'pas', 'avec', 'sur', 'dans', 'comment', 'mais'],
+  it: ['il', 'lo', 'gli', 'le', 'di', 'che', 'è', 'una', 'un', 'per', 'con', 'come', 'sono', 'questo', 'cosa', 'più', 'anche'],
+}
+
+const detectLanguageFromText = (text) => {
+  const raw = String(text || '').toLowerCase()
+  if (!raw) return ''
+  // Tokenise on anything that isn't a letter (Unicode-aware).
+  const tokens = raw.match(/[\p{L}]+/gu) || []
+  if (tokens.length < 3) return ''
+  const counts = { en: 0, es: 0, fr: 0, it: 0 }
+  for (const tok of tokens) {
+    for (const [code, words] of Object.entries(LANG_STOPWORDS)) {
+      if (words.includes(tok)) counts[code] += 1
+    }
+  }
+  let best = ''
+  let bestScore = 0
+  for (const [code, score] of Object.entries(counts)) {
+    if (score > bestScore) {
+      best = code
+      bestScore = score
+    }
+  }
+  // Need a few hits to be confident.
+  return bestScore >= 2 ? best : ''
 }
 
 const decodeState = (state) => {
@@ -5175,7 +5211,7 @@ app.get('/api/youtube/search', async (req, res) => {
 
   const max = Math.max(1, Math.min(50, parseInt(req.query.max, 10) || 25))
   const language = String(req.query.lang || '').trim()
-  const cacheTag = cacheKey(['youtube-search', 'v2', queryTerm.toLowerCase(), language, String(max)])
+  const cacheTag = cacheKey(['youtube-search', 'v3', queryTerm.toLowerCase(), language, String(max)])
 
   try {
     const data = await cached(cacheTag, 60 * 60, async () => {
@@ -5222,6 +5258,36 @@ app.get('/api/youtube/search', async (req, res) => {
         }
       }
 
+      // Batch-fetch full video metadata (language + duration) for every video
+      // in the result set. defaultAudioLanguage and defaultLanguage are only
+      // returned by videos.list, not search.list. Cost: 1 quota unit.
+      const videoIds = items
+        .map((it) => it.id?.videoId || null)
+        .filter(Boolean)
+      const videoMeta = new Map()
+      if (videoIds.length > 0) {
+        const vUrl = new URL('https://www.googleapis.com/youtube/v3/videos')
+        vUrl.searchParams.set('part', 'snippet,contentDetails')
+        vUrl.searchParams.set('id', videoIds.join(','))
+        vUrl.searchParams.set('key', YOUTUBE_API_KEY)
+        try {
+          const vRes = await fetch(vUrl.toString())
+          if (vRes.ok) {
+            const vData = await vRes.json()
+            ;(vData.items || []).forEach((v) => {
+              if (!v.id) return
+              videoMeta.set(v.id, {
+                defaultAudioLanguage: v.snippet?.defaultAudioLanguage || '',
+                defaultLanguage: v.snippet?.defaultLanguage || '',
+                durationSeconds: parseIsoDurationToSeconds(v.contentDetails?.duration) || null,
+              })
+            })
+          }
+        } catch (err) {
+          console.warn('videos.list metadata lookup failed', err)
+        }
+      }
+
       const results = items
         .map((item) => {
           const snippet = item.snippet || {}
@@ -5229,16 +5295,26 @@ app.get('/api/youtube/search', async (req, res) => {
           const thumb = thumbs.medium || thumbs.high || thumbs.default || {}
           if (item.id?.videoId) {
             const videoId = item.id.videoId
+            const meta = videoMeta.get(videoId) || {}
+            const title = snippet.title || ''
+            const description = snippet.description || ''
+            const detectedLanguage = (!meta.defaultAudioLanguage && !meta.defaultLanguage)
+              ? detectLanguageFromText(`${title} ${description}`)
+              : ''
             return {
               kind: 'video',
               videoId,
-              title: snippet.title || '',
+              title,
               channelTitle: snippet.channelTitle || '',
               channelId: snippet.channelId || '',
-              description: snippet.description || '',
+              description,
               publishedAt: snippet.publishedAt || '',
               thumbnailUrl: thumb.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
               youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
+              defaultAudioLanguage: meta.defaultAudioLanguage || '',
+              defaultLanguage: meta.defaultLanguage || '',
+              detectedLanguage,
+              durationSeconds: meta.durationSeconds || null,
             }
           }
           if (item.id?.channelId) {
@@ -5257,7 +5333,7 @@ app.get('/api/youtube/search', async (req, res) => {
           return null
         })
         .filter(Boolean)
-      return { results }
+      return { results, creditsPerMinute: ELEVENLABS_CREDITS_PER_MINUTE }
     })
     res.json(data)
   } catch (err) {

@@ -35,6 +35,19 @@ const formatDuration = (ms) => {
   return `${hr}:${remMin.toString().padStart(2, '0')}`
 }
 
+// Long-form / video friendly: "2h 9min", "47min", "<1min". H:MM is too
+// easy to misread as MM:SS when a 2-hour podcast lands beside a 2-minute
+// clip in the same list.
+const formatVideoDuration = (seconds) => {
+  const total = Number(seconds) || 0
+  if (total <= 0) return ''
+  if (total < 60) return '<1min'
+  const hr = Math.floor(total / 3600)
+  const min = Math.floor((total % 3600) / 60)
+  if (hr > 0) return min > 0 ? `${hr}h ${min}min` : `${hr}h`
+  return `${min}min`
+}
+
 const PlusIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
     <line x1="12" y1="5" x2="12" y2="19" />
@@ -104,7 +117,13 @@ function ResultRow({ row }) {
         <p className="listen-deep-title">{row.title}</p>
         {row.subtitle && <p className="listen-deep-sub">{row.subtitle}</p>}
       </div>
-      {row.trailing && <span className="listen-deep-trailing">{row.trailing}</span>}
+      {row.trailing && (
+        <span
+          className={`listen-deep-trailing${row.trailingNatural ? ' listen-deep-trailing--natural' : ''}`}
+        >
+          {row.trailing}
+        </span>
+      )}
       {renderAction()}
     </div>
   )
@@ -477,7 +496,8 @@ export default function ListenDiscover() {
         title: v.title || 'Untitled video',
         subtitle: v.channelTitle || '',
         shape: 'wide',
-        trailing: v.durationSeconds ? formatDuration(Number(v.durationSeconds) * 1000) : '',
+        trailing: formatVideoDuration(v.durationSeconds),
+        trailingNatural: true,
         onClick: () => v.youtubeUrl && window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer'),
         action: {
           variant: 'icon',

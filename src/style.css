@@ -30121,6 +30121,12 @@ body:has(.cinema-page) {
   color: var(--text-secondary, #6B6862);
 }
 
+.listen-deep-trailing--natural {
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 0.85rem;
+}
+
 /* Borderless circular icon button — mirrors .media-icon-button from
    media-surface.css so the Discover '+' matches the in-library affordance. */
 .listen-deep-row .media-icon-button {

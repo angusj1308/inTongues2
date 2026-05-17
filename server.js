@@ -23,6 +23,7 @@ import OpenAI, { toFile } from 'openai'
 import { Vibrant } from 'node-vibrant/node'
 import Anthropic from '@anthropic-ai/sdk'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
+import jwt from 'jsonwebtoken'
 import { generateStory, callClaude, executePhase1, executePhase2, executePhase3, executePhase4Chapter } from './novelGenerator.js'
 import { rollSkeleton } from './storyBlueprints.js'
 import {
@@ -85,6 +86,38 @@ const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:517
 const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 const ELEVENLABS_CREDITS_PER_MINUTE = parseInt(process.env.ELEVENLABS_CREDITS_PER_MINUTE || '1000', 10)
+
+const APPLE_TEAM_ID = process.env.APPLE_TEAM_ID
+const APPLE_KEY_ID = process.env.APPLE_KEY_ID
+const APPLE_MUSICKIT_PRIVATE_KEY_PATH = process.env.APPLE_MUSICKIT_PRIVATE_KEY_PATH
+
+// Cached Apple Music Developer Token (JWT). Apple allows up to 6 months;
+// we mint a 180-day token and reuse it within the process lifetime.
+let appleMusicDeveloperToken = null
+let appleMusicDeveloperTokenExpiresAt = 0
+
+async function getAppleMusicDeveloperToken() {
+  const now = Date.now()
+  if (appleMusicDeveloperToken && now < appleMusicDeveloperTokenExpiresAt - 5 * 60 * 1000) {
+    return appleMusicDeveloperToken
+  }
+  if (!APPLE_TEAM_ID || !APPLE_KEY_ID || !APPLE_MUSICKIT_PRIVATE_KEY_PATH) {
+    throw new Error(
+      'Apple MusicKit env not configured (APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_MUSICKIT_PRIVATE_KEY_PATH)',
+    )
+  }
+  const privateKey = await fs.readFile(APPLE_MUSICKIT_PRIVATE_KEY_PATH, 'utf8')
+  const expiresInSeconds = 60 * 60 * 24 * 180
+  const token = jwt.sign({}, privateKey, {
+    algorithm: 'ES256',
+    keyid: APPLE_KEY_ID,
+    issuer: APPLE_TEAM_ID,
+    expiresIn: expiresInSeconds,
+  })
+  appleMusicDeveloperToken = token
+  appleMusicDeveloperTokenExpiresAt = now + expiresInSeconds * 1000
+  return token
+}
 
 // Gate for verbose import-pipeline logging. Default: off (a single summary
 // banner prints per import). Set IMPORT_VERBOSE=true to restore the full
@@ -2240,6 +2273,16 @@ app.get('/api/spotify/show/:id/episodes', async (req, res) => {
   } catch (err) {
     console.error('Spotify episodes failure', err)
     res.status(500).json({ error: 'Unable to fetch show episodes' })
+  }
+})
+
+app.get('/api/music/developer-token', async (req, res) => {
+  try {
+    const token = await getAppleMusicDeveloperToken()
+    res.json({ token })
+  } catch (err) {
+    console.error('Apple developer token error', err.message)
+    res.status(500).json({ error: 'Unable to generate Apple developer token' })
   }
 })
 

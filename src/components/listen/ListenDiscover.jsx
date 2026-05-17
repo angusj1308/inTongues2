@@ -80,7 +80,6 @@ export default function ListenDiscover() {
   const [results, setResults] = useState({ podcasts: [], music: { artists: [], albums: [], tracks: [] } })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [showRssNote, setShowRssNote] = useState(false)
   const requestId = useRef(0)
 
   const activeLanguage = useMemo(
@@ -129,10 +128,6 @@ export default function ListenDiscover() {
     }, 400)
     return () => clearTimeout(handle)
   }, [query, hasQuery, handleSubmit])
-
-  const handlePasteUrl = () => {
-    navigate('/importaudio/video')
-  }
 
   // Flatten search results into one row list keyed by medium, then filter by chip
   const resultRows = useMemo(() => {
@@ -243,41 +238,20 @@ export default function ListenDiscover() {
         />
       </form>
 
-      {!hasQuery && (
-        <div className="listen-discover-chips">
-          <button type="button" className="listen-utility-chip" onClick={handlePasteUrl}>
-            + Paste URL
-          </button>
+      <div className="listen-filter-chips" role="tablist">
+        {FILTER_CHIPS.map((chip) => (
           <button
+            key={chip}
             type="button"
-            className="listen-utility-chip"
-            onClick={() => setShowRssNote((v) => !v)}
-            aria-pressed={showRssNote}
+            role="tab"
+            aria-selected={activeFilter === chip}
+            className={`listen-filter-chip${activeFilter === chip ? ' is-active' : ''}`}
+            onClick={() => setActiveFilter(chip)}
           >
-            + Add RSS feed
+            {chip}
           </button>
-          {showRssNote && (
-            <span className="listen-utility-note">RSS-feed import isn't wired up yet.</span>
-          )}
-        </div>
-      )}
-
-      {hasQuery && (
-        <div className="listen-filter-chips" role="tablist">
-          {FILTER_CHIPS.map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              role="tab"
-              aria-selected={activeFilter === chip}
-              className={`listen-filter-chip${activeFilter === chip ? ' is-active' : ''}`}
-              onClick={() => setActiveFilter(chip)}
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
 
       {!hasQuery && (
         <div className="listen-discover-rails">

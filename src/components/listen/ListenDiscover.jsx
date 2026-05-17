@@ -12,7 +12,7 @@ const RAILS = [
   { key: 'youtube', title: 'Recommended Videos', shape: 'wide', cols: 4 },
 ]
 
-const FILTER_CHIPS = ['All', 'Audiobooks', 'Podcasts', 'Music', 'Videos']
+const FILTER_CHIPS = ['All', 'Audiobooks', 'Podcasts', 'Music', 'YouTube']
 
 const formatDuration = (ms) => {
   if (!ms) return ''

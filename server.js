@@ -2530,7 +2530,7 @@ app.get('/api/podcasts/show/:itunesCollectionId/episodes', async (req, res) => {
       },
     )
     if (!data) return res.status(404).json({ error: 'Show not found' })
-    res.json(data)
+    res.json({ ...data, creditsPerMinute: ELEVENLABS_CREDITS_PER_MINUTE })
   } catch (err) {
     if (err instanceof InvalidItunesIdError) {
       return res.status(400).json({
@@ -5828,6 +5828,140 @@ app.post('/api/youtube/dub', async (req, res) => {
     return res.json({ id: videoDocId, ...payload })
   } catch (error) {
     console.error('Failed to create dubbed YouTube import', error)
+    return res.status(500).json({ error: 'Failed to start dubbing' })
+  }
+})
+
+// ── Podcast Dubbing via ElevenLabs ──────────────────────────────────────
+//
+// Mirrors the YouTube dub flow but writes to users/{uid}/podcastEpisodeStates
+// and stores the dubbed MP3 at dubbed/{uid}/podcast/{episodeId}.mp3.
+// ElevenLabs accepts the RSS enclosure URL directly via source_url, so no
+// MP3 download/upload roundtrip is needed on our side.
+
+async function processPodcastDubbing({ uid, episodeId, audioUrl, sourceLanguage, targetLanguage }) {
+  const episodeRef = firestore.collection('users').doc(uid).collection('podcastEpisodeStates').doc(episodeId)
+
+  try {
+    console.log(`\nDubbing podcast ${episodeId}: ${sourceLanguage} → ${targetLanguage}`)
+    console.log('Step 1: Starting ElevenLabs dubbing...')
+    const { dubbing_id } = await startElevenLabsDubbing(audioUrl, sourceLanguage, targetLanguage)
+    await episodeRef.set({ dubbingId: dubbing_id }, { merge: true })
+    console.log(`  Dubbing ID: ${dubbing_id}`)
+
+    console.log('Step 2: Polling dubbing status...')
+    await pollDubbingStatus(dubbing_id)
+    console.log('  Dubbing complete!')
+
+    console.log('Step 3: Downloading dubbed audio...')
+    const audioBuffer = await downloadDubbedAudio(dubbing_id, targetLanguage)
+    console.log(`  Audio size: ${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB`)
+
+    console.log('Step 4: Uploading to Firebase Storage...')
+    const storagePath = `dubbed/${uid}/podcast/${episodeId}.mp3`
+    const file = bucket.file(storagePath)
+    await file.save(audioBuffer, {
+      contentType: 'audio/mpeg',
+      metadata: { cacheControl: 'public, max-age=31536000' },
+    })
+    await file.makePublic()
+    const dubbedAudioUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+    console.log(`  Uploaded: ${dubbedAudioUrl}`)
+
+    console.log('Step 5: Downloading subtitles...')
+    let targetSegments = []
+    try {
+      const targetSubs = await downloadDubbingSubtitles(dubbing_id, targetLanguage)
+      targetSegments = parseDubbingSubtitlesToSegments(targetSubs)
+      console.log(`  Target (${targetLanguage}): ${targetSegments.length} segments`)
+    } catch (subErr) {
+      console.error(`  Failed to get target subtitles: ${subErr.message}`)
+    }
+
+    if (targetSegments.length > 0) {
+      const targetText = targetSegments.map((s) => s.text).join(' ')
+      await episodeRef.collection('transcripts').doc(targetLanguage).set({
+        episodeId,
+        language: targetLanguage,
+        segments: targetSegments,
+        text: targetText,
+        sentenceSegments: targetSegments,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    }
+
+    console.log('Step 6: Updating episode document...')
+    await episodeRef.set({
+      dubStatus: 'ready',
+      dubbedAudioUrl,
+      dubbedAudioStoragePath: storagePath,
+    }, { merge: true })
+
+    console.log(`Podcast dubbing complete for ${episodeId}!\n`)
+  } catch (err) {
+    console.error(`Podcast dubbing failed for ${episodeId}:`, err)
+    await episodeRef.set({
+      dubStatus: 'failed',
+      dubFailureReason: err?.message || 'Dubbing failed',
+    }, { merge: true }).catch(() => {})
+  }
+}
+
+app.post('/api/podcasts/dub', async (req, res) => {
+  const {
+    uid,
+    episodeId,
+    audioUrl,
+    title,
+    showName,
+    showId,
+    coverUrl,
+    durationMs,
+    sourceLanguage,
+    targetLanguage,
+  } = req.body || {}
+
+  const trimmedEpisodeId = String(episodeId || '').trim()
+  const trimmedAudioUrl = String(audioUrl || '').trim()
+  const trimmedTarget = String(targetLanguage || '').trim().toLowerCase()
+
+  if (!uid || !trimmedEpisodeId || !trimmedAudioUrl || !trimmedTarget) {
+    return res.status(400).json({ error: 'uid, episodeId, audioUrl, and targetLanguage are required' })
+  }
+
+  const episodeRef = firestore.collection('users').doc(uid).collection('podcastEpisodeStates').doc(trimmedEpisodeId)
+
+  const payload = {
+    episodeId: trimmedEpisodeId,
+    title: title || '',
+    showName: showName || '',
+    showId: showId ? String(showId) : '',
+    coverUrl: coverUrl || '',
+    durationMs: Number(durationMs) || 0,
+    savedAt: admin.firestore.FieldValue.serverTimestamp(),
+    isDubbed: true,
+    dubStatus: 'dubbing',
+    sourceLanguage: sourceLanguage || 'auto',
+    targetLanguage: trimmedTarget,
+    originalAudioUrl: trimmedAudioUrl,
+  }
+
+  try {
+    await episodeRef.set(payload, { merge: true })
+
+    processPodcastDubbing({
+      uid,
+      episodeId: trimmedEpisodeId,
+      audioUrl: trimmedAudioUrl,
+      sourceLanguage: sourceLanguage || 'auto',
+      targetLanguage: trimmedTarget,
+    })
+      .then(() => console.log(`Podcast dubbing ready: ${trimmedEpisodeId}`))
+      .catch((err) => console.error(`Podcast dubbing failed: ${trimmedEpisodeId}`, err))
+
+    return res.json({ episodeId: trimmedEpisodeId, ...payload })
+  } catch (error) {
+    console.error('Failed to create dubbed podcast episode', error)
     return res.status(500).json({ error: 'Failed to start dubbing' })
   }
 })

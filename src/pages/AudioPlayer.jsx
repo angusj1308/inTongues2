@@ -622,17 +622,27 @@ const AudioPlayer = () => {
     if (isPodcast) {
       // Podcast mode: episode metadata arrives via location.state from the
       // Play call site. Persisted state in users/{uid}/podcastEpisodeStates
-      // hydrates the missing pieces on a refresh / deep link.
+      // hydrates the missing pieces on a refresh / deep link. We also always
+      // peek at the state doc to see if a dubbed-audio URL is available — if
+      // so, we play the dub instead of the RSS original.
       ;(async () => {
         let ep = podcastEpisodeFromState
-        if (!ep) {
-          try {
-            const stateSnap = await getDoc(
-              doc(db, 'users', user.uid, 'podcastEpisodeStates', id),
-            )
-            if (stateSnap.exists()) ep = stateSnap.data() || null
-          } catch (err) {
-            console.warn('podcast progress lookup failed', err)
+        let stateDoc = null
+        try {
+          const stateSnap = await getDoc(
+            doc(db, 'users', user.uid, 'podcastEpisodeStates', id),
+          )
+          if (stateSnap.exists()) stateDoc = stateSnap.data() || null
+        } catch (err) {
+          console.warn('podcast state lookup failed', err)
+        }
+        if (!ep) ep = stateDoc
+        // Override original audio with the dubbed version when ready.
+        if (stateDoc?.dubbedAudioUrl && stateDoc?.dubStatus === 'ready') {
+          ep = {
+            ...(ep || {}),
+            audioUrl: stateDoc.dubbedAudioUrl,
+            language: stateDoc.targetLanguage || ep?.language || '',
           }
         }
         if (!ep || !(ep.audioUrl || ep.audioURL)) {

@@ -1,12 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { fetchShow, fetchShowEpisodes, saveEpisode, unsaveEpisode } from '../services/podcast'
+import {
+  fetchShow,
+  fetchShowEpisodes,
+  saveEpisode,
+  unsaveEpisode,
+  dubPodcastEpisode,
+} from '../services/podcast'
 import CoverArt from '../components/podcast/CoverArt'
 import EpisodeRow from '../components/podcast/EpisodeRow'
 import FollowButton from '../components/podcast/FollowButton'
 import UnavailableShowMessage from '../components/podcast/UnavailableShowMessage'
 import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 import DashboardLayout from '../components/layout/DashboardLayout'
+import DubConfirmModal from '../components/listen/DubConfirmModal'
+import { toLanguageCode } from '../constants/languages'
+import { useAuth } from '../context/AuthContext'
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest first' },
@@ -16,6 +25,7 @@ const SORT_OPTIONS = [
 const PodcastShowPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const { user, followedShows, episodeStates, isFollowed, isPinned, follow, unfollow } =
     usePodcastSubscriptions()
   const [show, setShow] = useState(null)
@@ -25,6 +35,14 @@ const PodcastShowPage = () => {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
+  const [creditsPerMinute, setCreditsPerMinute] = useState(0)
+  const [dubModal, setDubModal] = useState(null)
+  const [dubPending, setDubPending] = useState(false)
+
+  const targetLangCode = useMemo(
+    () => toLanguageCode(profile?.lastUsedLanguage) || '',
+    [profile?.lastUsedLanguage],
+  )
 
   // Land at the top of the show page rather than wherever the previous page
   // was scrolled (React Router doesn't reset scroll on navigation by default).
@@ -40,6 +58,7 @@ const PodcastShowPage = () => {
       setShow(showData)
       setEpisodes(eps?.episodes || [])
       setNextCursor(eps?.nextCursor || null)
+      setCreditsPerMinute(eps?.creditsPerMinute || 0)
       setUnavailable(showData?.available === false || eps?.available === false)
       setLoading(false)
     })
@@ -95,23 +114,73 @@ const PodcastShowPage = () => {
   const handleSaveToLibrary = async (target) => {
     if (!user?.uid || !target?.id) return
     const isSaved = stateById.has(target.id)
-    try {
-      if (isSaved) {
+    if (isSaved) {
+      try {
         await unsaveEpisode(user.uid, target.id)
-      } else {
-        await saveEpisode(user.uid, {
-          id: target.id,
-          title: target.title,
-          showName: show?.title || '',
-          showId: id,
-          coverUrl: target.coverUrl || show?.coverUrl || '',
-          durationMs: target.durationMs,
-        })
+      } catch (err) {
+        console.error('Failed to unsave', err)
       }
+      return
+    }
+
+    const rawSrc = toLanguageCode(target.language || show?.language || '')
+    if (targetLangCode && rawSrc && rawSrc !== targetLangCode) {
+      // Cross-language → confirm credit spend before dubbing.
+      setDubModal({
+        episode: target,
+        sourceLanguage: rawSrc,
+        targetLanguage: targetLangCode,
+      })
+      return
+    }
+
+    try {
+      await saveEpisode(user.uid, {
+        id: target.id,
+        title: target.title,
+        showName: show?.title || '',
+        showId: id,
+        coverUrl: target.coverUrl || show?.coverUrl || '',
+        durationMs: target.durationMs,
+      })
     } catch (err) {
-      console.error('Failed to toggle save', err)
+      console.error('Failed to save', err)
     }
   }
+
+  const fireDub = useCallback(async () => {
+    if (!user?.uid || !dubModal?.episode) return
+    setDubPending(true)
+    try {
+      await dubPodcastEpisode({
+        uid: user.uid,
+        episode: {
+          id: dubModal.episode.id,
+          audioUrl: dubModal.episode.audioUrl,
+          title: dubModal.episode.title,
+          showName: show?.title || '',
+          showId: id,
+          coverUrl: dubModal.episode.coverUrl || show?.coverUrl || '',
+          durationMs: dubModal.episode.durationMs,
+        },
+        sourceLanguage: dubModal.sourceLanguage,
+        targetLanguage: dubModal.targetLanguage,
+      })
+      setDubModal(null)
+    } catch (err) {
+      console.error('Dub failed', err)
+    } finally {
+      setDubPending(false)
+    }
+  }, [user?.uid, dubModal, show?.title, show?.coverUrl, id])
+
+  const dubEstimate = useMemo(() => {
+    if (!dubModal?.episode) return { credits: 0, minutes: 0 }
+    const ms = Number(dubModal.episode.durationMs) || 0
+    const minutes = Math.ceil(ms / 60000)
+    const credits = minutes * (Number(creditsPerMinute) || 0)
+    return { credits, minutes }
+  }, [dubModal, creditsPerMinute])
 
   return (
     <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
@@ -292,6 +361,16 @@ const PodcastShowPage = () => {
           </div>
         </main>
       </div>
+
+      <DubConfirmModal
+        open={!!dubModal}
+        video={dubModal?.episode}
+        estimatedCredits={dubEstimate.credits}
+        durationMin={dubEstimate.minutes}
+        pending={dubPending}
+        onCancel={() => !dubPending && setDubModal(null)}
+        onConfirm={fireDub}
+      />
     </DashboardLayout>
   )
 }

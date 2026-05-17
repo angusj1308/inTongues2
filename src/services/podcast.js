@@ -340,10 +340,43 @@ export const fetchShowEpisodes = async (showId, { cursor, sort = 'newest', limit
       nextCursor: data?.nextCursor || null,
       available: data?.available !== false,
       unavailableReason: data?.unavailableReason || null,
+      creditsPerMinute: Number(data?.creditsPerMinute) || 0,
     }
   } catch {
-    return { episodes: [], nextCursor: null, available: true }
+    return { episodes: [], nextCursor: null, available: true, creditsPerMinute: 0 }
   }
+}
+
+export const dubPodcastEpisode = async ({
+  uid,
+  episode,
+  sourceLanguage,
+  targetLanguage,
+}) => {
+  if (!uid || !episode?.id || !episode?.audioUrl || !targetLanguage) {
+    throw new Error('uid, episode.id, episode.audioUrl, and targetLanguage are required')
+  }
+  const res = await fetch(`${API_BASE}/api/podcasts/dub`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid,
+      episodeId: String(episode.id),
+      audioUrl: episode.audioUrl,
+      title: episode.title || '',
+      showName: episode.showName || episode.showTitle || '',
+      showId: episode.showId ? String(episode.showId) : '',
+      coverUrl: episode.coverUrl || '',
+      durationMs: Number(episode.durationMs) || 0,
+      sourceLanguage: sourceLanguage || 'auto',
+      targetLanguage,
+    }),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Dub failed (${res.status}) ${body.slice(0, 200)}`)
+  }
+  return res.json()
 }
 
 // Resolve an episode-state row (which carries metadata but no audioUrl) into

@@ -30010,6 +30010,7 @@ body:has(.cinema-page) {
 }
 
 .listen-deep-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 1.5rem;
@@ -30589,10 +30590,11 @@ body:has(.cinema-page) {
 }
 
 .listen-deep-remove {
-  flex-shrink: 0;
-  margin-left: 0.75rem;
-  width: 32px;
-  height: 32px;
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

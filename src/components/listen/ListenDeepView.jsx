@@ -40,7 +40,19 @@ const formatDuration = (ms) => {
   return `${hr}:${remMin.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`
 }
 
-function Row({ thumb, title, subtitle, trailing, shape = 'square', onClick, onRemove }) {
+// Long-form-friendly format used by podcast / video rows: '2h 9min',
+// '47min', '<1min'. Avoids the H:MM:SS / MM:SS ambiguity.
+const formatLongDuration = (ms) => {
+  const total = Math.round((Number(ms) || 0) / 1000)
+  if (total <= 0) return ''
+  if (total < 60) return '<1min'
+  const hr = Math.floor(total / 3600)
+  const min = Math.floor((total % 3600) / 60)
+  if (hr > 0) return min > 0 ? `${hr}h ${min}min` : `${hr}h`
+  return `${min}min`
+}
+
+function Row({ thumb, title, subtitle, trailing, trailingNatural, shape = 'square', onClick, onRemove }) {
   const handleRowClick = (e) => {
     if (e.target.closest('[data-row-remove]')) return
     onClick?.()
@@ -54,7 +66,11 @@ function Row({ thumb, title, subtitle, trailing, shape = 'square', onClick, onRe
         <p className="listen-deep-title">{title}</p>
         {subtitle && <p className="listen-deep-sub">{subtitle}</p>}
       </div>
-      {trailing && <span className="listen-deep-trailing">{trailing}</span>}
+      {trailing && (
+        <span className={`listen-deep-trailing${trailingNatural ? ' listen-deep-trailing--natural' : ''}`}>
+          {trailing}
+        </span>
+      )}
       {onRemove && (
         <button
           type="button"
@@ -211,7 +227,8 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
           shape: 'square',
           trailing: dubbing
             ? (e.dubStatus === 'failed' ? 'Dub failed' : 'Dubbing…')
-            : formatDuration(e.durationMs),
+            : formatLongDuration(e.durationMs),
+          trailingNatural: !dubbing,
           onClick: dubbing ? undefined : () => playPodcastEpisode(
             {
               id: e.episodeId,

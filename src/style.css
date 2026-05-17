@@ -30148,6 +30148,11 @@ body:has(.cinema-page) {
 .listen-deep-row .media-icon-button {
   flex-shrink: 0;
   margin-left: 1rem;
+  /* Inset from the row's right edge so the '+' sits roughly under the
+     centre of the Follow / Following pill on adjacent show rows
+     (the pill is ~80px wide flush at the edge; the icon is 32px).
+     Library remove '×' overrides this back to 1rem via its own rule. */
+  margin-right: 1.25rem;
   width: 32px;
   height: 32px;
   display: inline-flex;
@@ -30381,6 +30386,10 @@ body:has(.cinema-page) {
   position: relative;
   display: inline-flex;
   margin-left: auto;
+  /* Right inset matches the video row's + button:
+     .yt-channel-video-row has padding-right 0.25rem and
+     .yt-channel-video-actions adds margin-right 1rem. */
+  margin-right: 1.25rem;
 }
 
 .yt-filter-trigger {

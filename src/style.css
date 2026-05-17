@@ -30085,6 +30085,21 @@ body:has(.cinema-page) {
   min-width: 0;
 }
 
+.listen-deep-eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-bottom: 4px;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #78716c);
+}
+
+[data-theme='dark'] .listen-deep-eyebrow {
+  color: var(--text-secondary, #a8a29e);
+}
+
 .listen-deep-title {
   margin: 0;
   font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;

@@ -7992,6 +7992,83 @@ pre {
   opacity: 1;
 }
 
+/* Dark mode for the extensive audio player controls. The transport icons,
+   progress bar, and labels all paint dark on the dark page bg by default —
+   flip them to light here so they remain visible. Scoped to the extensive
+   shell so cinema / active keep their own dark treatments. */
+[data-theme='dark'] .listening-lab-page .extensive-shell .player-title,
+[data-theme='dark'] .listening-lab-page .extensive-shell .player-surface {
+  color: var(--reader-text, #e8e0d4);
+}
+
+[data-theme='dark'] .listening-lab-page .extensive-shell .progress-times .muted {
+  color: rgba(232, 224, 212, 0.75);
+}
+
+[data-theme='dark'] .listening-lab-page .extensive-shell .audible-progress::-webkit-slider-runnable-track {
+  background:
+    linear-gradient(to right, var(--reader-text, #e8e0d4) var(--progress, 0%), transparent var(--progress, 0%)),
+    linear-gradient(
+      to bottom,
+      transparent calc(50% - 0.5px),
+      rgba(255, 255, 255, 0.45) calc(50% - 0.5px),
+      rgba(255, 255, 255, 0.45) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    );
+}
+
+[data-theme='dark'] .listening-lab-page .extensive-shell .audible-progress::-moz-range-track {
+  background:
+    linear-gradient(to right, var(--reader-text, #e8e0d4) var(--progress, 0%), transparent var(--progress, 0%)),
+    linear-gradient(
+      to bottom,
+      transparent calc(50% - 0.5px),
+      rgba(255, 255, 255, 0.45) calc(50% - 0.5px),
+      rgba(255, 255, 255, 0.45) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    );
+}
+
+[data-theme='dark'] .listening-lab-page .extensive-shell .audible-progress::-webkit-slider-thumb,
+[data-theme='dark'] .listening-lab-page .extensive-shell .audible-progress::-moz-range-thumb {
+  background: var(--reader-text, #e8e0d4);
+}
+
+/* Transport buttons (prev / ±5s / play / ±5s / next) */
+[data-theme='dark'] .listening-lab-page .extensive-shell .transport-btn {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--reader-text, #e8e0d4);
+}
+
+[data-theme='dark'] .listening-lab-page .extensive-shell .transport-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Primary play button — inverted so it pops on the dark page bg. */
+[data-theme='dark'] .listening-lab-page .extensive-shell .transport-btn-primary {
+  background: var(--reader-text, #e8e0d4);
+  color: #1c1a17;
+  border-color: var(--reader-text, #e8e0d4);
+}
+
+/* Secondary row (Timer / Speed / Transcript) */
+[data-theme='dark'] .listening-lab-page .extensive-shell .secondary-btn,
+[data-theme='dark'] .listening-lab-page .extensive-shell .secondary-btn.active {
+  color: var(--reader-text, #e8e0d4);
+}
+
+[data-theme='dark'] .listening-lab-page .extensive-shell .secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .listening-lab-page .extensive-shell .speed-popover {
+  background: #2a2724;
+  color: var(--reader-text, #e8e0d4);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
 [data-theme='dark'] .listening-lab-page .player-cover {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
 }

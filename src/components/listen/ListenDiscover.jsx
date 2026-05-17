@@ -35,11 +35,61 @@ const formatDuration = (ms) => {
   return `${hr}:${remMin.toString().padStart(2, '0')}`
 }
 
+const PlusIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+)
+
+const CheckIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+
 function ResultRow({ row }) {
   const handlePreview = (e) => {
     if (!row.onClick) return
     if (e.target.closest('[data-row-action]')) return
     row.onClick()
+  }
+  const action = row.action
+  const renderAction = () => {
+    if (!action) return null
+    if (action.variant === 'icon') {
+      return (
+        <button
+          type="button"
+          data-row-action
+          className={`media-icon-button${action.done ? ' is-saved' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            action.onClick?.()
+          }}
+          disabled={action.disabled}
+          aria-label={action.ariaLabel || 'Add'}
+          aria-pressed={action.done || undefined}
+        >
+          {action.done ? <CheckIcon /> : <PlusIcon />}
+        </button>
+      )
+    }
+    return (
+      <button
+        type="button"
+        data-row-action
+        className={`listen-deep-action${action.active ? ' is-active' : ''}${action.done ? ' is-done' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          action.onClick?.()
+        }}
+        disabled={action.disabled}
+        aria-label={action.ariaLabel || action.label}
+      >
+        {action.label}
+      </button>
+    )
   }
   return (
     <div className="listen-deep-row" onClick={handlePreview} role="button" tabIndex={0}>
@@ -55,21 +105,7 @@ function ResultRow({ row }) {
         {row.subtitle && <p className="listen-deep-sub">{row.subtitle}</p>}
       </div>
       {row.trailing && <span className="listen-deep-trailing">{row.trailing}</span>}
-      {row.action && (
-        <button
-          type="button"
-          data-row-action
-          className={`listen-deep-action${row.action.active ? ' is-active' : ''}${row.action.done ? ' is-done' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation()
-            row.action.onClick?.()
-          }}
-          disabled={row.action.disabled}
-          aria-label={row.action.ariaLabel || row.action.label}
-        >
-          {row.action.label}
-        </button>
-      )}
+      {renderAction()}
     </div>
   )
 }
@@ -444,7 +480,7 @@ export default function ListenDiscover() {
         trailing: v.durationSeconds ? formatDuration(Number(v.durationSeconds) * 1000) : '',
         onClick: () => v.youtubeUrl && window.open(v.youtubeUrl, '_blank', 'noopener,noreferrer'),
         action: {
-          label: alreadyImported ? '✓ Added' : (isPending ? '…' : '+'),
+          variant: 'icon',
           done: alreadyImported,
           disabled: alreadyImported || isPending,
           ariaLabel: alreadyImported ? 'Already in your library' : 'Add to library',

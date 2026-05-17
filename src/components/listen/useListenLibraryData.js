@@ -10,6 +10,7 @@ import {
   subscribeSavedAlbums,
   subscribeSavedTracks,
 } from '../../services/music'
+import { subscribeFollowedChannels } from '../../services/youtubeChannels'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 
 // Reads every Listen library source the existing front-end already uses, in
@@ -22,6 +23,7 @@ export default function useListenLibraryData(uid) {
   const [savedTracks, setSavedTracks] = useState([])
   const [savedAlbums, setSavedAlbums] = useState([])
   const [followedArtists, setFollowedArtists] = useState([])
+  const [followedYoutubeChannels, setFollowedYoutubeChannels] = useState([])
   // spotifyItems carries the actual lastPlayedAt timestamp for music tracks
   // (the player writes there on every progress tick). savedTracks only
   // has savedAt — not enough to drive Continue Listening.
@@ -36,6 +38,7 @@ export default function useListenLibraryData(uid) {
       setSavedTracks([])
       setSavedAlbums([])
       setFollowedArtists([])
+      setFollowedYoutubeChannels([])
       setSpotifyItems([])
       return undefined
     }
@@ -71,6 +74,7 @@ export default function useListenLibraryData(uid) {
     const unsubTracks = subscribeSavedTracks(uid, setSavedTracks)
     const unsubAlbums = subscribeSavedAlbums(uid, setSavedAlbums)
     const unsubArtists = subscribeFollowedArtists(uid, setFollowedArtists)
+    const unsubYoutubeChannels = subscribeFollowedChannels(uid, setFollowedYoutubeChannels)
 
     return () => {
       unsubStories()
@@ -81,6 +85,7 @@ export default function useListenLibraryData(uid) {
       unsubTracks && unsubTracks()
       unsubAlbums && unsubAlbums()
       unsubArtists && unsubArtists()
+      unsubYoutubeChannels && unsubYoutubeChannels()
     }
   }, [uid])
 
@@ -92,6 +97,7 @@ export default function useListenLibraryData(uid) {
     savedTracks,
     savedAlbums,
     followedArtists,
+    followedYoutubeChannels,
     spotifyItems,
   }
 }

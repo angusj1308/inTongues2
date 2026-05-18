@@ -4,6 +4,7 @@ import { doc, updateDoc } from 'firebase/firestore'
 import db from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
 import { playPodcastEpisode, unsaveEpisode, unfollowShow, fetchShowEpisodes } from '../../services/podcast'
+import { unfollowArtist } from '../../services/music'
 import { deleteYoutubeVideo, fetchYoutubeVideosMeta } from '../../services/youtube'
 import { unfollowChannel } from '../../services/youtubeChannels'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
@@ -71,7 +72,7 @@ const formatPublishedDate = (raw) => {
 
 const joinTrailing = (...parts) => parts.filter(Boolean).join(' · ')
 
-function Row({ thumb, title, subtitle, eyebrow, trailing, trailingNatural, shape = 'square', onClick, onRemove }) {
+function Row({ thumb, title, subtitle, eyebrow, trailing, trailingNatural, shape = 'square', onClick, onRemove, followAction }) {
   const handleRowClick = (e) => {
     if (e.target.closest('[data-row-remove]')) return
     onClick?.()
@@ -98,7 +99,21 @@ function Row({ thumb, title, subtitle, eyebrow, trailing, trailingNatural, shape
           {trailing}
         </span>
       )}
-      {onRemove && (
+      {followAction ? (
+        <button
+          type="button"
+          data-row-remove
+          className={`media-follow-button small${followAction.isFollowed ? ' is-followed' : ''}`}
+          aria-pressed={!!followAction.isFollowed}
+          aria-label={followAction.ariaLabel || (followAction.isFollowed ? `Unfollow ${title}` : `Follow ${title}`)}
+          onClick={(e) => {
+            e.stopPropagation()
+            followAction.onToggle?.()
+          }}
+        >
+          {followAction.isFollowed ? 'Following' : 'Follow'}
+        </button>
+      ) : onRemove && (
         <button
           type="button"
           data-row-remove
@@ -442,6 +457,15 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         title: a.title,
         shape: 'square',
         onClick: () => navigate(`/music/artist/${a.artistId}`),
+        followAction: uid
+          ? {
+              isFollowed: true,
+              onToggle: () =>
+                unfollowArtist(uid, a.artistId).catch((err) =>
+                  console.warn('unfollowArtist', err),
+                ),
+            }
+          : undefined,
       }))
     }
     return [] // Playlists — no backing data surfaced yet

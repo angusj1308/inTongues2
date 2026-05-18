@@ -619,6 +619,7 @@ export default function ListenDiscover() {
         shape: 'square',
         onClick: () => ar.id && navigate(`/music/artist/${ar.id}`),
         action: ar.id ? {
+          variant: 'follow',
           label: followed ? 'Following' : 'Follow',
           active: followed,
           ariaLabel: followed ? `Unfollow ${ar.name}` : `Follow ${ar.name}`,

@@ -4,7 +4,7 @@ import { doc, updateDoc } from 'firebase/firestore'
 import db from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
 import { playPodcastEpisode, unsaveEpisode, unfollowShow, fetchShowEpisodes } from '../../services/podcast'
-import { unfollowArtist } from '../../services/music'
+import { unfollowArtist, unsaveAlbum } from '../../services/music'
 import { deleteYoutubeVideo, fetchYoutubeVideosMeta } from '../../services/youtube'
 import { unfollowChannel } from '../../services/youtubeChannels'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
@@ -443,6 +443,9 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         subtitle: a.artistName,
         shape: 'square',
         onClick: () => navigate(`/music/album/${a.albumId}`),
+        onRemove: uid
+          ? () => unsaveAlbum(uid, a.albumId).catch((err) => console.warn('unsaveAlbum', err))
+          : undefined,
       }))
     }
     if (activeTab === 'Artists') {

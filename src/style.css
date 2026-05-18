@@ -29860,7 +29860,7 @@ body:has(.cinema-page) {
 
 .listen-shelf-cover--portrait { aspect-ratio: 2 / 3; }
 .listen-shelf-cover--square { aspect-ratio: 1 / 1; }
-.listen-shelf-cover--wide { aspect-ratio: 16 / 9; }
+.listen-shelf-cover--wide { aspect-ratio: 16 / 10; }
 
 .listen-shelf-cover-fallback {
   position: absolute;

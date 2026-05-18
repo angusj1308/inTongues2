@@ -123,6 +123,7 @@ const ExtensiveMode = ({
   voiceGender = 'male',
   setPopup,
   contentExpressions = [],
+  lineMode = false,
 }) => {
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
@@ -780,7 +781,7 @@ const ExtensiveMode = ({
               onResync={handleTranscriptResync}
               syncToken={syncToken}
               contentExpressions={contentExpressions}
-              flowMode
+              flowMode={!lineMode}
               currentTime={transcriptCurrentTime ?? playbackPositionSeconds}
               getCurrentTime={getTranscriptCurrentTime}
             />

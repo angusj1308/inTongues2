@@ -2816,6 +2816,7 @@ const AudioPlayer = () => {
                         voiceGender={voiceGender}
                         setPopup={setPopup}
                         contentExpressions={contentExpressions}
+                        lineMode={isMusic}
                       />
                     </div>
                   </section>

@@ -4,7 +4,7 @@ import { doc, updateDoc } from 'firebase/firestore'
 import db from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
 import { playPodcastEpisode, unsaveEpisode, unfollowShow, fetchShowEpisodes } from '../../services/podcast'
-import { unfollowArtist, unsaveAlbum } from '../../services/music'
+import { unfollowArtist, unsaveAlbum, unsaveTrack, removeTrackFromSavedAlbum } from '../../services/music'
 import { deleteYoutubeVideo, fetchYoutubeVideosMeta } from '../../services/youtube'
 import { unfollowChannel } from '../../services/youtubeChannels'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
@@ -404,6 +404,7 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
           coverUrl: a.coverUrl,
           durationMs: t.durationMs,
           trackId: t.id,
+          fromAlbumId: a.albumId || a.id,
         })),
       )
       const seen = new Set()
@@ -419,14 +420,22 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         coverUrl: t.coverUrl,
         durationMs: t.durationMs,
         trackId: t.trackId || t.id,
+        fromAlbumId: t.fromAlbumId || null,
       }))).map((t) => ({
         id: t.id,
         thumb: t.coverUrl,
         title: t.title,
-        subtitle: t.artist,
+        subtitle: [t.artist, formatDuration(t.durationMs)].filter(Boolean).join(' · '),
         shape: 'square',
-        trailing: formatDuration(t.durationMs),
         onClick: () => navigate(`/listen/${t.trackId}?source=music`),
+        onRemove: uid
+          ? () => {
+              const action = t.fromAlbumId
+                ? removeTrackFromSavedAlbum(uid, t.fromAlbumId, t.trackId)
+                : unsaveTrack(uid, t.trackId)
+              action.catch((err) => console.warn('remove track', err))
+            }
+          : undefined,
       }))
     }
     if (activeTab === 'Albums') {

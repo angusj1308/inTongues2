@@ -156,6 +156,19 @@ export const unsaveAlbum = async (uid, albumId) => {
   await deleteDoc(doc(savedAlbumsCol(uid), albumId))
 }
 
+// Drop a single track from a saved album's embedded tracklist. Used when the
+// user wants to remove an album-derived track from the Tracks tab without
+// unsaving the whole album.
+export const removeTrackFromSavedAlbum = async (uid, albumId, trackId) => {
+  if (!uid || !albumId || !trackId) return
+  const ref = doc(savedAlbumsCol(uid), albumId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const data = snap.data()
+  const next = (data.tracks || []).filter((t) => String(t.id) !== String(trackId))
+  await updateDoc(ref, { tracks: next })
+}
+
 export const saveTrack = async (uid, track) => {
   if (!uid || !track?.id) return
   await setDoc(doc(savedTracksCol(uid), track.id), {

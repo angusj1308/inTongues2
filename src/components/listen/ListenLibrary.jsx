@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { playPodcastEpisode } from '../../services/podcast'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 import useListenLibraryData, { pickContinueListening } from './useListenLibraryData'
+import MusicKitConnect from '../music/MusicKitConnect'
 
 const SHELVES = [
   { key: 'podcasts', title: 'Podcasts', cover: 'square', cols: 6 },
@@ -139,15 +140,18 @@ function MusicColdStart({ onBrowse }) {
     <div className="listen-shelf-coldstart">
       <p className="listen-shelf-coldstart-headline">No music yet.</p>
       <p className="listen-shelf-coldstart-sub">
-        Follow an artist or save an album to get started.
+        Connect your Apple Music to import your library, or browse to follow an artist.
       </p>
-      <button
-        type="button"
-        className="listen-shelf-coldstart-cta"
-        onClick={onBrowse}
-      >
-        Browse music in Discover →
-      </button>
+      <div className="listen-shelf-coldstart-actions">
+        <MusicKitConnect />
+        <button
+          type="button"
+          className="listen-shelf-coldstart-cta"
+          onClick={onBrowse}
+        >
+          Browse music in Discover →
+        </button>
+      </div>
     </div>
   )
 }

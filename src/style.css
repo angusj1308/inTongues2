@@ -30824,6 +30824,19 @@ body:has(.cinema-page) {
   opacity: 0.7;
 }
 
+.listen-shelf-coldstart-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.listen-shelf-coldstart-actions .musickit-connect {
+  min-height: 0;
+  margin: 0;
+}
+
 /* Podcast show page (rendered bare, inside DashboardLayout):
    reset the legacy cream surface, drop italics from titles, accommodate the
    doubled cover size. Only applied under .media-page--bare so the legacy

@@ -11,7 +11,7 @@ const PAGE_SIZE = 25
 
 const MusicSearchResultsPage = () => {
   const [params] = useSearchParams()
-  const { user, profile } = useAuth()
+  const { profile } = useAuth()
   const {
     followedIds,
     savedAlbumIds,
@@ -36,10 +36,9 @@ const MusicSearchResultsPage = () => {
       setExhausted(true)
       return
     }
-    if (!user?.uid) return
     setLoading(true)
     setExhausted(false)
-    searchMusic({ query, language, limit: PAGE_SIZE, uid: user.uid }).then((data) => {
+    searchMusic({ query, language, limit: PAGE_SIZE }).then((data) => {
       if (cancelled) return
       const safe = {
         artists: data?.artists || [],
@@ -54,7 +53,7 @@ const MusicSearchResultsPage = () => {
     return () => {
       cancelled = true
     }
-  }, [query, language, user?.uid])
+  }, [query, language])
 
   const totalCount =
     results.artists.length + results.albums.length + results.tracks.length
@@ -67,7 +66,6 @@ const MusicSearchResultsPage = () => {
       language,
       limit: PAGE_SIZE,
       offset: totalCount,
-      uid: user?.uid,
     })
     setResults((prev) => ({
       artists: [...prev.artists, ...(more?.artists || [])],

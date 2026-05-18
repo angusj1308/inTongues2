@@ -1554,36 +1554,59 @@ const mapSearchAlbum = (album) => ({
 })
 
 // Music surface mappers — shapes match what src/components/music/MusicResults.jsx consumes.
-const mapMusicArtist = (artist) => ({
-  id: artist?.id,
-  name: artist?.name || '',
-  coverUrl: getSpotifyImage(artist?.images),
-  genres: Array.isArray(artist?.genres) ? artist.genres : [],
-})
+// Source data is Apple Music catalog API.
+const APPLE_STOREFRONT_BY_LANGUAGE = {
+  Spanish: 'es',
+  French: 'fr',
+  Italian: 'it',
+  Portuguese: 'pt',
+  German: 'de',
+  English: 'us',
+}
 
-const mapMusicAlbum = (album) => {
-  const releaseYear = album?.release_date ? Number(String(album.release_date).slice(0, 4)) || null : null
+const appleArtworkUrl = (artwork, size = 300) => {
+  if (!artwork?.url) return ''
+  return artwork.url.replace('{w}', String(size)).replace('{h}', String(size))
+}
+
+const mapMusicArtist = (artist) => {
+  const a = artist?.attributes || {}
   return {
-    id: album?.id,
-    title: album?.name || '',
-    artistName: (album?.artists || []).map((a) => a.name).join(', '),
-    artistId: album?.artists?.[0]?.id || '',
-    year: releaseYear,
-    coverUrl: getSpotifyImage(album?.images),
-    trackCount: album?.total_tracks || 0,
+    id: String(artist?.id || ''),
+    name: a.name || '',
+    coverUrl: appleArtworkUrl(a.artwork, 300),
+    genres: Array.isArray(a.genreNames) ? a.genreNames : [],
   }
 }
 
-const mapMusicTrack = (track) => ({
-  id: track?.id,
-  title: track?.name || '',
-  artistName: (track?.artists || []).map((a) => a.name).join(', '),
-  artistId: track?.artists?.[0]?.id || '',
-  albumName: track?.album?.name || '',
-  albumId: track?.album?.id || '',
-  coverUrl: getSpotifyImage(track?.album?.images),
-  durationMs: track?.duration_ms || 0,
-})
+const mapMusicAlbum = (album) => {
+  const a = album?.attributes || {}
+  const year = a.releaseDate ? Number(String(a.releaseDate).slice(0, 4)) || null : null
+  return {
+    id: String(album?.id || ''),
+    title: a.name || '',
+    artistName: a.artistName || '',
+    artistId: album?.relationships?.artists?.data?.[0]?.id || '',
+    year,
+    coverUrl: appleArtworkUrl(a.artwork, 300),
+    trackCount: a.trackCount || 0,
+  }
+}
+
+const mapMusicTrack = (track) => {
+  const a = track?.attributes || {}
+  return {
+    id: String(track?.id || ''),
+    title: a.name || '',
+    artistName: a.artistName || '',
+    artistId: track?.relationships?.artists?.data?.[0]?.id || '',
+    albumName: a.albumName || '',
+    albumId: track?.relationships?.albums?.data?.[0]?.id || '',
+    coverUrl: appleArtworkUrl(a.artwork, 300),
+    durationMs: a.durationInMillis || 0,
+    previewUrl: a.previews?.[0]?.url || '',
+  }
+}
 
 async function fetchSpotifyTrackIsrc(userId, spotifyId) {
   if (!userId || !spotifyId) return null
@@ -2287,47 +2310,49 @@ app.get('/api/music/developer-token', async (req, res) => {
 })
 
 app.get('/api/music/search', async (req, res) => {
-  const userId = req.query.uid
   const q = String(req.query.q || '').trim()
   const limitRaw = parseInt(req.query.limit, 10)
-  // Clamp at 10 — Spotify Development Mode rejects larger limits with 400 "Invalid limit".
-  const limit = Math.max(1, Math.min(Number.isFinite(limitRaw) ? limitRaw : 10, 10))
+  // Apple Music catalog search supports 1–25 per type.
+  const limit = Math.max(1, Math.min(Number.isFinite(limitRaw) ? limitRaw : 25, 25))
   const offsetRaw = parseInt(req.query.offset, 10)
   const offset = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0
+  const language = String(req.query.lang || '').trim()
+  const storefront = APPLE_STOREFRONT_BY_LANGUAGE[language] || 'us'
 
-  if (!userId) return res.status(400).json({ error: 'uid is required' })
   if (!q) return res.json({ artists: [], albums: [], tracks: [] })
 
   try {
-    const token = await ensureSpotifyAccessToken(userId)
-    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+    const token = await getAppleMusicDeveloperToken()
 
     const params = new URLSearchParams({
-      q,
-      type: 'track,album,artist',
-      market: 'from_token',
+      term: q,
+      types: 'songs,albums,artists',
       limit: String(limit),
       offset: String(offset),
     })
+    params.append('include[songs]', 'artists,albums')
+    params.append('include[albums]', 'artists')
 
-    const response = await fetch(`https://api.spotify.com/v1/search?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    const response = await fetch(
+      `https://api.music.apple.com/v1/catalog/${storefront}/search?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
 
     if (!response.ok) {
-      console.error('Music search error', response.status, await response.text())
+      console.error('Apple Music search error', response.status, await response.text())
       return res.status(502).json({ error: 'Music search failed' })
     }
 
     const json = await response.json()
+    const results = json?.results || {}
 
     res.json({
-      artists: (json?.artists?.items || []).map(mapMusicArtist).filter((item) => item.id),
-      albums: (json?.albums?.items || []).map(mapMusicAlbum).filter((item) => item.id),
-      tracks: (json?.tracks?.items || []).map(mapMusicTrack).filter((item) => item.id),
+      artists: (results.artists?.data || []).map(mapMusicArtist).filter((it) => it.id),
+      albums: (results.albums?.data || []).map(mapMusicAlbum).filter((it) => it.id),
+      tracks: (results.songs?.data || []).map(mapMusicTrack).filter((it) => it.id),
     })
   } catch (err) {
-    console.error('Music search failure', err)
+    console.error('Apple Music search failure', err)
     res.status(500).json({ error: 'Music search failed' })
   }
 })

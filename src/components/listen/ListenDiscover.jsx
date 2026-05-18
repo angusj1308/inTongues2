@@ -12,6 +12,7 @@ import {
   dubPodcastEpisode,
 } from '../../services/podcast'
 import { searchMusic } from '../../services/music'
+import useMusicSubscriptions from '../music/useMusicSubscriptions'
 import { searchYouTube, importYoutubeVideo, dubYoutubeVideo } from '../../services/youtube'
 import {
   subscribeFollowedChannels,
@@ -212,6 +213,15 @@ function Rail({ title, cols, shape, items, emptyLabel }) {
 export default function ListenDiscover() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
+  const {
+    follow: musicFollow,
+    unfollow: musicUnfollow,
+    toggleAlbum: musicToggleAlbum,
+    toggleTrack: musicToggleTrack,
+    isFollowedArtist,
+    isSavedAlbum,
+    isSavedTrack,
+  } = useMusicSubscriptions()
   const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [results, setResults] = useState({
@@ -599,6 +609,7 @@ export default function ListenDiscover() {
     })
     // Music: artists → albums → tracks (artist match leads when query is a name).
     ;(results.music?.artists || []).forEach((ar) => {
+      const followed = ar.id ? isFollowedArtist(ar.id) : false
       rows.push({
         id: `mus-ar-${ar.id || Math.random()}`,
         medium: 'Music',
@@ -607,9 +618,19 @@ export default function ListenDiscover() {
         subtitle: 'Artist',
         shape: 'square',
         onClick: () => ar.id && navigate(`/music/artist/${ar.id}`),
+        action: ar.id ? {
+          label: followed ? 'Following' : 'Follow',
+          active: followed,
+          ariaLabel: followed ? `Unfollow ${ar.name}` : `Follow ${ar.name}`,
+          onClick: () => {
+            if (followed) musicUnfollow(ar.id)
+            else musicFollow({ id: ar.id, name: ar.name, coverUrl: ar.coverUrl, genres: ar.genres })
+          },
+        } : undefined,
       })
     })
     ;(results.music?.albums || []).forEach((a) => {
+      const saved = a.id ? isSavedAlbum(a.id) : false
       rows.push({
         id: `mus-al-${a.id || Math.random()}`,
         medium: 'Music',
@@ -618,9 +639,16 @@ export default function ListenDiscover() {
         subtitle: [a.artistName, a.year].filter(Boolean).join(' · '),
         shape: 'square',
         onClick: () => a.id && navigate(`/music/album/${a.id}`),
+        action: a.id ? {
+          variant: 'icon',
+          done: saved,
+          ariaLabel: saved ? 'Saved to your library' : 'Save album',
+          onClick: () => musicToggleAlbum(a, !saved),
+        } : undefined,
       })
     })
     ;(results.music?.tracks || []).forEach((t) => {
+      const saved = t.id ? isSavedTrack(t.id) : false
       rows.push({
         id: `mus-tr-${t.id || Math.random()}`,
         medium: 'Music',
@@ -630,6 +658,12 @@ export default function ListenDiscover() {
         shape: 'square',
         trailing: formatDuration(t.durationMs),
         onClick: () => t.id && navigate(`/listen/${t.id}?source=music`),
+        action: t.id ? {
+          variant: 'icon',
+          done: saved,
+          ariaLabel: saved ? 'Saved to your library' : 'Save track',
+          onClick: () => musicToggleTrack(t, !saved),
+        } : undefined,
       })
     })
     // YouTube. Row click previews on youtube.com in a new tab; the trailing
@@ -694,6 +728,13 @@ export default function ListenDiscover() {
     handleChannelFollow,
     handleShowFollow,
     handleEpisodeSave,
+    isFollowedArtist,
+    isSavedAlbum,
+    isSavedTrack,
+    musicFollow,
+    musicUnfollow,
+    musicToggleAlbum,
+    musicToggleTrack,
   ])
 
   const visibleRows = useMemo(() => {

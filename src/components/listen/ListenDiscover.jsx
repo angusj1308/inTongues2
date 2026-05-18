@@ -597,17 +597,16 @@ export default function ListenDiscover() {
         })
       }
     })
-    // Music: tracks + albums + artists
-    ;(results.music?.tracks || []).forEach((t) => {
+    // Music: artists → albums → tracks (artist match leads when query is a name).
+    ;(results.music?.artists || []).forEach((ar) => {
       rows.push({
-        id: `mus-tr-${t.id || Math.random()}`,
+        id: `mus-ar-${ar.id || Math.random()}`,
         medium: 'Music',
-        coverUrl: t.coverUrl || '',
-        title: t.title || 'Untitled track',
-        subtitle: t.artistName || '',
+        coverUrl: ar.coverUrl || '',
+        title: ar.name || 'Unknown artist',
+        subtitle: 'Artist',
         shape: 'square',
-        trailing: formatDuration(t.durationMs),
-        onClick: () => t.id && navigate(`/listen/${t.id}?source=music`),
+        onClick: () => ar.id && navigate(`/music/artist/${ar.id}`),
       })
     })
     ;(results.music?.albums || []).forEach((a) => {
@@ -616,20 +615,21 @@ export default function ListenDiscover() {
         medium: 'Music',
         coverUrl: a.coverUrl || '',
         title: a.title || 'Untitled album',
-        subtitle: a.artistName || '',
+        subtitle: [a.artistName, a.year].filter(Boolean).join(' · '),
         shape: 'square',
         onClick: () => a.id && navigate(`/music/album/${a.id}`),
       })
     })
-    ;(results.music?.artists || []).forEach((ar) => {
+    ;(results.music?.tracks || []).forEach((t) => {
       rows.push({
-        id: `mus-ar-${ar.id || Math.random()}`,
+        id: `mus-tr-${t.id || Math.random()}`,
         medium: 'Music',
-        coverUrl: ar.coverUrl || '',
-        title: ar.name || 'Unknown artist',
-        subtitle: '',
+        coverUrl: t.coverUrl || '',
+        title: t.title || 'Untitled track',
+        subtitle: [t.artistName, t.albumName].filter(Boolean).join(' · '),
         shape: 'square',
-        onClick: () => ar.id && navigate(`/music/artist/${ar.id}`),
+        trailing: formatDuration(t.durationMs),
+        onClick: () => t.id && navigate(`/listen/${t.id}?source=music`),
       })
     })
     // YouTube. Row click previews on youtube.com in a new tab; the trailing

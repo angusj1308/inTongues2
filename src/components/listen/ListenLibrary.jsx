@@ -250,71 +250,44 @@ export default function ListenLibrary() {
       }))
   }, [data.youtubeVideos, navigate])
 
-  // -- Music shelf: tiered fallback -----------------------------------------
-  // 1) saved albums  2) followed artists  3) saved tracks  4) cold-start
-  // Playlists tier omitted: no playlist data source exists today.
+  // -- Music shelf: cascade ------------------------------------------------
+  // Albums → followed artists → saved tracks, all visible together in the
+  // shelf row (capped at 5 total tiles). Playlists slot in between artists
+  // and tracks once a playlist data source exists.
+  const MUSIC_SHELF_LIMIT = 5
   const musicShelf = useMemo(() => {
-    if (data.savedAlbums.length > 0) {
-      return {
-        kind: 'albums',
-        cards: [...data.savedAlbums]
-          .sort((a, b) => {
-            const at = a.savedAt?.toMillis?.() || 0
-            const bt = b.savedAt?.toMillis?.() || 0
-            return bt - at
-          })
-          .slice(0, 5)
-          .map((a) => ({
-            id: a.id,
-            title: a.title || 'Untitled album',
-            subtitle: a.artistName || '',
-            trailing: a.year ? String(a.year) : '',
-            coverUrl: a.coverUrl || '',
-            onClick: () => navigate(`/music/album/${a.albumId || a.id}`),
-          })),
-      }
-    }
-    if (data.followedArtists.length > 0) {
-      return {
-        kind: 'artists',
-        cards: [...data.followedArtists]
-          .sort((a, b) => {
-            const at = a.followedAt?.toMillis?.() || 0
-            const bt = b.followedAt?.toMillis?.() || 0
-            return bt - at
-          })
-          .slice(0, 5)
-          .map((a) => ({
-            id: a.id,
-            title: a.name || 'Unknown artist',
-            subtitle: 'Artist',
-            trailing: '',
-            coverUrl: a.coverUrl || '',
-            onClick: () => navigate(`/music/artist/${a.artistId || a.id}`),
-          })),
-      }
-    }
-    if (data.savedTracks.length > 0) {
-      return {
-        kind: 'tracks',
-        cards: [...data.savedTracks]
-          .sort((a, b) => {
-            const at = a.savedAt?.toMillis?.() || 0
-            const bt = b.savedAt?.toMillis?.() || 0
-            return bt - at
-          })
-          .slice(0, 5)
-          .map((t) => ({
-            id: t.id,
-            title: t.title || 'Untitled track',
-            subtitle: t.artistName || '',
-            trailing: t.albumName || '',
-            coverUrl: t.coverUrl || '',
-            onClick: () => navigate(`/listen/${t.trackId || t.id}?source=music`),
-          })),
-      }
-    }
-    return { kind: 'empty', cards: [] }
+    const albumCards = [...data.savedAlbums]
+      .sort((a, b) => (b.savedAt?.toMillis?.() || 0) - (a.savedAt?.toMillis?.() || 0))
+      .map((a) => ({
+        id: `mus-al-${a.id}`,
+        title: a.title || 'Untitled album',
+        subtitle: a.artistName || '',
+        trailing: a.year ? String(a.year) : '',
+        coverUrl: a.coverUrl || '',
+        onClick: () => navigate(`/music/album/${a.albumId || a.id}`),
+      }))
+    const artistCards = [...data.followedArtists]
+      .sort((a, b) => (b.followedAt?.toMillis?.() || 0) - (a.followedAt?.toMillis?.() || 0))
+      .map((a) => ({
+        id: `mus-ar-${a.id}`,
+        title: a.name || 'Unknown artist',
+        subtitle: 'Artist',
+        trailing: '',
+        coverUrl: a.coverUrl || '',
+        onClick: () => navigate(`/music/artist/${a.artistId || a.id}`),
+      }))
+    const trackCards = [...data.savedTracks]
+      .sort((a, b) => (b.savedAt?.toMillis?.() || 0) - (a.savedAt?.toMillis?.() || 0))
+      .map((t) => ({
+        id: `mus-tr-${t.id}`,
+        title: t.title || 'Untitled track',
+        subtitle: t.artistName || '',
+        trailing: t.albumName || '',
+        coverUrl: t.coverUrl || '',
+        onClick: () => navigate(`/listen/${t.trackId || t.id}?source=music`),
+      }))
+    const cards = [...albumCards, ...artistCards, ...trackCards].slice(0, MUSIC_SHELF_LIMIT)
+    return { kind: cards.length ? 'mixed' : 'empty', cards }
   }, [data.savedAlbums, data.followedArtists, data.savedTracks, navigate])
 
   const shelfData = {

@@ -29790,6 +29790,26 @@ body:has(.cinema-page) {
   color: var(--text-secondary, #6B6862);
 }
 
+.listen-shelf-allmine-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-primary, #1C1A17);
+  opacity: 0.6;
+  transition: opacity 160ms ease;
+  white-space: nowrap;
+}
+
+.listen-shelf-allmine-link:hover {
+  opacity: 1;
+}
+
 .listen-shelf-grid {
   display: grid;
   gap: 16px;

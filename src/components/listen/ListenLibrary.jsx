@@ -332,6 +332,15 @@ export default function ListenLibrary() {
           <section key={shelf.key} className="listen-shelf">
             <header className="listen-shelf-header">
               <h2 className="listen-shelf-heading">{shelf.title}</h2>
+              {!isMusicEmpty && (
+                <button
+                  type="button"
+                  className="listen-shelf-allmine-link ui-text"
+                  onClick={() => navigate(`/listen/library/${shelf.key}`)}
+                >
+                  All my {shelf.title} →
+                </button>
+              )}
             </header>
             {isMusicEmpty ? (
               <MusicColdStart onBrowse={() => navigate('/listen/discover')} />
@@ -348,11 +357,6 @@ export default function ListenLibrary() {
                     onClick={card.onClick}
                   />
                 ))}
-                <AllMineTile
-                  shape={shelf.cover}
-                  label={`All my ${shelf.title}`}
-                  onClick={() => navigate(`/listen/library/${shelf.key}`)}
-                />
               </div>
             )}
           </section>

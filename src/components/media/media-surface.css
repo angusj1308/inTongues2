@@ -2156,3 +2156,23 @@
 [data-theme='dark'] .media-podcast-play:hover {
   background: #ebe9e6;
 }
+
+.musickit-connect {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 2.25rem;
+  margin-bottom: 1rem;
+}
+
+.musickit-connect-button {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.85rem;
+}
+
+.musickit-connect-button.is-connected {
+  opacity: 0.75;
+}
+
+.musickit-connect-button.is-connected:hover {
+  opacity: 1;
+}

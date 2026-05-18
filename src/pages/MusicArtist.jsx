@@ -18,6 +18,16 @@ const MusicArtistPage = () => {
   const { isFollowedArtist, isPinned, follow, unfollow } = useMusicSubscriptions()
   const [artist, setArtist] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [expandedSections, setExpandedSections] = useState(() => new Set())
+
+  const toggleSection = (key) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -55,18 +65,38 @@ const MusicArtistPage = () => {
     await unfollow(id)
   }
 
-  const renderAlbumGrid = (albums = [], emptyLabel) => {
+  const renderAlbumGrid = (albums = [], emptyLabel, sectionKey) => {
     if (!albums.length) {
       return <p className="media-empty-line">{emptyLabel}</p>
     }
+    const expanded = expandedSections.has(sectionKey)
     return (
-      <div className="media-recent-strip">
+      <div className={`media-recent-strip${expanded ? ' is-expanded' : ''}`}>
         {albums.map((album) => (
           <AlbumTile
             key={album.id}
             album={{ ...album, artistName: album.artistName || artist?.name }}
           />
         ))}
+      </div>
+    )
+  }
+
+  const renderSectionHeader = (label, sectionKey, count) => {
+    const expanded = expandedSections.has(sectionKey)
+    const showToggle = count > 6
+    return (
+      <div className="media-section-row">
+        <h2 className="media-section-header">{label}</h2>
+        {showToggle && (
+          <button
+            type="button"
+            className="media-text-button ui-text"
+            onClick={() => toggleSection(sectionKey)}
+          >
+            {expanded ? 'Show less' : `See all (${count})`}
+          </button>
+        )}
       </div>
     )
   }
@@ -148,21 +178,21 @@ const MusicArtistPage = () => {
                 )}
 
                 <section className="media-section">
-                  <h2 className="media-section-header">Albums</h2>
-                  {renderAlbumGrid(artist.albums, 'No albums yet.')}
+                  {renderSectionHeader('Albums', 'albums', artist.albums?.length || 0)}
+                  {renderAlbumGrid(artist.albums, 'No albums yet.', 'albums')}
                 </section>
 
                 {artist.singles?.length > 0 && (
                   <section className="media-section">
-                    <h2 className="media-section-header">Singles & EPs</h2>
-                    {renderAlbumGrid(artist.singles, 'No singles yet.')}
+                    {renderSectionHeader('Singles & EPs', 'singles', artist.singles.length)}
+                    {renderAlbumGrid(artist.singles, 'No singles yet.', 'singles')}
                   </section>
                 )}
 
                 {artist.appearsOn?.length > 0 && (
                   <section className="media-section">
-                    <h2 className="media-section-header">Appears On</h2>
-                    {renderAlbumGrid(artist.appearsOn, 'No appearances.')}
+                    {renderSectionHeader('Appears On', 'appearsOn', artist.appearsOn.length)}
+                    {renderAlbumGrid(artist.appearsOn, 'No appearances.', 'appearsOn')}
                   </section>
                 )}
               </>

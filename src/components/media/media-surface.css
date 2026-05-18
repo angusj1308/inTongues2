@@ -626,6 +626,12 @@
   padding-bottom: 0.5rem;
 }
 
+.media-recent-strip.is-expanded {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  row-gap: 1.75rem;
+}
+
 .media-episode-tile {
   flex: 0 0 180px;
   background: transparent;

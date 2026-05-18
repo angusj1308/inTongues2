@@ -2368,6 +2368,12 @@ app.get('/api/music/artist/:id', async (req, res) => {
     const params = new URLSearchParams({
       views: 'top-songs,full-albums,singles,appears-on-albums',
       extend: 'artistBio',
+      // Pull up to 25 per view (Apple's per-view max) so deep discographies
+      // surface beyond the default ~10.
+      'limit[full-albums]': '25',
+      'limit[singles]': '25',
+      'limit[appears-on-albums]': '25',
+      'limit[top-songs]': '25',
     })
     const response = await fetch(
       `https://api.music.apple.com/v1/catalog/${storefront}/artists/${encodeURIComponent(id)}?${params.toString()}`,

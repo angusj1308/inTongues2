@@ -96,6 +96,7 @@ function ContinueListeningHero({ item, onPlay }) {
 }
 
 function ShelfCard({ shape, coverUrl, title, subtitle, trailing, onClick, ariaLabel, disabled }) {
+  const metaParts = [subtitle, trailing].filter(Boolean)
   return (
     <button
       type="button"
@@ -110,11 +111,12 @@ function ShelfCard({ shape, coverUrl, title, subtitle, trailing, onClick, ariaLa
         ) : (
           <span className="listen-shelf-cover-fallback">{title}</span>
         )}
-      </div>
-      <div className="listen-shelf-meta">
-        <p className="listen-shelf-title">{title}</p>
-        {subtitle && <p className="listen-shelf-sub">{subtitle}</p>}
-        {trailing && <p className="listen-shelf-trailing">{trailing}</p>}
+        <div className="listen-shelf-hover">
+          <div className="listen-shelf-hover-title">{title}</div>
+          {metaParts.length > 0 && (
+            <div className="listen-shelf-hover-meta">{metaParts.join(' · ')}</div>
+          )}
+        </div>
       </div>
     </button>
   )

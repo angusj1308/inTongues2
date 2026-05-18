@@ -251,7 +251,7 @@ export default function ListenLibrary() {
   }, [data.youtubeVideos, navigate])
 
   // -- Music shelf: tiered fallback -----------------------------------------
-  // 1) saved albums  2) saved tracks  3) cold-start
+  // 1) saved albums  2) followed artists  3) saved tracks  4) cold-start
   // Playlists tier omitted: no playlist data source exists today.
   const musicShelf = useMemo(() => {
     if (data.savedAlbums.length > 0) {
@@ -271,6 +271,26 @@ export default function ListenLibrary() {
             trailing: a.year ? String(a.year) : '',
             coverUrl: a.coverUrl || '',
             onClick: () => navigate(`/music/album/${a.albumId || a.id}`),
+          })),
+      }
+    }
+    if (data.followedArtists.length > 0) {
+      return {
+        kind: 'artists',
+        cards: [...data.followedArtists]
+          .sort((a, b) => {
+            const at = a.followedAt?.toMillis?.() || 0
+            const bt = b.followedAt?.toMillis?.() || 0
+            return bt - at
+          })
+          .slice(0, 5)
+          .map((a) => ({
+            id: a.id,
+            title: a.name || 'Unknown artist',
+            subtitle: 'Artist',
+            trailing: '',
+            coverUrl: a.coverUrl || '',
+            onClick: () => navigate(`/music/artist/${a.artistId || a.id}`),
           })),
       }
     }
@@ -295,7 +315,7 @@ export default function ListenLibrary() {
       }
     }
     return { kind: 'empty', cards: [] }
-  }, [data.savedAlbums, data.savedTracks, navigate])
+  }, [data.savedAlbums, data.followedArtists, data.savedTracks, navigate])
 
   const shelfData = {
     audiobooks: audiobookCards,

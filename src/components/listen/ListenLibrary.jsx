@@ -7,10 +7,10 @@ import useListenLibraryData, { pickContinueListening } from './useListenLibraryD
 import MusicKitConnect from '../music/MusicKitConnect'
 
 const SHELVES = [
-  { key: 'podcasts', title: 'Podcasts', cover: 'square', cols: 5 },
-  { key: 'youtube', title: 'YouTube', cover: 'wide', cols: 4 },
-  { key: 'music', title: 'Music', cover: 'square', cols: 5 },
-  { key: 'audiobooks', title: 'Audiobooks', cover: 'square', cols: 5 },
+  { key: 'podcasts', title: 'Podcasts', cover: 'square', cols: 6 },
+  { key: 'youtube', title: 'YouTube', cover: 'wide', cols: 5 },
+  { key: 'music', title: 'Music', cover: 'square', cols: 6 },
+  { key: 'audiobooks', title: 'Audiobooks', cover: 'square', cols: 6 },
 ]
 
 function continueSubtitle(item) {

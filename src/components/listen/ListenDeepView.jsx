@@ -29,7 +29,7 @@ const stripArticles = (s) =>
 
 const sortByTitle = (rows) =>
   [...rows].sort((a, b) =>
-    stripArticles(a.title).toLowerCase().localeCompare(stripArticles(b.title).toLowerCase()),
+    String(a.title || '').toLowerCase().localeCompare(String(b.title || '').toLowerCase()),
   )
 
 const formatDuration = (ms) => {

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchAlbum } from '../services/music'
 import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
-import MusicShell from '../components/music/MusicShell'
+import DashboardLayout from '../components/layout/DashboardLayout'
 import CoverArt from '../components/podcast/CoverArt'
 import AlbumTile from '../components/music/AlbumTile'
 import useMusicSubscriptions from '../components/music/useMusicSubscriptions'
@@ -47,6 +47,12 @@ const MusicAlbumPage = () => {
     }
   }, [id, language])
 
+  const handleTabChange = (tab) => {
+    if (tab === 'listen') navigate('/listen/library')
+    else if (tab === 'read') navigate('/read/library')
+    else navigate('/dashboard', { state: { initialTab: tab } })
+  }
+
   const saved = isSavedAlbum(id)
   const totalDurationMs = (album?.tracks || []).reduce((acc, t) => acc + (t.durationMs || 0), 0)
 
@@ -66,11 +72,13 @@ const MusicAlbumPage = () => {
   }
 
   return (
-    <MusicShell>
-      <div className="media-show-page">
-        <Link to="/music" className="media-back-link ui-text">
-          ← Library
-        </Link>
+    <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
+      <div className="media-page media-page--bare">
+        <main className="media-main">
+          <div className="media-show-page">
+            <Link to="/listen/library/music" className="media-back-link ui-text">
+              ← My Music
+            </Link>
 
         {loading && !album ? (
           <p className="media-placeholder">Loading…</p>
@@ -167,10 +175,12 @@ const MusicAlbumPage = () => {
                 </div>
               </section>
             )}
-          </>
-        )}
+              </>
+            )}
+          </div>
+        </main>
       </div>
-    </MusicShell>
+    </DashboardLayout>
   )
 }
 

@@ -212,7 +212,7 @@ const PodcastShowPage = () => {
                       className="media-secondary-button ui-text"
                       onClick={async () => {
                         await unfollow(id)
-                        navigate('/podcasts')
+                        navigate('/listen/library/podcasts')
                       }}
                     >
                       Remove from My Shows
@@ -220,7 +220,7 @@ const PodcastShowPage = () => {
                     <button
                       type="button"
                       className="media-text-button ui-text"
-                      onClick={() => navigate('/podcasts')}
+                      onClick={() => navigate('/listen/library/podcasts')}
                     >
                       Back
                     </button>
@@ -281,7 +281,7 @@ const PodcastShowPage = () => {
               <section className="media-section">
                 <UnavailableShowMessage
                   title={show.title}
-                  onBack={() => navigate('/podcasts/discover')}
+                  onBack={() => navigate('/listen/discover')}
                 />
               </section>
             ) : (

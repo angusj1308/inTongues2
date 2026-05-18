@@ -16,15 +16,8 @@ import AudioPlayer from './pages/AudioPlayer'
 import ImportAudioVideo from './pages/ImportAudioVideo'
 import IntonguesCinema from './pages/IntonguesCinema'
 import SpotifyCollectionPage from './pages/SpotifyCollectionPage'
-import { PodcastsLibraryPage, PodcastsDiscoverPage } from './pages/Podcasts'
 import PodcastShowPage from './pages/PodcastShow'
 import YoutubeChannelPage from './pages/YoutubeChannelPage'
-import PodcastEpisodePage from './pages/PodcastEpisode'
-import PodcastSearchResultsPage from './pages/PodcastSearchResults'
-import PodcastCategoryResultsPage from './pages/PodcastCategoryResults'
-import { MusicLibraryPage, MusicDiscoverPage } from './pages/Music'
-import MusicSearchResultsPage from './pages/MusicSearchResults'
-import MusicGenreResultsPage from './pages/MusicGenreResults'
 import MusicArtistPage from './pages/MusicArtist'
 import MusicAlbumPage from './pages/MusicAlbum'
 import JuanComprehension from './pages/JuanComprehension'
@@ -247,22 +240,6 @@ const App = () => {
         }
       />
       <Route
-        path="/podcasts"
-        element={
-          <ProtectedRoute>
-            <PodcastsLibraryPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/podcasts/discover"
-        element={
-          <ProtectedRoute>
-            <PodcastsDiscoverPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/podcasts/show/:id"
         element={
           <ProtectedRoute>
@@ -275,62 +252,6 @@ const App = () => {
         element={
           <ProtectedRoute>
             <YoutubeChannelPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/podcasts/search"
-        element={
-          <ProtectedRoute>
-            <PodcastSearchResultsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/podcasts/episode/:episodeId"
-        element={
-          <ProtectedRoute>
-            <PodcastEpisodePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/podcasts/discover/:category"
-        element={
-          <ProtectedRoute>
-            <PodcastCategoryResultsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/music"
-        element={
-          <ProtectedRoute>
-            <MusicLibraryPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/music/discover"
-        element={
-          <ProtectedRoute>
-            <MusicDiscoverPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/music/search"
-        element={
-          <ProtectedRoute>
-            <MusicSearchResultsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/music/discover/:genre"
-        element={
-          <ProtectedRoute>
-            <MusicGenreResultsPage />
           </ProtectedRoute>
         }
       />

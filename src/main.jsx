@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext'
 import { auth } from './firebase'
 import { initSpotifyPlayer } from './services/spotifyPlayer'
 import './style.css'
+import './components/media/media-surface.css'
 
 const fetchSpotifyAccessToken = async () => {
   const currentUser = auth.currentUser

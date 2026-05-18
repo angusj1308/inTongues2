@@ -248,10 +248,13 @@ export const fetchGenreShows = async ({ genre, language, limit: max = 25, offset
   }
 }
 
-export const fetchArtist = async (artistId) => {
+export const fetchArtist = async (artistId, { language } = {}) => {
   if (!artistId) return null
   try {
-    const res = await fetch(`/api/music/artist/${encodeURIComponent(artistId)}`)
+    const params = new URLSearchParams()
+    if (language) params.set('lang', language)
+    const qs = params.toString()
+    const res = await fetch(`/api/music/artist/${encodeURIComponent(artistId)}${qs ? `?${qs}` : ''}`)
     if (!res.ok) return null
     return await res.json()
   } catch {
@@ -259,10 +262,13 @@ export const fetchArtist = async (artistId) => {
   }
 }
 
-export const fetchAlbum = async (albumId) => {
+export const fetchAlbum = async (albumId, { language } = {}) => {
   if (!albumId) return null
   try {
-    const res = await fetch(`/api/music/album/${encodeURIComponent(albumId)}`)
+    const params = new URLSearchParams()
+    if (language) params.set('lang', language)
+    const qs = params.toString()
+    const res = await fetch(`/api/music/album/${encodeURIComponent(albumId)}${qs ? `?${qs}` : ''}`)
     if (!res.ok) return null
     return await res.json()
   } catch {

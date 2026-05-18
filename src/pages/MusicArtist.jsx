@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchArtist } from '../services/music'
+import useAuth from '../context/AuthContext'
+import { resolveSupportedLanguageLabel } from '../constants/languages'
 import MusicShell from '../components/music/MusicShell'
 import CoverArt from '../components/podcast/CoverArt'
 import EpisodeRow from '../components/podcast/EpisodeRow'
@@ -11,6 +13,8 @@ import useMusicSubscriptions from '../components/music/useMusicSubscriptions'
 const MusicArtistPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { profile } = useAuth()
+  const language = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
   const { isFollowedArtist, isPinned, follow, unfollow } = useMusicSubscriptions()
   const [artist, setArtist] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -18,7 +22,7 @@ const MusicArtistPage = () => {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    fetchArtist(id).then((data) => {
+    fetchArtist(id, { language }).then((data) => {
       if (cancelled) return
       setArtist(data)
       setLoading(false)
@@ -26,7 +30,7 @@ const MusicArtistPage = () => {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, language])
 
   const followed = isFollowedArtist(id)
   const pinned = isPinned(id)

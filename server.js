@@ -2357,6 +2357,131 @@ app.get('/api/music/search', async (req, res) => {
   }
 })
 
+app.get('/api/music/artist/:id', async (req, res) => {
+  const id = String(req.params.id || '').trim()
+  if (!id) return res.status(400).json({ error: 'id is required' })
+  const language = String(req.query.lang || '').trim()
+  const storefront = APPLE_STOREFRONT_BY_LANGUAGE[language] || 'us'
+
+  try {
+    const token = await getAppleMusicDeveloperToken()
+    const params = new URLSearchParams({
+      views: 'top-songs,full-albums,singles,appears-on-albums',
+      extend: 'artistBio',
+    })
+    const response = await fetch(
+      `https://api.music.apple.com/v1/catalog/${storefront}/artists/${encodeURIComponent(id)}?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
+
+    if (response.status === 404) return res.status(404).json({ error: 'Artist not found' })
+    if (!response.ok) {
+      console.error('Apple Music artist error', response.status, await response.text())
+      return res.status(502).json({ error: 'Music artist fetch failed' })
+    }
+
+    const json = await response.json()
+    const artist = json?.data?.[0]
+    if (!artist) return res.status(404).json({ error: 'Artist not found' })
+
+    const attrs = artist.attributes || {}
+    const views = artist.views || {}
+
+    res.json({
+      id: String(artist.id),
+      name: attrs.name || '',
+      coverUrl: appleArtworkUrl(attrs.artwork, 400),
+      bio: attrs.artistBio || attrs.editorialNotes?.standard || '',
+      genres: Array.isArray(attrs.genreNames) ? attrs.genreNames : [],
+      topTracks: (views['top-songs']?.data || []).map(mapMusicTrack).filter((t) => t.id),
+      albums: (views['full-albums']?.data || []).map(mapMusicAlbum).filter((a) => a.id),
+      singles: (views.singles?.data || []).map(mapMusicAlbum).filter((a) => a.id),
+      appearsOn: (views['appears-on-albums']?.data || []).map(mapMusicAlbum).filter((a) => a.id),
+    })
+  } catch (err) {
+    console.error('Apple Music artist failure', err)
+    res.status(500).json({ error: 'Music artist fetch failed' })
+  }
+})
+
+app.get('/api/music/album/:id', async (req, res) => {
+  const id = String(req.params.id || '').trim()
+  if (!id) return res.status(400).json({ error: 'id is required' })
+  const language = String(req.query.lang || '').trim()
+  const storefront = APPLE_STOREFRONT_BY_LANGUAGE[language] || 'us'
+
+  try {
+    const token = await getAppleMusicDeveloperToken()
+    const params = new URLSearchParams({ include: 'tracks,artists' })
+    const response = await fetch(
+      `https://api.music.apple.com/v1/catalog/${storefront}/albums/${encodeURIComponent(id)}?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
+
+    if (response.status === 404) return res.status(404).json({ error: 'Album not found' })
+    if (!response.ok) {
+      console.error('Apple Music album error', response.status, await response.text())
+      return res.status(502).json({ error: 'Music album fetch failed' })
+    }
+
+    const json = await response.json()
+    const album = json?.data?.[0]
+    if (!album) return res.status(404).json({ error: 'Album not found' })
+
+    const attrs = album.attributes || {}
+    const year = attrs.releaseDate ? Number(String(attrs.releaseDate).slice(0, 4)) || null : null
+    const artistRelation = album.relationships?.artists?.data?.[0]
+    const tracks = (album.relationships?.tracks?.data || [])
+      .map((t) => {
+        const a = t?.attributes || {}
+        return {
+          id: String(t?.id || ''),
+          title: a.name || '',
+          durationMs: a.durationInMillis || 0,
+          trackNumber: a.trackNumber,
+          previewUrl: a.previews?.[0]?.url || '',
+        }
+      })
+      .filter((t) => t.id)
+
+    // "More by artist" — fetch the artist's full-albums view, exclude current album.
+    let moreByArtist = []
+    if (artistRelation?.id) {
+      try {
+        const artistResp = await fetch(
+          `https://api.music.apple.com/v1/catalog/${storefront}/artists/${encodeURIComponent(artistRelation.id)}?views=full-albums`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        if (artistResp.ok) {
+          const artistJson = await artistResp.json()
+          const artistAlbums = artistJson?.data?.[0]?.views?.['full-albums']?.data || []
+          moreByArtist = artistAlbums
+            .map(mapMusicAlbum)
+            .filter((a) => a.id && a.id !== id)
+            .slice(0, 10)
+        }
+      } catch (err) {
+        console.warn('More by artist fetch failed', err.message)
+      }
+    }
+
+    res.json({
+      id: String(album.id),
+      title: attrs.name || '',
+      artistName: attrs.artistName || '',
+      artistId: artistRelation?.id ? String(artistRelation.id) : '',
+      year,
+      coverUrl: appleArtworkUrl(attrs.artwork, 400),
+      trackCount: attrs.trackCount || tracks.length,
+      tracks,
+      moreByArtist,
+    })
+  } catch (err) {
+    console.error('Apple Music album failure', err)
+    res.status(500).json({ error: 'Music album fetch failed' })
+  }
+})
+
 app.post('/api/spotify/library/add', async (req, res) => {
   const {
     uid,

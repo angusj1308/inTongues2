@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchAlbum } from '../services/music'
+import useAuth from '../context/AuthContext'
+import { resolveSupportedLanguageLabel } from '../constants/languages'
 import MusicShell from '../components/music/MusicShell'
 import CoverArt from '../components/podcast/CoverArt'
 import AlbumTile from '../components/music/AlbumTile'
@@ -26,6 +28,8 @@ const formatTrackDuration = (ms) => {
 const MusicAlbumPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { profile } = useAuth()
+  const language = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
   const { isSavedAlbum, toggleAlbum } = useMusicSubscriptions()
   const [album, setAlbum] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -33,7 +37,7 @@ const MusicAlbumPage = () => {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    fetchAlbum(id).then((data) => {
+    fetchAlbum(id, { language }).then((data) => {
       if (cancelled) return
       setAlbum(data)
       setLoading(false)
@@ -41,7 +45,7 @@ const MusicAlbumPage = () => {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, language])
 
   const saved = isSavedAlbum(id)
   const totalDurationMs = (album?.tracks || []).reduce((acc, t) => acc + (t.durationMs || 0), 0)

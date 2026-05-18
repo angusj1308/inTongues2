@@ -286,7 +286,7 @@ export default function ListenLibrary() {
         subtitle: t.artistName || '',
         trailing: t.albumName || '',
         coverUrl: t.coverUrl || '',
-        onClick: () => navigate(`/music/track/${t.trackId || t.id}`),
+        onClick: () => navigate(`/listen/${t.trackId || t.id}?source=music`),
       }))
     const cards = [...albumCards, ...artistCards, ...trackCards].slice(0, MUSIC_SHELF_LIMIT)
     return { kind: cards.length ? 'mixed' : 'empty', cards }

@@ -12,6 +12,8 @@ import {
   seek as seekSpotify,
   subscribeToStateChanges,
 } from '../services/spotifyPlayer'
+import { fetchTrack } from '../services/music'
+import { getMusicKit } from '../services/musicKit'
 import IntensiveListeningMode from '../components/listen/IntensiveListeningMode'
 import ExtensiveMode from '../components/listen/ExtensiveMode'
 import ActiveMode from '../components/listen/ActiveMode'
@@ -135,7 +137,13 @@ const AudioPlayer = () => {
   const source = searchParams.get('source')
   const isSpotify = source === 'spotify'
   const isPodcast = source === 'podcast'
+  const isMusic = source === 'music'
   const podcastEpisodeFromState = location.state?.episode || null
+  // Treat music like Spotify for most early-returns — externally-managed
+  // playback (MusicKit JS), no Firestore audiobook content, no transcript
+  // pipeline. The handful of places that need different behaviour for music
+  // vs Spotify branch on isMusic explicitly.
+  const isExternalPlayer = isSpotify || isMusic
 
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(true)
@@ -441,12 +449,12 @@ const AudioPlayer = () => {
   // poll could resolve. Spotify path doesn't use audioRef, so it falls back
   // to `playbackPositionSeconds` via the existing currentTime prop.
   const getTranscriptCurrentTime = useCallback(() => {
-    if (isSpotify) return null
+    if (isSpotify || isMusic) return null
     const audio = audioRef.current
     if (!audio) return null
     const t = audio.currentTime
     return Number.isFinite(t) ? t : null
-  }, [isSpotify])
+  }, [isSpotify, isMusic])
 
   const activeChunks = useMemo(() => {
     const formatChunkTime = (seconds) =>
@@ -687,6 +695,51 @@ const AudioPlayer = () => {
       return
     }
 
+    if (isMusic) {
+      ;(async () => {
+        const trackLanguage = resolveSupportedLanguageLabel(
+          profile?.lastUsedLanguage,
+          '',
+        )
+        const data = await fetchTrack(id, { language: trackLanguage })
+        if (!data) {
+          setError('Track not found.')
+          setStoryMeta({
+            title: '',
+            language: '',
+            audioStatus: '',
+            fullAudioUrl: '',
+            spotifyUri: '',
+            type: '',
+            mediaType: 'audio',
+          })
+          setLoading(false)
+          return
+        }
+        setStoryMeta({
+          title: data.title || 'Untitled track',
+          language: trackLanguage || '',
+          audioStatus: 'ready',
+          fullAudioUrl: null,
+          spotifyUri: '',
+          type: 'track',
+          mediaType: 'audio',
+          coverImageUrl: data.coverUrl || '',
+          coverImageUrlSquare: data.coverUrl || '',
+          coverColor: '',
+          subtitle: [data.artistName, data.albumName].filter(Boolean).join(' · '),
+          artistId: data.artistId || '',
+          artistName: data.artistName || '',
+          albumId: data.albumId || '',
+          albumName: data.albumName || '',
+        })
+        setDurationSeconds(Math.round((data.durationMs || 0) / 1000))
+        setPages([])
+        setLoading(false)
+      })()
+      return
+    }
+
     const loadStoryMeta = async () => {
       try {
         const baseDoc = isSpotify
@@ -745,14 +798,14 @@ const AudioPlayer = () => {
     }
 
     loadStoryMeta()
-  }, [id, isSpotify, isPodcast, podcastEpisodeFromState, user])
+  }, [id, isSpotify, isPodcast, isMusic, podcastEpisodeFromState, profile?.lastUsedLanguage, user])
 
   // Lazy backfill for older books — if the story doc loaded without a square
   // cover or extracted colour, hit the idempotent endpoint so the gradient
   // shows up the first time someone opens it. Endpoint short-circuits if both
   // fields are already set.
   useEffect(() => {
-    if (!user || !id || isSpotify || isPodcast) return
+    if (!user || !id || isSpotify || isPodcast || isMusic) return
     if (storyMeta.coverImageUrlSquare && storyMeta.coverColor) return
     if (!storyMeta.coverImageUrl) return // need a portrait to start from
     let cancelled = false
@@ -881,6 +934,57 @@ const AudioPlayer = () => {
     }
   }, [fetchSpotifyAccessToken, isSpotify, user])
 
+  // MusicKit JS init for Apple Music tracks. Drives the transport via the
+  // same isPlaying / progressSeconds / durationSeconds state the existing UI
+  // already reads.
+  const musicKitRef = useRef(null)
+  useEffect(() => {
+    if (!isMusic || !id) return undefined
+    let cancelled = false
+    let cleanup = null
+    getMusicKit()
+      .then(async (inst) => {
+        if (cancelled) return
+        musicKitRef.current = inst
+        try {
+          await inst.setQueue({ song: id })
+        } catch (err) {
+          if (!cancelled) setError(err?.message || 'Could not load track')
+          return
+        }
+        const onState = () => {
+          if (cancelled) return
+          // MusicKit playbackState: 2 = playing
+          setIsPlaying(inst.playbackState === 2)
+        }
+        const onTime = () => {
+          if (cancelled) return
+          setProgressSeconds(inst.currentPlaybackTime || 0)
+          const dur = inst.currentPlaybackDuration || 0
+          if (dur > 0) setDurationSeconds(Math.round(dur))
+        }
+        inst.addEventListener('playbackStateDidChange', onState)
+        inst.addEventListener('playbackTimeDidChange', onTime)
+        onState()
+        onTime()
+        cleanup = () => {
+          inst.removeEventListener('playbackStateDidChange', onState)
+          inst.removeEventListener('playbackTimeDidChange', onTime)
+          // Stop playback if we navigate away — keeps audio from continuing
+          // in the background when the player unmounts.
+          inst.stop?.().catch(() => {})
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err?.message || 'MusicKit unavailable')
+      })
+    return () => {
+      cancelled = true
+      if (cleanup) cleanup()
+      musicKitRef.current = null
+    }
+  }, [isMusic, id])
+
   useEffect(() => {
     if (!user || !id) {
       setPages([])
@@ -952,7 +1056,7 @@ const AudioPlayer = () => {
   }, [id, isSpotify, isPodcast, user])
 
   useEffect(() => {
-    if (!user || !id || isSpotify || isPodcast) {
+    if (!user || !id || isSpotify || isPodcast || isMusic) {
       setTranscriptDoc({ wordTimestamps: [], sentenceSegments: [], segments: [] })
       return undefined
     }
@@ -1620,7 +1724,7 @@ const AudioPlayer = () => {
   }, [popup])
 
   useEffect(() => {
-    if (isSpotify) return undefined
+    if (isSpotify || isMusic) return undefined
 
     const audio = audioRef.current
     if (!audio) return undefined
@@ -1657,7 +1761,7 @@ const AudioPlayer = () => {
   // and forced layout on every rAF read. 1 Hz is plenty for the displayed
   // timer; the integer-second guard avoids redundant React commits.
   useEffect(() => {
-    if (isSpotify) return undefined
+    if (isSpotify || isMusic) return undefined
     if (!isPlaying) return undefined
     const audio = audioRef.current
     if (!audio) return undefined
@@ -1948,6 +2052,18 @@ const AudioPlayer = () => {
       return
     }
 
+    if (isMusic) {
+      const inst = musicKitRef.current
+      if (!inst) return
+      try {
+        if (isPlaying) await inst.pause()
+        else await inst.play()
+      } catch (err) {
+        console.warn('MusicKit toggle failed', err)
+      }
+      return
+    }
+
     const audio = audioRef.current
     if (!audio) return
 
@@ -1971,6 +2087,9 @@ const AudioPlayer = () => {
 
     if (isSpotify) {
       seekSpotify(target * 1000)
+    } else if (isMusic) {
+      const inst = musicKitRef.current
+      if (inst) inst.seekToTime(target).catch(() => {})
     } else {
       const audio = audioRef.current
       if (audio) {
@@ -1992,7 +2111,7 @@ const AudioPlayer = () => {
   const handlePlaybackRateChange = (nextRate) => {
     setPlaybackRate(nextRate)
 
-    if (isSpotify) return
+    if (isSpotify || isMusic) return
 
     const audio = audioRef.current
     if (!audio) return

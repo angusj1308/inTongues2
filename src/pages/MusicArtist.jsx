@@ -170,7 +170,7 @@ const MusicArtistPage = () => {
                             showName: track.albumName || artist.name,
                           }}
                           variant="list"
-                          onPlay={() => navigate(`/music/track/${track.id}`)}
+                          onPlay={() => navigate(`/listen/${track.id}?source=music`)}
                         />
                       ))}
                     </div>

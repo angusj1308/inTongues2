@@ -658,7 +658,7 @@ export default function ListenDiscover() {
         subtitle: [t.artistName, t.albumName].filter(Boolean).join(' · '),
         shape: 'square',
         trailing: formatDuration(t.durationMs),
-        onClick: () => t.id && navigate(`/music/track/${t.id}`),
+        onClick: () => t.id && navigate(`/listen/${t.id}?source=music`),
         action: t.id ? {
           variant: 'icon',
           done: saved,

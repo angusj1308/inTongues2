@@ -147,7 +147,7 @@ const MusicAlbumPage = () => {
                       key={track.id}
                       type="button"
                       className="media-tracklist-row"
-                      onClick={() => navigate(`/music/track/${track.id}`)}
+                      onClick={() => navigate(`/listen/${track.id}?source=music`)}
                     >
                       <span className="media-tracklist-number">
                         {track.trackNumber ?? index + 1}

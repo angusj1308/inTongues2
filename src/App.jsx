@@ -20,6 +20,7 @@ import PodcastShowPage from './pages/PodcastShow'
 import YoutubeChannelPage from './pages/YoutubeChannelPage'
 import MusicArtistPage from './pages/MusicArtist'
 import MusicAlbumPage from './pages/MusicAlbum'
+import MusicTrackPage from './pages/MusicTrack'
 import JuanComprehension from './pages/JuanComprehension'
 import WritingEditor from './pages/WritingEditor'
 import PracticeLesson from './pages/PracticeLesson'
@@ -268,6 +269,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <MusicAlbumPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/music/track/:id"
+        element={
+          <ProtectedRoute>
+            <MusicTrackPage />
           </ProtectedRoute>
         }
       />

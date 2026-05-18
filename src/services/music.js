@@ -286,6 +286,20 @@ export const fetchArtist = async (artistId, { language } = {}) => {
   }
 }
 
+export const fetchTrack = async (trackId, { language } = {}) => {
+  if (!trackId) return null
+  try {
+    const params = new URLSearchParams()
+    if (language) params.set('lang', language)
+    const qs = params.toString()
+    const res = await fetch(`/api/music/track/${encodeURIComponent(trackId)}${qs ? `?${qs}` : ''}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
 export const fetchAlbum = async (albumId, { language } = {}) => {
   if (!albumId) return null
   try {

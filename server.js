@@ -2433,6 +2433,35 @@ app.get('/api/music/artist/:id', async (req, res) => {
   }
 })
 
+app.get('/api/music/track/:id', async (req, res) => {
+  const id = String(req.params.id || '').trim()
+  if (!id) return res.status(400).json({ error: 'id is required' })
+  const language = String(req.query.lang || '').trim()
+  const storefront = APPLE_STOREFRONT_BY_LANGUAGE[language] || 'us'
+
+  try {
+    const token = await getAppleMusicDeveloperToken()
+    const response = await fetch(
+      `https://api.music.apple.com/v1/catalog/${storefront}/songs/${encodeURIComponent(id)}?include=artists,albums`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
+
+    if (response.status === 404) return res.status(404).json({ error: 'Track not found' })
+    if (!response.ok) {
+      console.error('Apple Music track error', response.status, await response.text())
+      return res.status(502).json({ error: 'Music track fetch failed' })
+    }
+
+    const json = await response.json()
+    const track = json?.data?.[0]
+    if (!track) return res.status(404).json({ error: 'Track not found' })
+    res.json(mapMusicTrack(track))
+  } catch (err) {
+    console.error('Apple Music track failure', err)
+    res.status(500).json({ error: 'Music track fetch failed' })
+  }
+})
+
 app.get('/api/music/album/:id', async (req, res) => {
   const id = String(req.params.id || '').trim()
   if (!id) return res.status(400).json({ error: 'id is required' })

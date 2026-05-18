@@ -427,7 +427,7 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         title: t.title,
         subtitle: [t.artist, formatDuration(t.durationMs)].filter(Boolean).join(' · '),
         shape: 'square',
-        onClick: () => navigate(`/listen/${t.trackId}?source=music`),
+        onClick: () => navigate(`/music/track/${t.trackId}`),
         onRemove: uid
           ? () => {
               const action = t.fromAlbumId

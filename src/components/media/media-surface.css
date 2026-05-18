@@ -2163,6 +2163,38 @@
   background: #ebe9e6;
 }
 
+.music-track-scrubber {
+  position: relative;
+  height: 4px;
+  background: rgba(28, 26, 23, 0.18);
+  cursor: pointer;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.music-track-scrubber-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #1c1a17;
+  transition: width 120ms linear;
+}
+
+[data-theme='dark'] .music-track-scrubber {
+  background: rgba(251, 250, 248, 0.2);
+}
+
+[data-theme='dark'] .music-track-scrubber-fill {
+  background: #fafaf9;
+}
+
+.music-track-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #78716c);
+}
+
 .musickit-connect {
   display: flex;
   justify-content: flex-end;

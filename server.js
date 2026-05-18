@@ -2365,18 +2365,19 @@ app.get('/api/music/artist/:id', async (req, res) => {
 
   try {
     const token = await getAppleMusicDeveloperToken()
-    const params = new URLSearchParams({
-      views: 'top-songs,full-albums,singles,appears-on-albums',
-      extend: 'artistBio',
-      // Pull up to 25 per view (Apple's per-view max) so deep discographies
-      // surface beyond the default ~10.
-      'limit[full-albums]': '25',
-      'limit[singles]': '25',
-      'limit[appears-on-albums]': '25',
-      'limit[top-songs]': '25',
-    })
+    // Build query manually — URLSearchParams percent-encodes the brackets in
+    // limit[view-name] and Apple's parser rejects the encoded form on some
+    // paths, silently falling back to the default ~10-item view.
+    const queryString = [
+      'views=top-songs,full-albums,singles,appears-on-albums',
+      'extend=artistBio',
+      'limit[full-albums]=25',
+      'limit[singles]=25',
+      'limit[appears-on-albums]=25',
+      'limit[top-songs]=25',
+    ].join('&')
     const response = await fetch(
-      `https://api.music.apple.com/v1/catalog/${storefront}/artists/${encodeURIComponent(id)}?${params.toString()}`,
+      `https://api.music.apple.com/v1/catalog/${storefront}/artists/${encodeURIComponent(id)}?${queryString}`,
       { headers: { Authorization: `Bearer ${token}` } },
     )
 

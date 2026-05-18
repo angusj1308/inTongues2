@@ -8,7 +8,7 @@ import MusicKitConnect from '../music/MusicKitConnect'
 
 const SHELVES = [
   { key: 'podcasts', title: 'Podcasts', cover: 'square', cols: 6 },
-  { key: 'youtube', title: 'YouTube', cover: 'wide', cols: 4 },
+  { key: 'youtube', title: 'YouTube', cover: 'wide', cols: 3 },
   { key: 'music', title: 'Music', cover: 'square', cols: 6 },
   { key: 'audiobooks', title: 'Audiobooks', cover: 'square', cols: 6 },
 ]

@@ -300,6 +300,22 @@ export const fetchTrack = async (trackId, { language } = {}) => {
   }
 }
 
+// Time-synced lyrics (Musixmatch richsync) for an Apple Music track.
+// Returns { segments: [{ start, end, text }] } — empty array when no lyrics.
+export const fetchTrackLyrics = async (trackId, { language } = {}) => {
+  if (!trackId) return { segments: [] }
+  try {
+    const params = new URLSearchParams()
+    if (language) params.set('lang', language)
+    const qs = params.toString()
+    const res = await fetch(`/api/music/lyrics/${encodeURIComponent(trackId)}${qs ? `?${qs}` : ''}`)
+    if (!res.ok) return { segments: [] }
+    return await res.json()
+  } catch {
+    return { segments: [] }
+  }
+}
+
 export const fetchAlbum = async (albumId, { language } = {}) => {
   if (!albumId) return null
   try {

@@ -12,7 +12,7 @@ import {
   seek as seekSpotify,
   subscribeToStateChanges,
 } from '../services/spotifyPlayer'
-import { fetchTrack } from '../services/music'
+import { fetchTrack, fetchTrackLyrics } from '../services/music'
 import { getMusicKit } from '../services/musicKit'
 import IntensiveListeningMode from '../components/listen/IntensiveListeningMode'
 import ExtensiveMode from '../components/listen/ExtensiveMode'
@@ -240,7 +240,7 @@ const AudioPlayer = () => {
   }, [transcriptText])
 
   const transcriptSegments = useMemo(() => {
-    if (isSpotify && spotifyTranscriptSegments.length) {
+    if ((isSpotify || isMusic) && spotifyTranscriptSegments.length) {
       return spotifyTranscriptSegments
     }
 
@@ -363,7 +363,7 @@ const AudioPlayer = () => {
       cursor = end
       return { text, start, end }
     })
-  }, [isSpotify, pages, sourceParagraphText, spotifyTranscriptSegments, transcriptDoc, transcriptSentences, durationSeconds])
+  }, [isSpotify, isMusic, pages, sourceParagraphText, spotifyTranscriptSegments, transcriptDoc, transcriptSentences, durationSeconds])
 
   const intensiveSentences = useMemo(() => {
     const segmentSentences = transcriptSegments
@@ -736,6 +736,13 @@ const AudioPlayer = () => {
         setDurationSeconds(Math.round((data.durationMs || 0) / 1000))
         setPages([])
         setLoading(false)
+        // Fetch synced lyrics from Musixmatch (richsync). Empty array if
+        // the track has no lyrics — UI just won't show a transcript.
+        fetchTrackLyrics(id, { language: trackLanguage }).then((lyricsResult) => {
+          setSpotifyTranscriptSegments(
+            normaliseTranscriptSegments(lyricsResult?.segments || []),
+          )
+        })
       })()
       return
     }

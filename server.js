@@ -2462,6 +2462,53 @@ app.get('/api/music/track/:id', async (req, res) => {
   }
 })
 
+// Time-synced lyrics for an Apple Music track via Musixmatch (Premium richsync).
+// Returns { segments: [{ start, end, text }] } where start/end are seconds.
+app.get('/api/music/lyrics/:id', async (req, res) => {
+  const id = String(req.params.id || '').trim()
+  if (!id) return res.status(400).json({ error: 'id is required' })
+  const language = String(req.query.lang || '').trim()
+  const storefront = APPLE_STOREFRONT_BY_LANGUAGE[language] || 'us'
+
+  if (!MUSIXMATCH_API_KEY) {
+    return res
+      .status(503)
+      .json({ error: 'Lyrics unavailable: MUSIXMATCH_API_KEY not configured', segments: [] })
+  }
+
+  try {
+    const token = await getAppleMusicDeveloperToken()
+    const trackResp = await fetch(
+      `https://api.music.apple.com/v1/catalog/${storefront}/songs/${encodeURIComponent(id)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
+    if (!trackResp.ok) {
+      return res.status(502).json({ error: 'Could not look up Apple track', segments: [] })
+    }
+    const attrs = (await trackResp.json())?.data?.[0]?.attributes || {}
+    const isrc = attrs.isrc || ''
+    const title = attrs.name || ''
+    const primaryArtist = (attrs.artistName || '').split(',')[0].trim()
+
+    let result = isrc ? await fetchMusixmatchRichsync({ isrc }) : null
+
+    if (!result?.segments?.length && title && primaryArtist) {
+      const match = await searchMusixmatchTrackId(title, primaryArtist)
+      if (match?.trackId || match?.commontrackId) {
+        result = await fetchMusixmatchRichsync({
+          trackId: match.trackId,
+          commontrackId: match.commontrackId,
+        })
+      }
+    }
+
+    res.json({ segments: result?.segments || [] })
+  } catch (err) {
+    console.error('Apple Music lyrics failure', err)
+    res.status(500).json({ error: 'Music lyrics fetch failed', segments: [] })
+  }
+})
+
 app.get('/api/music/album/:id', async (req, res) => {
   const id = String(req.params.id || '').trim()
   if (!id) return res.status(400).json({ error: 'id is required' })

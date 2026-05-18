@@ -955,6 +955,19 @@ const AudioPlayer = () => {
         musicKitRef.current = inst
         try {
           await inst.setQueue({ song: id })
+          // setQueue only registers the track in the queue — audio chunks
+          // don't fetch until play() is called. Pre-buffer here so the
+          // first user click on Play starts instantly instead of waiting
+          // ~5s for the network fetch + decode.
+          if (typeof inst.prepareToPlay === 'function') {
+            try {
+              await inst.prepareToPlay()
+            } catch (prepErr) {
+              // Browsers sometimes refuse prepareToPlay without a user
+              // gesture. Not fatal — play() will fetch on demand.
+              console.warn('MusicKit prepareToPlay refused', prepErr?.message || prepErr)
+            }
+          }
         } catch (err) {
           if (!cancelled) setError(err?.message || 'Could not load track')
           return

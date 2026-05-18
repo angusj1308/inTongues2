@@ -2357,6 +2357,33 @@ app.get('/api/music/search', async (req, res) => {
   }
 })
 
+// Walk Apple's paginated /artists/{id}/view/{name} endpoint until exhausted.
+// Apple caps page size at 100; we add a safety stop at 1000 items so a freak
+// catalogue can't spin us forever.
+async function fetchAllArtistView(token, storefront, artistId, viewName) {
+  const results = []
+  const PAGE_SIZE = 100
+  const SAFETY_CAP = 1000
+  let offset = 0
+  while (offset < SAFETY_CAP) {
+    const url = `https://api.music.apple.com/v1/catalog/${storefront}/artists/${encodeURIComponent(
+      artistId,
+    )}/view/${viewName}?limit=${PAGE_SIZE}&offset=${offset}`
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    if (!resp.ok) {
+      if (resp.status === 404) break
+      console.warn(`Apple Music view ${viewName} page ${offset} failed`, resp.status)
+      break
+    }
+    const json = await resp.json()
+    const items = json?.data || []
+    results.push(...items)
+    if (items.length < PAGE_SIZE) break
+    offset += PAGE_SIZE
+  }
+  return results
+}
+
 app.get('/api/music/artist/:id', async (req, res) => {
   const id = String(req.params.id || '').trim()
   if (!id) return res.status(400).json({ error: 'id is required' })
@@ -2365,30 +2392,25 @@ app.get('/api/music/artist/:id', async (req, res) => {
 
   try {
     const token = await getAppleMusicDeveloperToken()
-    // Build query manually — URLSearchParams percent-encodes the brackets in
-    // limit[view-name] and Apple's parser rejects the encoded form on some
-    // paths, silently falling back to the default ~10-item view.
-    const queryString = [
-      'views=top-songs,full-albums,singles,appears-on-albums',
-      'extend=artistBio',
-      'limit[full-albums]=25',
-      'limit[singles]=25',
-      'limit[appears-on-albums]=25',
-      'limit[top-songs]=25',
-    ].join('&')
-    const response = await fetch(
-      `https://api.music.apple.com/v1/catalog/${storefront}/artists/${encodeURIComponent(id)}?${queryString}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    )
+    // Fan out: artist meta (with top-songs view) + paginated views in parallel.
+    const metaUrl = `https://api.music.apple.com/v1/catalog/${storefront}/artists/${encodeURIComponent(
+      id,
+    )}?views=top-songs&extend=artistBio&limit[top-songs]=25`
+    const [metaResp, fullAlbums, singles, appearsOn] = await Promise.all([
+      fetch(metaUrl, { headers: { Authorization: `Bearer ${token}` } }),
+      fetchAllArtistView(token, storefront, id, 'full-albums'),
+      fetchAllArtistView(token, storefront, id, 'singles'),
+      fetchAllArtistView(token, storefront, id, 'appears-on-albums'),
+    ])
 
-    if (response.status === 404) return res.status(404).json({ error: 'Artist not found' })
-    if (!response.ok) {
-      console.error('Apple Music artist error', response.status, await response.text())
+    if (metaResp.status === 404) return res.status(404).json({ error: 'Artist not found' })
+    if (!metaResp.ok) {
+      console.error('Apple Music artist error', metaResp.status, await metaResp.text())
       return res.status(502).json({ error: 'Music artist fetch failed' })
     }
 
-    const json = await response.json()
-    const artist = json?.data?.[0]
+    const metaJson = await metaResp.json()
+    const artist = metaJson?.data?.[0]
     if (!artist) return res.status(404).json({ error: 'Artist not found' })
 
     const attrs = artist.attributes || {}
@@ -2401,9 +2423,9 @@ app.get('/api/music/artist/:id', async (req, res) => {
       bio: attrs.artistBio || attrs.editorialNotes?.standard || '',
       genres: Array.isArray(attrs.genreNames) ? attrs.genreNames : [],
       topTracks: (views['top-songs']?.data || []).map(mapMusicTrack).filter((t) => t.id),
-      albums: (views['full-albums']?.data || []).map(mapMusicAlbum).filter((a) => a.id),
-      singles: (views.singles?.data || []).map(mapMusicAlbum).filter((a) => a.id),
-      appearsOn: (views['appears-on-albums']?.data || []).map(mapMusicAlbum).filter((a) => a.id),
+      albums: fullAlbums.map(mapMusicAlbum).filter((a) => a.id),
+      singles: singles.map(mapMusicAlbum).filter((a) => a.id),
+      appearsOn: appearsOn.map(mapMusicAlbum).filter((a) => a.id),
     })
   } catch (err) {
     console.error('Apple Music artist failure', err)

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import useAuth from '../../context/AuthContext'
+import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import {
   followArtist,
   unfollowArtist,
@@ -14,12 +15,14 @@ import {
   subscribePins,
   subscribeTrackStates,
   subscribePlaylists,
+  fetchAlbum,
 } from '../../services/music'
 
 // Optimistic-state hook for the music surface. Mirrors usePodcastSubscriptions
 // but talks to the music collections.
 const useMusicSubscriptions = () => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const language = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
   const [followedArtists, setFollowedArtists] = useState([])
   const [savedAlbums, setSavedAlbums] = useState([])
   const [savedTracks, setSavedTracks] = useState([])
@@ -124,7 +127,15 @@ const useMusicSubscriptions = () => {
     if (save) {
       setPendingAlbum((prev) => withEntry(prev, album.id, 'save'))
       try {
-        await saveAlbum(user.uid, album)
+        // Hydrate the tracklist if the caller didn't already pass it (search
+        // results, library tiles only know album metadata). Falls back to
+        // metadata-only save if the fetch fails.
+        let albumWithTracks = album
+        if (!Array.isArray(album.tracks) || album.tracks.length === 0) {
+          const full = await fetchAlbum(album.id, { language })
+          if (full) albumWithTracks = { ...album, tracks: full.tracks || [] }
+        }
+        await saveAlbum(user.uid, albumWithTracks)
       } catch (err) {
         console.error('saveAlbum failed', err)
         setPendingAlbum((prev) => withoutEntry(prev, album.id))

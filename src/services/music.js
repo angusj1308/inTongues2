@@ -129,6 +129,16 @@ export const unfollowArtist = async (uid, artistId) => {
 
 export const saveAlbum = async (uid, album) => {
   if (!uid || !album?.id) return
+  // Persist tracklist alongside album so the Tracks tab can flatten saved
+  // albums into the saved-tracks view (matches Apple/Spotify behaviour).
+  const tracks = Array.isArray(album.tracks)
+    ? album.tracks.map((t) => ({
+        id: String(t.id || ''),
+        title: t.title || '',
+        durationMs: t.durationMs || 0,
+        trackNumber: t.trackNumber || null,
+      })).filter((t) => t.id)
+    : []
   await setDoc(doc(savedAlbumsCol(uid), album.id), {
     albumId: album.id,
     title: album.title || '',
@@ -136,6 +146,7 @@ export const saveAlbum = async (uid, album) => {
     artistId: album.artistId || '',
     year: album.year || null,
     coverUrl: album.coverUrl || '',
+    tracks,
     savedAt: serverTimestamp(),
   })
 }

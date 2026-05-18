@@ -378,7 +378,26 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
 
   if (medium === 'music') {
     if (activeTab === 'Tracks') {
-      return sortByTitle(data.savedTracks.map((t) => ({
+      // Union explicitly-saved tracks with tracks from saved albums, dedup
+      // by track id so a song that's both explicitly saved AND on a saved
+      // album only appears once. Matches Apple/Spotify behaviour.
+      const albumTracks = (data.savedAlbums || []).flatMap((a) =>
+        (a.tracks || []).map((t) => ({
+          id: t.id,
+          title: t.title || 'Untitled track',
+          artistName: a.artistName || '',
+          coverUrl: a.coverUrl,
+          durationMs: t.durationMs,
+          trackId: t.id,
+        })),
+      )
+      const seen = new Set()
+      const combined = [...data.savedTracks, ...albumTracks].filter((t) => {
+        if (!t.id || seen.has(t.id)) return false
+        seen.add(t.id)
+        return true
+      })
+      return sortByTitle(combined.map((t) => ({
         id: t.id,
         title: t.title || 'Untitled track',
         artist: t.artistName || '',

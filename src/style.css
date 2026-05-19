@@ -30158,7 +30158,7 @@ body:has(.cinema-page) {
   cursor: pointer;
   font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.15rem;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--text-secondary, #6B6862);
   opacity: 0.55;
   transition: opacity 160ms ease;

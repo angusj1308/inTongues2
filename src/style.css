@@ -8173,7 +8173,6 @@ pre {
   );
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  animation: music-preparing-fade-in 320ms ease-out both;
 }
 
 [data-theme='dark'] .music-preparing-overlay {
@@ -8183,11 +8182,6 @@ pre {
     rgba(28, 26, 23, 0.95) 70%,
     #1c1a17 100%
   );
-}
-
-@keyframes music-preparing-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .music-preparing-card {

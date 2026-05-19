@@ -91,7 +91,7 @@ const MusicAlbumPage = () => {
         ) : (
           <>
             <header className="media-show-header">
-              <CoverArt src={album.coverUrl} title={album.title} size={220} />
+              <CoverArt src={album.coverUrl} title={album.title} size={280} />
               <div className="media-show-header-meta">
                 <p className="media-eyebrow">Album</p>
                 <h1 className="media-show-title">{album.title}</h1>

@@ -30989,8 +30989,12 @@ body:has(.cinema-page) {
 }
 
 .media-page--bare .media-show-header {
-  grid-template-columns: 440px 1fr;
+  grid-template-columns: 280px 1fr;
   align-items: stretch;
+}
+
+.media-page--bare .media-show-host {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .media-page--bare .media-show-header-meta {

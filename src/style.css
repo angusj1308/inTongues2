@@ -8153,6 +8153,130 @@ pre {
   overscroll-behavior-x: none;
 }
 
+/* "Preparing your learning experience" screen shown over the AudioPlayer
+   while MusicKit buffers the first HLS segment after a library-click
+   prewarm. Sits inside the page wrapper so the cover-color gradient still
+   shows through. Fades itself out once the prewarm settles. */
+.music-preparing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(
+    135deg,
+    var(--cover-color, #d8d2c8) 0%,
+    rgba(255, 255, 255, 0.95) 70%,
+    #ffffff 100%
+  );
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  animation: music-preparing-fade-in 320ms ease-out both;
+}
+
+[data-theme='dark'] .music-preparing-overlay {
+  background: linear-gradient(
+    135deg,
+    var(--cover-color, #2a2622) 0%,
+    rgba(28, 26, 23, 0.95) 70%,
+    #1c1a17 100%
+  );
+}
+
+@keyframes music-preparing-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.music-preparing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 360px;
+  text-align: center;
+  animation: music-preparing-rise 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes music-preparing-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.music-preparing-cover {
+  width: 200px;
+  height: 200px;
+  border-radius: 14px;
+  object-fit: cover;
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.28),
+    0 4px 12px rgba(0, 0, 0, 0.16);
+  animation: music-preparing-breathe 3.2s ease-in-out infinite;
+}
+
+.music-preparing-cover-fallback {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.02));
+}
+
+[data-theme='dark'] .music-preparing-cover-fallback {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+}
+
+@keyframes music-preparing-breathe {
+  0%, 100% { transform: scale(1); box-shadow: 0 24px 56px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.16); }
+  50%      { transform: scale(1.015); box-shadow: 0 28px 64px rgba(0, 0, 0, 0.32), 0 6px 16px rgba(0, 0, 0, 0.18); }
+}
+
+.music-preparing-title {
+  margin: 0.5rem 0 0;
+  font-family: 'Garamond', 'Times New Roman', serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.music-preparing-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  opacity: 0.65;
+  color: inherit;
+}
+
+.music-preparing-status {
+  display: flex;
+  gap: 6px;
+  margin-top: 0.75rem;
+}
+
+.music-preparing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: music-preparing-pulse 1.2s ease-in-out infinite;
+}
+
+.music-preparing-dot:nth-child(2) { animation-delay: 0.18s; }
+.music-preparing-dot:nth-child(3) { animation-delay: 0.36s; }
+
+@keyframes music-preparing-pulse {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); }
+  40%           { opacity: 0.85; transform: scale(1.1); }
+}
+
+.music-preparing-label {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  color: inherit;
+}
+
 .listening-lab-main {
   padding: 88px 1.5rem 8px;
   width: 100%;

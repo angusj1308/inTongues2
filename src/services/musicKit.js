@@ -42,28 +42,53 @@ export const getMusicKit = () => {
   return configurePromise
 }
 
-// Kick off setQueue + play inside a user gesture (e.g. a library tile click)
-// so MusicKit can start fetching audio bytes during the route transition into
-// the player. Without this, MusicKit only begins buffering when the player's
-// own play button is pressed, costing ~5s of cold-fetch latency on every track.
-// Safari ties autoplay permission to the gesture's call stack, so callers must
-// invoke this synchronously from a click handler — do not `await` it.
+let activePrewarmId = null
+let activePrewarmPromise = null
+
+// Kick off buffering inside a user gesture (e.g. a library tile click) so
+// MusicKit can start fetching audio bytes during the route transition into
+// the player. MusicKit JS v3 has no preload-without-play API — setQueue()
+// alone never fetches audio — so we have to call play() to trigger the
+// buffer. To avoid the audible blip of auto-playing during the navigation,
+// we mute the instance, play to start the HLS fetch, pause as soon as
+// playback actually begins, then restore volume. The AudioPlayer awaits
+// the returned promise and shows a "preparing" screen until it settles.
+// Safari ties autoplay permission to the gesture's call stack, so callers
+// must invoke this synchronously from a click handler — do not `await` it.
 export const prewarmMusicPlayback = (trackId) => {
-  if (!trackId) return
+  if (!trackId) return null
+  if (activePrewarmId === trackId && activePrewarmPromise) return activePrewarmPromise
   const promise = configurePromise || getMusicKit()
-  promise
+  activePrewarmId = trackId
+  activePrewarmPromise = promise
     .then(async (inst) => {
-      const current = inst.nowPlayingItem?.id
-      if (current !== trackId) {
+      if (inst.nowPlayingItem?.id !== trackId) {
         await inst.setQueue({ song: trackId })
       }
-      if (inst.playbackState !== 2) {
-        await inst.play()
+      const savedVolume = typeof inst.volume === 'number' ? inst.volume : 1
+      try { inst.volume = 0 } catch { /* MusicKit may reject volume changes */ }
+      try {
+        if (inst.playbackState !== 2) {
+          await inst.play()
+        }
+        await inst.pause()
+      } finally {
+        try { inst.volume = savedVolume } catch { /* restore best-effort */ }
       }
+      return inst
     })
     .catch((err) => {
       console.warn('MusicKit prewarm failed', err?.message || err)
+      throw err
     })
+  return activePrewarmPromise
+}
+
+// Lets the player query whether a prewarm is in flight for this track so
+// it can show the "preparing" screen until buffering finishes.
+export const getActivePrewarm = (trackId) => {
+  if (trackId && activePrewarmId !== trackId) return null
+  return activePrewarmPromise
 }
 
 export const authorizeMusicKit = async () => {

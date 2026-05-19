@@ -705,6 +705,9 @@ const ExtensiveMode = ({
                 </div>
               </div>
               <h2 className="player-title">{storyMeta.title || 'Audiobook'}</h2>
+              {storyMeta.subtitle ? (
+                <p className="player-artist">{storyMeta.subtitle}</p>
+              ) : null}
               <div className="player-surface">
                 {renderProgressBar()}
                 <div className="player-transport-shell">{renderTransportButtons()}</div>

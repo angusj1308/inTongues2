@@ -1688,35 +1688,35 @@
 
 .media-tracklist-row {
   display: grid;
-  grid-template-columns: 32px 1fr auto;
+  grid-template-columns: 32px 1fr auto 32px;
   gap: 1rem;
   align-items: center;
-  padding: 0.7rem 0;
+  padding: 0.7rem 0.5rem;
   border-bottom: 0.5px solid #d6d3c8;
   cursor: pointer;
   background: transparent;
-  border-left: none;
-  border-right: none;
-  border-top: none;
   text-align: left;
   font: inherit;
   color: inherit;
+  outline: none;
 }
 
-.media-tracklist-row:hover {
+.media-tracklist-row:hover,
+.media-tracklist-row:focus-visible {
   background: rgba(28, 34, 48, 0.04);
 }
 
 .media-tracklist-number {
-  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.78rem;
   color: #78716c;
 }
 
 .media-tracklist-title {
-  font-family: 'Crimson Pro', 'Georgia', serif;
-  font-style: italic;
-  font-size: 1.05rem;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1rem;
   color: #1c2230;
   margin: 0;
   line-height: 1.3;
@@ -1726,9 +1726,39 @@
 }
 
 .media-tracklist-duration {
-  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.78rem;
   color: #78716c;
+}
+
+.media-tracklist-add {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #78716c;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+  padding: 0;
+}
+
+.media-tracklist-row:hover .media-tracklist-add,
+.media-tracklist-row:focus-within .media-tracklist-add {
+  opacity: 1;
+}
+
+.media-tracklist-add:hover,
+.media-tracklist-add:focus-visible {
+  background: rgba(28, 34, 48, 0.08);
+  color: #1c2230;
+  outline: none;
 }
 
 [data-theme='dark'] .media-tracklist,
@@ -1740,8 +1770,15 @@
   color: #fafaf9;
 }
 
-[data-theme='dark'] .media-tracklist-row:hover {
+[data-theme='dark'] .media-tracklist-row:hover,
+[data-theme='dark'] .media-tracklist-row:focus-visible {
   background: rgba(250, 250, 249, 0.04);
+}
+
+[data-theme='dark'] .media-tracklist-add:hover,
+[data-theme='dark'] .media-tracklist-add:focus-visible {
+  background: rgba(250, 250, 249, 0.08);
+  color: #fafaf9;
 }
 
 

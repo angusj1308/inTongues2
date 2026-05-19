@@ -7997,6 +7997,7 @@ pre {
    flip them to light here so they remain visible. Scoped to the extensive
    shell so cinema / active keep their own dark treatments. */
 [data-theme='dark'] .listening-lab-page .extensive-shell .player-title,
+[data-theme='dark'] .listening-lab-page .extensive-shell .player-artist,
 [data-theme='dark'] .listening-lab-page .extensive-shell .player-surface {
   color: var(--reader-text, #e8e0d4);
 }
@@ -10114,9 +10115,19 @@ body.active-pass-locked {
 }
 
 .player-title {
-  margin: clamp(8px, 1.6vw, 12px) 0 clamp(10px, 1.8vw, 14px);
+  margin: clamp(8px, 1.6vw, 12px) 0 0;
   text-align: center;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 700;
+}
+
+.player-artist {
+  margin: 0.25rem 0 clamp(10px, 1.8vw, 14px);
+  text-align: center;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 400;
+  font-size: 0.95rem;
+  opacity: 0.7;
 }
 
 .player-surface {

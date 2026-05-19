@@ -954,19 +954,13 @@ const AudioPlayer = () => {
         if (cancelled) return
         musicKitRef.current = inst
         try {
-          await inst.setQueue({ song: id })
-          // setQueue only registers the track in the queue — audio chunks
-          // don't fetch until play() is called. Pre-buffer here so the
-          // first user click on Play starts instantly instead of waiting
-          // ~5s for the network fetch + decode.
-          if (typeof inst.prepareToPlay === 'function') {
-            try {
-              await inst.prepareToPlay()
-            } catch (prepErr) {
-              // Browsers sometimes refuse prepareToPlay without a user
-              // gesture. Not fatal — play() will fetch on demand.
-              console.warn('MusicKit prepareToPlay refused', prepErr?.message || prepErr)
-            }
+          // Skip setQueue if the library-click prewarm already queued (and
+          // likely started buffering or playing) this exact track — calling
+          // setQueue again would restart the cold fetch and undo the head
+          // start. prepareToPlay() is a no-op on MusicKit JS v3 (the method
+          // was removed), so the prewarm path is now the only working buffer.
+          if (inst.nowPlayingItem?.id !== id) {
+            await inst.setQueue({ song: id })
           }
         } catch (err) {
           if (!cancelled) setError(err?.message || 'Could not load track')

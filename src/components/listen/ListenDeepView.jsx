@@ -5,6 +5,7 @@ import db from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
 import { playPodcastEpisode, unsaveEpisode, unfollowShow, fetchShowEpisodes } from '../../services/podcast'
 import { unfollowArtist, unsaveAlbum, unsaveTrack, removeTrackFromSavedAlbum } from '../../services/music'
+import { prewarmMusicPlayback } from '../../services/musicKit'
 import { deleteYoutubeVideo, fetchYoutubeVideosMeta } from '../../services/youtube'
 import { unfollowChannel } from '../../services/youtubeChannels'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
@@ -427,7 +428,10 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         title: t.title,
         subtitle: [t.artist, formatDuration(t.durationMs)].filter(Boolean).join(' · '),
         shape: 'square',
-        onClick: () => navigate(`/listen/${t.trackId}?source=music`),
+        onClick: () => {
+          prewarmMusicPlayback(t.trackId)
+          navigate(`/listen/${t.trackId}?source=music`)
+        },
         onRemove: uid
           ? () => {
               const action = t.fromAlbumId

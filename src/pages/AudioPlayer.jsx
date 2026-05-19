@@ -1028,13 +1028,13 @@ const AudioPlayer = () => {
         }
         inst.addEventListener('playbackStateDidChange', onState)
         inst.addEventListener('playbackTimeDidChange', onTime)
-        inst.addEventListener('mediaItemDidChange', onMediaItem)
+        inst.addEventListener('nowPlayingItemDidChange', onMediaItem)
         onState()
         onTime()
         cleanup = () => {
           inst.removeEventListener('playbackStateDidChange', onState)
           inst.removeEventListener('playbackTimeDidChange', onTime)
-          inst.removeEventListener('mediaItemDidChange', onMediaItem)
+          inst.removeEventListener('nowPlayingItemDidChange', onMediaItem)
           inst.stop?.().catch(() => {})
         }
       })
@@ -2140,7 +2140,7 @@ const AudioPlayer = () => {
 
   // Music-only track skip. MusicKit's queue auto-prefetches the next item,
   // so skipToNextItem should be near-instant when adjacent tracks are
-  // already buffered. The URL syncs via the mediaItemDidChange listener.
+  // already buffered. The URL syncs via the nowPlayingItemDidChange listener.
   const currentMusicQueueIndex = isMusic ? musicQueue.indexOf(id) : -1
   const canSkipNextTrack = isMusic && currentMusicQueueIndex >= 0
     && currentMusicQueueIndex < musicQueue.length - 1

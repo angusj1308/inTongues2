@@ -30158,7 +30158,7 @@ body:has(.cinema-page) {
   cursor: pointer;
   font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
   font-size: 1.15rem;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--text-secondary, #6B6862);
   opacity: 0.55;
   transition: opacity 160ms ease;
@@ -30271,11 +30271,11 @@ body:has(.cinema-page) {
 
 .listen-deep-title {
   margin: 0;
-  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
-  font-size: 1.15rem;
-  font-weight: 400;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--text-primary, #1C1A17);
-  line-height: 1.25;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

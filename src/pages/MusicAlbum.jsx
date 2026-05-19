@@ -6,7 +6,6 @@ import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import DashboardLayout from '../components/layout/DashboardLayout'
 import CoverArt from '../components/podcast/CoverArt'
-import AlbumTile from '../components/music/AlbumTile'
 import useMusicSubscriptions from '../components/music/useMusicSubscriptions'
 
 const formatDuration = (ms) => {
@@ -34,6 +33,10 @@ const MusicAlbumPage = () => {
   const { isSavedAlbum, toggleAlbum } = useMusicSubscriptions()
   const [album, setAlbum] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [id])
 
   useEffect(() => {
     let cancelled = false
@@ -165,20 +168,6 @@ const MusicAlbumPage = () => {
                 </div>
               )}
             </section>
-
-            {album.moreByArtist?.length > 0 && (
-              <section className="media-section">
-                <h2 className="media-section-header">More by {album.artistName}</h2>
-                <div className="media-recent-strip">
-                  {album.moreByArtist.map((other) => (
-                    <AlbumTile
-                      key={other.id}
-                      album={{ ...other, artistName: other.artistName || album.artistName }}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
               </>
             )}
           </div>

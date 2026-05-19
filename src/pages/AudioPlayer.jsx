@@ -2663,17 +2663,6 @@ const AudioPlayer = () => {
       {isMusic && musicPreparing && (
         <div className="music-preparing-overlay" role="status" aria-live="polite">
           <div className="music-preparing-card">
-            {storyMeta?.coverImageUrl ? (
-              <img
-                src={storyMeta.coverImageUrl}
-                alt=""
-                className="music-preparing-cover"
-              />
-            ) : (
-              <div className="music-preparing-cover music-preparing-cover-fallback" />
-            )}
-            <p className="music-preparing-title">{storyMeta?.title || ''}</p>
-            <p className="music-preparing-subtitle">{storyMeta?.subtitle || ''}</p>
             <div className="music-preparing-status">
               <span className="music-preparing-dot" />
               <span className="music-preparing-dot" />

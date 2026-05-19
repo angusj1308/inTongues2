@@ -649,7 +649,8 @@ export default function ListenDiscover() {
         } : undefined,
       })
     })
-    ;(results.music?.tracks || []).forEach((t) => {
+    const musicTrackQueue = (results.music?.tracks || []).map((t) => t.id).filter(Boolean)
+    ;(results.music?.tracks || []).forEach((t, index) => {
       const saved = t.id ? isSavedTrack(t.id) : false
       rows.push({
         id: `mus-tr-${t.id || Math.random()}`,
@@ -661,8 +662,10 @@ export default function ListenDiscover() {
         trailing: formatDuration(t.durationMs),
         onClick: () => {
           if (!t.id) return
-          prewarmMusicPlayback(t.id)
-          navigate(`/listen/${t.id}?source=music`)
+          prewarmMusicPlayback(t.id, { queue: musicTrackQueue })
+          navigate(`/listen/${t.id}?source=music`, {
+            state: { queue: musicTrackQueue, startIndex: index, contextLabel: 'Search results' },
+          })
         },
         action: t.id ? {
           variant: 'icon',

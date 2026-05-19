@@ -139,6 +139,18 @@ const AudioPlayer = () => {
   const isPodcast = source === 'podcast'
   const isMusic = source === 'music'
   const podcastEpisodeFromState = location.state?.episode || null
+  // Queue context for music: when the user clicks a track from inside an
+  // album / playlist / search result, the entry point hands us the full
+  // sibling list so MusicKit can buffer the next track in the background
+  // and the Skip buttons can advance through that context. Falls back to a
+  // single-song "queue" for direct/reload entries so the code below can
+  // treat both paths the same way.
+  const musicQueue = Array.isArray(location.state?.queue) && location.state.queue.length
+    ? location.state.queue
+    : [id]
+  const musicQueueIndex = Number.isInteger(location.state?.startIndex)
+    ? Math.max(0, Math.min(musicQueue.length - 1, location.state.startIndex))
+    : Math.max(0, musicQueue.indexOf(id))
   // Treat music like Spotify for most early-returns — externally-managed
   // playback (MusicKit JS), no Firestore audiobook content, no transcript
   // pipeline. The handful of places that need different behaviour for music
@@ -966,6 +978,10 @@ const AudioPlayer = () => {
     return () => { cancelled = true }
   }, [isMusic, id])
 
+  // Re-init only when the queue identity changes — id changes within the
+  // same queue (skip / auto-next) should NOT teardown MusicKit, otherwise
+  // we'd kill the playback we're trying to advance.
+  const musicQueueKey = musicQueue.join('|')
   useEffect(() => {
     if (!isMusic || !id) return undefined
     let cancelled = false
@@ -975,13 +991,12 @@ const AudioPlayer = () => {
         if (cancelled) return
         musicKitRef.current = inst
         try {
-          // Skip setQueue if the library-click prewarm already queued (and
-          // likely started buffering or playing) this exact track — calling
-          // setQueue again would restart the cold fetch and undo the head
-          // start. prepareToPlay() is a no-op on MusicKit JS v3 (the method
-          // was removed), so the prewarm path is now the only working buffer.
+          // Skip setQueue if the library-click prewarm already queued this
+          // exact track — calling setQueue again would restart the cold
+          // fetch. prepareToPlay() is a no-op on MusicKit JS v3 (the method
+          // was removed), so the prewarm path is the only working buffer.
           if (inst.nowPlayingItem?.id !== id) {
-            await inst.setQueue({ song: id })
+            await inst.setQueue({ songs: musicQueue, startWith: musicQueueIndex })
           }
         } catch (err) {
           if (!cancelled) setError(err?.message || 'Could not load track')
@@ -989,7 +1004,6 @@ const AudioPlayer = () => {
         }
         const onState = () => {
           if (cancelled) return
-          // MusicKit playbackState: 2 = playing
           setIsPlaying(inst.playbackState === 2)
         }
         const onTime = () => {
@@ -998,15 +1012,29 @@ const AudioPlayer = () => {
           const dur = inst.currentPlaybackDuration || 0
           if (dur > 0) setDurationSeconds(Math.round(dur))
         }
+        const onMediaItem = () => {
+          if (cancelled) return
+          const nextId = inst.nowPlayingItem?.id
+          if (!nextId) return
+          // MusicKit advanced (skip button or auto-next). Sync the URL so
+          // the page reflects the playing track; replace:true keeps the
+          // history clean so the back button still exits the player.
+          // Reuse the queue/contextLabel from the entry-point state so
+          // the next skip still has context.
+          navigate(`/listen/${nextId}?source=music`, {
+            replace: true,
+            state: location.state,
+          })
+        }
         inst.addEventListener('playbackStateDidChange', onState)
         inst.addEventListener('playbackTimeDidChange', onTime)
+        inst.addEventListener('mediaItemDidChange', onMediaItem)
         onState()
         onTime()
         cleanup = () => {
           inst.removeEventListener('playbackStateDidChange', onState)
           inst.removeEventListener('playbackTimeDidChange', onTime)
-          // Stop playback if we navigate away — keeps audio from continuing
-          // in the background when the player unmounts.
+          inst.removeEventListener('mediaItemDidChange', onMediaItem)
           inst.stop?.().catch(() => {})
         }
       })
@@ -1018,7 +1046,8 @@ const AudioPlayer = () => {
       if (cleanup) cleanup()
       musicKitRef.current = null
     }
-  }, [isMusic, id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMusic, musicQueueKey])
 
   useEffect(() => {
     if (!user || !id) {
@@ -2109,6 +2138,34 @@ const AudioPlayer = () => {
     }
   }
 
+  // Music-only track skip. MusicKit's queue auto-prefetches the next item,
+  // so skipToNextItem should be near-instant when adjacent tracks are
+  // already buffered. The URL syncs via the mediaItemDidChange listener.
+  const currentMusicQueueIndex = isMusic ? musicQueue.indexOf(id) : -1
+  const canSkipNextTrack = isMusic && currentMusicQueueIndex >= 0
+    && currentMusicQueueIndex < musicQueue.length - 1
+  const canSkipPreviousTrack = isMusic && currentMusicQueueIndex > 0
+
+  const handleSkipNextTrack = useCallback(async () => {
+    const inst = musicKitRef.current
+    if (!inst) return
+    try {
+      await inst.skipToNextItem()
+    } catch (err) {
+      console.warn('MusicKit skipToNextItem failed', err?.message || err)
+    }
+  }, [])
+
+  const handleSkipPreviousTrack = useCallback(async () => {
+    const inst = musicKitRef.current
+    if (!inst) return
+    try {
+      await inst.skipToPreviousItem()
+    } catch (err) {
+      console.warn('MusicKit skipToPreviousItem failed', err?.message || err)
+    }
+  }, [])
+
   const handleSeekTo = (seconds = 0) => {
     const duration = playbackDurationSeconds || 0
     let target = Math.max(0, Math.min(duration, Number.isFinite(seconds) ? seconds : 0))
@@ -2867,6 +2924,10 @@ const AudioPlayer = () => {
                         setPopup={setPopup}
                         contentExpressions={contentExpressions}
                         lineMode={isMusic}
+                        onSkipPreviousTrack={isMusic ? handleSkipPreviousTrack : null}
+                        onSkipNextTrack={isMusic ? handleSkipNextTrack : null}
+                        canSkipPreviousTrack={canSkipPreviousTrack}
+                        canSkipNextTrack={canSkipNextTrack}
                       />
                     </div>
                   </section>
@@ -2909,6 +2970,10 @@ const AudioPlayer = () => {
                         onScrubChange={setScrubSeconds}
                         onAdvanceChunk={handleAdvanceChunkFromPass4}
                         contentExpressions={contentExpressions}
+                        onSkipPreviousTrack={isMusic ? handleSkipPreviousTrack : null}
+                        onSkipNextTrack={isMusic ? handleSkipNextTrack : null}
+                        canSkipPreviousTrack={canSkipPreviousTrack}
+                        canSkipNextTrack={canSkipNextTrack}
                       />
                     </div>
                   </section>

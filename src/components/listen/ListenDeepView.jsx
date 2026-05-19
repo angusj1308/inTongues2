@@ -414,7 +414,7 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         seen.add(t.id)
         return true
       })
-      return sortByTitle(combined.map((t) => ({
+      const sorted = sortByTitle(combined.map((t) => ({
         id: t.id,
         title: t.title || 'Untitled track',
         artist: t.artistName || '',
@@ -422,15 +422,19 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         durationMs: t.durationMs,
         trackId: t.trackId || t.id,
         fromAlbumId: t.fromAlbumId || null,
-      }))).map((t) => ({
+      })))
+      const deepViewQueue = sorted.map((t) => t.trackId).filter(Boolean)
+      return sorted.map((t, index) => ({
         id: t.id,
         thumb: t.coverUrl,
         title: t.title,
         subtitle: [t.artist, formatDuration(t.durationMs)].filter(Boolean).join(' · '),
         shape: 'square',
         onClick: () => {
-          prewarmMusicPlayback(t.trackId)
-          navigate(`/listen/${t.trackId}?source=music`)
+          prewarmMusicPlayback(t.trackId, { queue: deepViewQueue })
+          navigate(`/listen/${t.trackId}?source=music`, {
+            state: { queue: deepViewQueue, startIndex: index, contextLabel: 'My Music' },
+          })
         },
         onRemove: uid
           ? () => {

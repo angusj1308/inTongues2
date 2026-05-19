@@ -163,11 +163,14 @@ const MusicArtistPage = () => {
                   </div>
                 </header>
 
-                {artist.topTracks?.length > 0 && (
+                {artist.topTracks?.length > 0 && (() => {
+                  const topTracks = artist.topTracks.slice(0, 10)
+                  const topTrackQueue = topTracks.map((t) => t.id).filter(Boolean)
+                  return (
                   <section className="media-section">
                     <h2 className="media-section-header">Top Tracks</h2>
                     <div className="media-episode-list">
-                      {artist.topTracks.slice(0, 10).map((track) => (
+                      {topTracks.map((track, index) => (
                         <EpisodeRow
                           key={track.id}
                           episode={{
@@ -179,14 +182,21 @@ const MusicArtistPage = () => {
                           }}
                           variant="list"
                           onPlay={() => {
-                            prewarmMusicPlayback(track.id)
-                            navigate(`/listen/${track.id}?source=music`)
+                            prewarmMusicPlayback(track.id, { queue: topTrackQueue })
+                            navigate(`/listen/${track.id}?source=music`, {
+                              state: {
+                                queue: topTrackQueue,
+                                startIndex: index,
+                                contextLabel: `${artist.name} · Top Tracks`,
+                              },
+                            })
                           }}
                         />
                       ))}
                     </div>
                   </section>
-                )}
+                  )
+                })()}
 
                 <section className="media-section">
                   {renderSectionHeader('Albums', 'albums', artist.albums?.length || 0)}

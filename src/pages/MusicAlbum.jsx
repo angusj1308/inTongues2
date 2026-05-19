@@ -153,14 +153,22 @@ const MusicAlbumPage = () => {
                 <p className="media-empty-line">No tracks listed.</p>
               ) : (
                 <div className="media-tracklist">
-                  {album.tracks?.map((track, index) => (
+                  {(() => {
+                    const albumQueue = (album.tracks || []).map((t) => t.id).filter(Boolean)
+                    return album.tracks?.map((track, index) => (
                     <button
                       key={track.id}
                       type="button"
                       className="media-tracklist-row"
                       onClick={() => {
-                        prewarmMusicPlayback(track.id)
-                        navigate(`/listen/${track.id}?source=music`)
+                        prewarmMusicPlayback(track.id, { queue: albumQueue })
+                        navigate(`/listen/${track.id}?source=music`, {
+                          state: {
+                            queue: albumQueue,
+                            startIndex: index,
+                            contextLabel: album.title || 'Album',
+                          },
+                        })
                       }}
                     >
                       <span className="media-tracklist-number">
@@ -171,7 +179,8 @@ const MusicAlbumPage = () => {
                         {formatTrackDuration(track.durationMs)}
                       </span>
                     </button>
-                  ))}
+                  ))
+                  })()}
                 </div>
               )}
             </section>

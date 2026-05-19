@@ -279,9 +279,11 @@ export default function ListenLibrary() {
         coverUrl: a.coverUrl || '',
         onClick: () => navigate(`/music/artist/${a.artistId || a.id}`),
       }))
-    const trackCards = [...data.savedTracks]
+    const sortedTracks = [...data.savedTracks]
       .sort((a, b) => (b.savedAt?.toMillis?.() || 0) - (a.savedAt?.toMillis?.() || 0))
-      .map((t) => ({
+    const trackQueue = sortedTracks.map((t) => t.trackId || t.id).filter(Boolean)
+    const trackCards = sortedTracks
+      .map((t, index) => ({
         id: `mus-tr-${t.id}`,
         title: t.title || 'Untitled track',
         subtitle: t.artistName || '',
@@ -289,8 +291,10 @@ export default function ListenLibrary() {
         coverUrl: t.coverUrl || '',
         onClick: () => {
           const trackId = t.trackId || t.id
-          prewarmMusicPlayback(trackId)
-          navigate(`/listen/${trackId}?source=music`)
+          prewarmMusicPlayback(trackId, { queue: trackQueue })
+          navigate(`/listen/${trackId}?source=music`, {
+            state: { queue: trackQueue, startIndex: index, contextLabel: 'My Music' },
+          })
         },
       }))
     const cards = [...albumCards, ...artistCards, ...trackCards].slice(0, MUSIC_SHELF_LIMIT)

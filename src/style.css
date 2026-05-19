@@ -30151,6 +30151,27 @@ body:has(.cinema-page) {
   flex-wrap: wrap;
 }
 
+/* When there are exactly two tabs (podcasts: Episodes/Shows,
+   youtube: Videos/Channels), center the *gap between them* rather
+   than the pair as a whole — otherwise the wider tab biases the
+   visual center off the viewport center. */
+.listen-deep-tabs:has(> :nth-child(2):last-child) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  width: 100%;
+}
+
+.listen-deep-tabs:has(> :nth-child(2):last-child) > :first-child {
+  justify-self: end;
+  margin-right: 0.75rem;
+}
+
+.listen-deep-tabs:has(> :nth-child(2):last-child) > :last-child {
+  justify-self: start;
+  margin-left: 0.75rem;
+}
+
 .listen-deep-tab {
   background: none;
   border: none;

@@ -9,6 +9,7 @@ import CoverArt from '../components/podcast/CoverArt'
 import EpisodeRow from '../components/podcast/EpisodeRow'
 import FollowButton from '../components/podcast/FollowButton'
 import AlbumTile from '../components/music/AlbumTile'
+import LoadingScreen from '../components/LoadingScreen'
 import useMusicSubscriptions from '../components/music/useMusicSubscriptions'
 
 const MusicArtistPage = () => {
@@ -102,6 +103,14 @@ const MusicArtistPage = () => {
     )
   }
 
+  if (loading && !artist) {
+    return (
+      <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
+        <LoadingScreen />
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
       <div className="media-page media-page--bare">
@@ -111,9 +120,7 @@ const MusicArtistPage = () => {
               ← My Music
             </Link>
 
-            {loading && !artist ? (
-              <p className="media-placeholder">Loading…</p>
-            ) : !artist ? (
+            {!artist ? (
               <p className="media-placeholder">Artist not found.</p>
             ) : (
               <>

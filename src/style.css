@@ -8203,6 +8203,19 @@ pre {
   gap: 6px;
 }
 
+/* Full-content-area loading state for deep view pages (album, artist,
+   podcast show, YouTube channel). Sits inside DashboardLayout, fills the
+   viewport-minus-nav, centers the same dots + label used by the music
+   "preparing" overlay so the loading look is consistent across the app. */
+.app-loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  width: 100%;
+  padding: 2rem;
+}
+
 .music-preparing-dot {
   width: 7px;
   height: 7px;
@@ -8222,10 +8235,8 @@ pre {
 
 .music-preparing-label {
   margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.55;
+  font-size: 0.95rem;
+  opacity: 0.6;
   color: inherit;
 }
 
@@ -30989,8 +31000,12 @@ body:has(.cinema-page) {
 }
 
 .media-page--bare .media-show-header {
-  grid-template-columns: 440px 1fr;
+  grid-template-columns: 280px 1fr;
   align-items: stretch;
+}
+
+.media-page--bare .media-show-host {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .media-page--bare .media-show-header-meta {

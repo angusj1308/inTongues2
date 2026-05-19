@@ -2680,9 +2680,19 @@ const AudioPlayer = () => {
               <div className="listening-header-left">
                 <button
                   className="reader-header-button icon-button reader-back-button"
-                  onClick={() => navigate('/listen/library')}
+                  onClick={() => {
+                    // Prefer browser back so the user lands on whichever
+                    // screen they came from (album, artist, library, search).
+                    // Fall back to the library if there's no history entry
+                    // — e.g. when the player was opened via a direct link.
+                    if (window.history.state?.idx > 0) {
+                      navigate(-1)
+                    } else {
+                      navigate('/listen/library')
+                    }
+                  }}
                   type="button"
-                  aria-label="Back to library"
+                  aria-label="Back"
                 >
                   <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12" />

@@ -14,6 +14,7 @@ import UnavailableShowMessage from '../components/podcast/UnavailableShowMessage
 import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 import DashboardLayout from '../components/layout/DashboardLayout'
 import DubConfirmModal from '../components/listen/DubConfirmModal'
+import LoadingScreen from '../components/LoadingScreen'
 import { toLanguageCode } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 
@@ -184,6 +185,14 @@ const PodcastShowPage = () => {
     return { credits, minutes }
   }, [dubModal, creditsPerMinute])
 
+  if (loading && !show) {
+    return (
+      <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
+        <LoadingScreen />
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
       <div className="media-page media-page--bare">
@@ -193,9 +202,7 @@ const PodcastShowPage = () => {
           ← Library
         </Link>
 
-        {loading && !show ? (
-          <p className="media-placeholder">Loading…</p>
-        ) : !show ? (
+        {!show ? (
           (() => {
             const stale = followedShows.find((s) => s.id === id)
             if (followed && stale) {

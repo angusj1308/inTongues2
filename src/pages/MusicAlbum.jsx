@@ -6,6 +6,7 @@ import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import DashboardLayout from '../components/layout/DashboardLayout'
 import CoverArt from '../components/podcast/CoverArt'
+import LoadingScreen from '../components/LoadingScreen'
 import useMusicSubscriptions from '../components/music/useMusicSubscriptions'
 
 const formatDuration = (ms) => {
@@ -75,6 +76,14 @@ const MusicAlbumPage = () => {
     )
   }
 
+  if (loading && !album) {
+    return (
+      <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
+        <LoadingScreen />
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
       <div className="media-page media-page--bare">
@@ -84,14 +93,12 @@ const MusicAlbumPage = () => {
               ← My Music
             </Link>
 
-        {loading && !album ? (
-          <p className="media-placeholder">Loading…</p>
-        ) : !album ? (
+        {!album ? (
           <p className="media-placeholder">Album not found.</p>
         ) : (
           <>
             <header className="media-show-header">
-              <CoverArt src={album.coverUrl} title={album.title} size={220} />
+              <CoverArt src={album.coverUrl} title={album.title} size={280} />
               <div className="media-show-header-meta">
                 <p className="media-eyebrow">Album</p>
                 <h1 className="media-show-title">{album.title}</h1>

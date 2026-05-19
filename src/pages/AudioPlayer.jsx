@@ -2144,7 +2144,9 @@ const AudioPlayer = () => {
   const currentMusicQueueIndex = isMusic ? musicQueue.indexOf(id) : -1
   const canSkipNextTrack = isMusic && currentMusicQueueIndex >= 0
     && currentMusicQueueIndex < musicQueue.length - 1
-  const canSkipPreviousTrack = isMusic && currentMusicQueueIndex > 0
+  // Previous is always available on music — it either restarts the current
+  // track (>3s in, or at queue start) or jumps to the previous track.
+  const canSkipPreviousTrack = isMusic
 
   const handleSkipNextTrack = useCallback(async () => {
     const inst = musicKitRef.current
@@ -2159,8 +2161,21 @@ const AudioPlayer = () => {
   const handleSkipPreviousTrack = useCallback(async () => {
     const inst = musicKitRef.current
     if (!inst) return
+    // Spotify-style Back: <=3s into the track (and not at the first item)
+    // jumps to the previous track and always resumes playback; otherwise
+    // restart the current track in place, preserving the play/pause state.
+    const currentTime = inst.currentPlaybackTime || 0
+    const queuePosition = inst.queue?.position
+    const atFirstTrack = typeof queuePosition === 'number' ? queuePosition <= 0 : true
     try {
+      if (currentTime > 3 || atFirstTrack) {
+        await inst.seekToTime(0)
+        return
+      }
       await inst.skipToPreviousItem()
+      if (inst.playbackState !== 2) {
+        try { await inst.play() } catch { /* may already be playing */ }
+      }
     } catch (err) {
       console.warn('MusicKit skipToPreviousItem failed', err?.message || err)
     }

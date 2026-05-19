@@ -128,7 +128,7 @@ const MusicArtistPage = () => {
                   <CoverArt
                     src={artist.coverUrl}
                     title={artist.name}
-                    size={220}
+                    size={280}
                     className="media-cover-circular"
                   />
                   <div className="media-show-header-meta">

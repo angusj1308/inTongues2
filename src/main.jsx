@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
 import { auth } from './firebase'
+import { getMusicKit } from './services/musicKit'
 import { initSpotifyPlayer } from './services/spotifyPlayer'
 import './style.css'
 import './components/media/media-surface.css'
@@ -37,6 +38,10 @@ if (typeof window !== 'undefined') {
   if (window.Spotify) {
     initGlobalSpotifyPlayer()
   }
+
+  // Pre-warm MusicKit (SDK + dev token + configure) so the library-click
+  // prewarm path resolves instantly and stays inside the user gesture.
+  getMusicKit().catch(() => {})
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

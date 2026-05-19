@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { prewarmMusicPlayback } from '../../services/musicKit'
 import { playPodcastEpisode } from '../../services/podcast'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 import useListenLibraryData, { pickContinueListening } from './useListenLibraryData'
@@ -286,7 +287,11 @@ export default function ListenLibrary() {
         subtitle: t.artistName || '',
         trailing: t.albumName || '',
         coverUrl: t.coverUrl || '',
-        onClick: () => navigate(`/listen/${t.trackId || t.id}?source=music`),
+        onClick: () => {
+          const trackId = t.trackId || t.id
+          prewarmMusicPlayback(trackId)
+          navigate(`/listen/${trackId}?source=music`)
+        },
       }))
     const cards = [...albumCards, ...artistCards, ...trackCards].slice(0, MUSIC_SHELF_LIMIT)
     return { kind: cards.length ? 'mixed' : 'empty', cards }

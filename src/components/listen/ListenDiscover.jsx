@@ -12,6 +12,7 @@ import {
   dubPodcastEpisode,
 } from '../../services/podcast'
 import { searchMusic } from '../../services/music'
+import { prewarmMusicPlayback } from '../../services/musicKit'
 import useMusicSubscriptions from '../music/useMusicSubscriptions'
 import { searchYouTube, importYoutubeVideo, dubYoutubeVideo } from '../../services/youtube'
 import {
@@ -658,7 +659,11 @@ export default function ListenDiscover() {
         subtitle: [t.artistName, t.albumName].filter(Boolean).join(' · '),
         shape: 'square',
         trailing: formatDuration(t.durationMs),
-        onClick: () => t.id && navigate(`/listen/${t.id}?source=music`),
+        onClick: () => {
+          if (!t.id) return
+          prewarmMusicPlayback(t.id)
+          navigate(`/listen/${t.id}?source=music`)
+        },
         action: t.id ? {
           variant: 'icon',
           done: saved,

@@ -42,6 +42,30 @@ export const getMusicKit = () => {
   return configurePromise
 }
 
+// Kick off setQueue + play inside a user gesture (e.g. a library tile click)
+// so MusicKit can start fetching audio bytes during the route transition into
+// the player. Without this, MusicKit only begins buffering when the player's
+// own play button is pressed, costing ~5s of cold-fetch latency on every track.
+// Safari ties autoplay permission to the gesture's call stack, so callers must
+// invoke this synchronously from a click handler — do not `await` it.
+export const prewarmMusicPlayback = (trackId) => {
+  if (!trackId) return
+  const promise = configurePromise || getMusicKit()
+  promise
+    .then(async (inst) => {
+      const current = inst.nowPlayingItem?.id
+      if (current !== trackId) {
+        await inst.setQueue({ song: trackId })
+      }
+      if (inst.playbackState !== 2) {
+        await inst.play()
+      }
+    })
+    .catch((err) => {
+      console.warn('MusicKit prewarm failed', err?.message || err)
+    })
+}
+
 export const authorizeMusicKit = async () => {
   const instance = await getMusicKit()
   return instance.authorize()

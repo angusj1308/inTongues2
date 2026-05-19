@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchArtist } from '../services/music'
+import { prewarmMusicPlayback } from '../services/musicKit'
 import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import DashboardLayout from '../components/layout/DashboardLayout'
@@ -170,7 +171,10 @@ const MusicArtistPage = () => {
                             showName: track.albumName || artist.name,
                           }}
                           variant="list"
-                          onPlay={() => navigate(`/listen/${track.id}?source=music`)}
+                          onPlay={() => {
+                            prewarmMusicPlayback(track.id)
+                            navigate(`/listen/${track.id}?source=music`)
+                          }}
                         />
                       ))}
                     </div>

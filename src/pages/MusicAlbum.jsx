@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchAlbum } from '../services/music'
+import { prewarmMusicPlayback } from '../services/musicKit'
 import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import DashboardLayout from '../components/layout/DashboardLayout'
@@ -147,7 +148,10 @@ const MusicAlbumPage = () => {
                       key={track.id}
                       type="button"
                       className="media-tracklist-row"
-                      onClick={() => navigate(`/listen/${track.id}?source=music`)}
+                      onClick={() => {
+                        prewarmMusicPlayback(track.id)
+                        navigate(`/listen/${track.id}?source=music`)
+                      }}
                     >
                       <span className="media-tracklist-number">
                         {track.trackNumber ?? index + 1}

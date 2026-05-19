@@ -13,7 +13,7 @@ import {
   subscribeToStateChanges,
 } from '../services/spotifyPlayer'
 import { fetchTrack, fetchTrackLyrics } from '../services/music'
-import { getMusicKit } from '../services/musicKit'
+import { getMusicKit, getActivePrewarm } from '../services/musicKit'
 import IntensiveListeningMode from '../components/listen/IntensiveListeningMode'
 import ExtensiveMode from '../components/listen/ExtensiveMode'
 import ActiveMode from '../components/listen/ActiveMode'
@@ -945,6 +945,27 @@ const AudioPlayer = () => {
   // same isPlaying / progressSeconds / durationSeconds state the existing UI
   // already reads.
   const musicKitRef = useRef(null)
+  // True while the library-click prewarm is still fetching the first HLS
+  // segment. Drives the "preparing your learning experience" screen so the
+  // user doesn't see a paused player + dead UI during Apple's ~5s startup.
+  const [musicPreparing, setMusicPreparing] = useState(() => isMusic && !!getActivePrewarm(id))
+  useEffect(() => {
+    if (!isMusic || !id) {
+      setMusicPreparing(false)
+      return undefined
+    }
+    const prewarm = getActivePrewarm(id)
+    if (!prewarm) {
+      setMusicPreparing(false)
+      return undefined
+    }
+    setMusicPreparing(true)
+    let cancelled = false
+    const done = () => { if (!cancelled) setMusicPreparing(false) }
+    prewarm.then(done, done)
+    return () => { cancelled = true }
+  }, [isMusic, id])
+
   useEffect(() => {
     if (!isMusic || !id) return undefined
     let cancelled = false
@@ -2639,6 +2660,29 @@ const AudioPlayer = () => {
       }`}
       style={wrapperStyle}
     >
+      {isMusic && musicPreparing && (
+        <div className="music-preparing-overlay" role="status" aria-live="polite">
+          <div className="music-preparing-card">
+            {storyMeta?.coverImageUrl ? (
+              <img
+                src={storyMeta.coverImageUrl}
+                alt=""
+                className="music-preparing-cover"
+              />
+            ) : (
+              <div className="music-preparing-cover music-preparing-cover-fallback" />
+            )}
+            <p className="music-preparing-title">{storyMeta?.title || ''}</p>
+            <p className="music-preparing-subtitle">{storyMeta?.subtitle || ''}</p>
+            <div className="music-preparing-status">
+              <span className="music-preparing-dot" />
+              <span className="music-preparing-dot" />
+              <span className="music-preparing-dot" />
+            </div>
+            <p className="music-preparing-label">Preparing your learning experience</p>
+          </div>
+        </div>
+      )}
       <div className="reader-main-shell">
         <div className="reader-hover-shell">
           <div className="reader-hover-hitbox" />

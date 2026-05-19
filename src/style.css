@@ -8203,6 +8203,19 @@ pre {
   gap: 6px;
 }
 
+/* Full-content-area loading state for deep view pages (album, artist,
+   podcast show, YouTube channel). Sits inside DashboardLayout, fills the
+   viewport-minus-nav, centers the same dots + label used by the music
+   "preparing" overlay so the loading look is consistent across the app. */
+.app-loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  width: 100%;
+  padding: 2rem;
+}
+
 .music-preparing-dot {
   width: 7px;
   height: 7px;

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import DashboardLayout from '../components/layout/DashboardLayout'
 import FollowButton from '../components/podcast/FollowButton'
 import DubConfirmModal from '../components/listen/DubConfirmModal'
+import LoadingScreen from '../components/LoadingScreen'
 import useListenLibraryData from '../components/listen/useListenLibraryData'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -322,6 +323,14 @@ const YoutubeChannelPage = () => {
     else navigate('/dashboard', { state: { initialTab: tab } })
   }
 
+  if (loading) {
+    return (
+      <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
+        <LoadingScreen />
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout activeTab="listen" onTabChange={handleTabChange}>
       <div className="media-page media-page--bare">
@@ -331,9 +340,7 @@ const YoutubeChannelPage = () => {
               ← Discover
             </Link>
 
-            {loading ? (
-              <p className="media-placeholder">Loading…</p>
-            ) : loadError ? (
+            {loadError ? (
               <p className="media-placeholder">{loadError}</p>
             ) : notFound || !channel ? (
               <p className="media-placeholder">Channel not found.</p>

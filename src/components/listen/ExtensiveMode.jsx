@@ -124,6 +124,10 @@ const ExtensiveMode = ({
   setPopup,
   contentExpressions = [],
   lineMode = false,
+  onSkipPreviousTrack = null,
+  onSkipNextTrack = null,
+  canSkipPreviousTrack = false,
+  canSkipNextTrack = false,
 }) => {
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
@@ -580,9 +584,10 @@ const ExtensiveMode = ({
         <button
           type="button"
           className="transport-icon"
-          onClick={handleStart}
-          aria-label="Start from beginning"
-          title="Start from beginning"
+          onClick={onSkipPreviousTrack || handleStart}
+          disabled={onSkipPreviousTrack ? !canSkipPreviousTrack : false}
+          aria-label={onSkipPreviousTrack ? 'Previous track' : 'Start from beginning'}
+          title={onSkipPreviousTrack ? 'Previous track' : 'Start from beginning'}
         >
           <Icon name="skip_previous" className="skip-icon" />
         </button>
@@ -643,9 +648,10 @@ const ExtensiveMode = ({
         <button
           type="button"
           className="transport-icon"
-          onClick={handleSkipToEnd}
-          aria-label="Skip to end"
-          title="Skip to end"
+          onClick={onSkipNextTrack || handleSkipToEnd}
+          disabled={onSkipNextTrack ? !canSkipNextTrack : false}
+          aria-label={onSkipNextTrack ? 'Next track' : 'Skip to end'}
+          title={onSkipNextTrack ? 'Next track' : 'Skip to end'}
         >
           <Icon name="skip_next" className="skip-icon" />
         </button>

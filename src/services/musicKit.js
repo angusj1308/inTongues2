@@ -55,15 +55,21 @@ let activePrewarmPromise = null
 // the returned promise and shows a "preparing" screen until it settles.
 // Safari ties autoplay permission to the gesture's call stack, so callers
 // must invoke this synchronously from a click handler — do not `await` it.
-export const prewarmMusicPlayback = (trackId) => {
+export const prewarmMusicPlayback = (trackId, options = {}) => {
   if (!trackId) return null
   if (activePrewarmId === trackId && activePrewarmPromise) return activePrewarmPromise
+  const queue = Array.isArray(options.queue) && options.queue.length ? options.queue : [trackId]
+  const startIndex = Math.max(0, queue.indexOf(trackId))
   const promise = configurePromise || getMusicKit()
   activePrewarmId = trackId
   activePrewarmPromise = promise
     .then(async (inst) => {
       if (inst.nowPlayingItem?.id !== trackId) {
-        await inst.setQueue({ song: trackId })
+        // Always queue the whole list so MusicKit can pre-buffer the next
+        // track while the user listens to the current one — that's what
+        // makes the Skip buttons feel instant. Single-track entry points
+        // just pass [trackId] which behaves like the old setQueue({ song }).
+        await inst.setQueue({ songs: queue, startWith: startIndex })
       }
       const savedVolume = typeof inst.volume === 'number' ? inst.volume : 1
       try { inst.volume = 0 } catch { /* MusicKit may reject volume changes */ }

@@ -153,25 +153,57 @@ const MusicAlbumPage = () => {
                 <p className="media-empty-line">No tracks listed.</p>
               ) : (
                 <div className="media-tracklist">
-                  {album.tracks?.map((track, index) => (
-                    <button
-                      key={track.id}
-                      type="button"
-                      className="media-tracklist-row"
-                      onClick={() => {
-                        prewarmMusicPlayback(track.id)
-                        navigate(`/listen/${track.id}?source=music`)
-                      }}
-                    >
-                      <span className="media-tracklist-number">
-                        {track.trackNumber ?? index + 1}
-                      </span>
-                      <h3 className="media-tracklist-title">{track.title}</h3>
-                      <span className="media-tracklist-duration">
-                        {formatTrackDuration(track.durationMs)}
-                      </span>
-                    </button>
-                  ))}
+                  {(() => {
+                    const albumQueue = (album.tracks || []).map((t) => t.id).filter(Boolean)
+                    return album.tracks?.map((track, index) => {
+                      const openTrack = () => {
+                        prewarmMusicPlayback(track.id, { queue: albumQueue })
+                        navigate(`/listen/${track.id}?source=music`, {
+                          state: {
+                            queue: albumQueue,
+                            startIndex: index,
+                            contextLabel: album.title || 'Album',
+                          },
+                        })
+                      }
+                      return (
+                        <div
+                          key={track.id}
+                          className="media-tracklist-row"
+                          role="button"
+                          tabIndex={0}
+                          onClick={openTrack}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              openTrack()
+                            }
+                          }}
+                        >
+                          <span className="media-tracklist-number">
+                            {track.trackNumber ?? index + 1}
+                          </span>
+                          <h3 className="media-tracklist-title">{track.title}</h3>
+                          <span className="media-tracklist-duration">
+                            {formatTrackDuration(track.durationMs)}
+                          </span>
+                          <button
+                            type="button"
+                            className="media-tracklist-add"
+                            aria-label="Add to playlist"
+                            title="Add to playlist"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              // Playlists aren't built yet — wire this up
+                              // when the playlist service lands.
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )
+                    })
+                  })()}
                 </div>
               )}
             </section>

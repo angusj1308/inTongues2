@@ -10914,7 +10914,6 @@ body.active-pass-locked {
   font-weight: 700;
   opacity: 1;
   line-height: 1.38;
-  background-color: rgba(15, 23, 42, 0.04);
 }
 
 [data-theme='dark'] .transcript-line {
@@ -10923,7 +10922,6 @@ body.active-pass-locked {
 
 [data-theme='dark'] .transcript-line.active {
   color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.06);
 }
 
 .mini-controls-bar {

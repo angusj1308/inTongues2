@@ -1902,26 +1902,26 @@ async function fetchMusixmatchLyricsTranslation({ trackId, commontrackId, isrc, 
 
   const data = await response.json()
   const statusCode = data?.message?.header?.status_code
-  const lyricsBody = data?.message?.body?.lyrics?.lyrics_body
+  const lyrics = data?.message?.body?.lyrics || {}
+  // Musixmatch returns the source text in `lyrics_body` and the actual
+  // translated text in `lyrics_translated`. Reading the wrong field
+  // (which is what we did originally) makes the response look like an
+  // "echo" of the source.
+  const translatedBody = lyrics.lyrics_translated || ''
+  const sourceBody = lyrics.lyrics_body || ''
   console.log('[musixmatch] translation response', {
     statusCode,
-    bodyLength: lyricsBody?.length || 0,
-    firstChars: lyricsBody ? lyricsBody.slice(0, 80) : null,
+    translatedLength: translatedBody.length,
+    sourceLength: sourceBody.length,
+    firstTranslated: translatedBody ? translatedBody.slice(0, 80) : null,
   })
-  console.log('[musixmatch] translation FULL response keys', {
-    headerKeys: Object.keys(data?.message?.header || {}),
-    bodyKeys: Object.keys(data?.message?.body || {}),
-    lyricsKeys: Object.keys(data?.message?.body?.lyrics || {}),
-  })
-  console.log('[musixmatch] translation FULL body (first 1500 chars)',
-    JSON.stringify(data?.message?.body || {}, null, 2).slice(0, 1500))
 
-  if (!lyricsBody) {
+  if (!translatedBody) {
     logMusixmatchDebug('translation empty', { selectedLanguage, trackId, commontrackId, isrc })
     return null
   }
 
-  const cleaned = cleanMusixmatchLyrics(lyricsBody)
+  const cleaned = cleanMusixmatchLyrics(translatedBody)
   const lines = cleaned
     .split(/\r?\n/)
     .map((line) => line.trim())

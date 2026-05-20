@@ -2599,6 +2599,28 @@ app.get('/api/music/lyrics/:id', async (req, res) => {
       }
     }
 
+    // Last resort: plain (untimed) lyrics. Some tracks only have flat
+    // lyrics in Musixmatch — Spotify renders these with a "not time-
+    // synced yet" note. Better to show the lyrics without sync than
+    // leave the transcript empty. Each line becomes a segment with
+    // zero-length timing, so the client renders them in order but
+    // doesn't try to highlight as the audio plays.
+    if (!result?.segments?.length && match?.trackId) {
+      const plain = await fetchMusixmatchLyrics(match.trackId)
+      if (plain?.lyrics) {
+        const lines = plain.lyrics
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+        if (lines.length) {
+          logMusixmatchDebug('plain lyrics fallback', { lines: lines.length })
+          result = {
+            segments: lines.map((text) => ({ start: 0, end: 0, text })),
+          }
+        }
+      }
+    }
+
     res.json({ segments: result?.segments || [] })
   } catch (err) {
     console.error('Apple Music lyrics failure', err)

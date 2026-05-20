@@ -10917,6 +10917,15 @@ body.active-pass-locked {
   background-color: rgba(15, 23, 42, 0.04);
 }
 
+[data-theme='dark'] .transcript-line {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+[data-theme='dark'] .transcript-line.active {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
 .mini-controls-bar {
   position: sticky;
   bottom: 0;

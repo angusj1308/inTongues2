@@ -1006,11 +1006,10 @@ const AudioPlayer = () => {
         if (cancelled) return
         musicKitRef.current = inst
         try {
-          // Skip setQueue if the library-click prewarm already queued this
-          // exact track — calling setQueue again would restart the cold
-          // fetch. prepareToPlay() is a no-op on MusicKit JS v3 (the method
-          // was removed), so the prewarm path is the only working buffer.
-          if (inst.nowPlayingItem?.id !== id) {
+          // String-compare because MusicKit's nowPlayingItem.id can be a
+          // number while useParams gives us a string — a !== check
+          // between those two is always true and would always re-setQueue.
+          if (String(inst.nowPlayingItem?.id || '') !== String(id)) {
             await inst.setQueue({ songs: musicQueue, startWith: musicQueueIndex })
           }
         } catch (err) {

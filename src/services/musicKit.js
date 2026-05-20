@@ -64,11 +64,7 @@ export const prewarmMusicPlayback = (trackId, options = {}) => {
   activePrewarmId = trackId
   activePrewarmPromise = promise
     .then(async (inst) => {
-      if (inst.nowPlayingItem?.id !== trackId) {
-        // Always queue the whole list so MusicKit can pre-buffer the next
-        // track while the user listens to the current one — that's what
-        // makes the Skip buttons feel instant. Single-track entry points
-        // just pass [trackId] which behaves like the old setQueue({ song }).
+      if (String(inst.nowPlayingItem?.id || '') !== String(trackId)) {
         await inst.setQueue({ songs: queue, startWith: startIndex })
       }
       const savedVolume = typeof inst.volume === 'number' ? inst.volume : 1

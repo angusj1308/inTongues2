@@ -2689,7 +2689,20 @@ app.get('/api/music/lyrics/:id', async (req, res) => {
       if (trans?.lines?.length) {
         const trimmedLines = trans.lines.filter((line) => line.length > 0)
         if (trimmedLines.length === result.segments.length) {
-          translations = trimmedLines
+          // Musixmatch sometimes returns the source lyrics verbatim
+          // when no real translation exists for the target language —
+          // treat that as "no translation" so the client doesn't render
+          // the same text twice under each line.
+          const isSourceEcho = trimmedLines.every(
+            (line, i) => line.trim().toLowerCase() === (result.segments[i]?.text || '').trim().toLowerCase(),
+          )
+          if (isSourceEcho) {
+            logMusixmatchDebug('translation echoed source — skipping', {
+              target: nativeCode,
+            })
+          } else {
+            translations = trimmedLines
+          }
         } else {
           logMusixmatchDebug('translation line-count mismatch', {
             segments: result.segments.length,

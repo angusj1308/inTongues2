@@ -1903,25 +1903,42 @@ async function fetchMusixmatchLyricsTranslation({ trackId, commontrackId, isrc, 
   const data = await response.json()
   const statusCode = data?.message?.header?.status_code
   const lyrics = data?.message?.body?.lyrics || {}
-  // Musixmatch returns the source text in `lyrics_body` and the actual
-  // translated text in `lyrics_translated`. Reading the wrong field
-  // (which is what we did originally) makes the response look like an
-  // "echo" of the source.
-  const translatedBody = lyrics.lyrics_translated || ''
-  const sourceBody = lyrics.lyrics_body || ''
+  const lyricsBody = lyrics.lyrics_body || ''
+  const lyricsLanguage = lyrics.lyrics_language || ''
+  const lyricsTranslatedFlag = lyrics.lyrics_translated
+  // Musixmatch behavior: lyrics_body holds the TRANSLATED text when an
+  // actual translation exists for the requested selected_language, in
+  // which case lyrics_language matches selected_language. When no real
+  // translation is available they fall back to returning the source —
+  // recognisable because lyrics_language stays as the source language.
+  // Treat that fallback as "no translation".
+  const looksLikeRealTranslation = !!lyricsBody
+    && lyricsLanguage
+    && lyricsLanguage.toLowerCase() === selectedLanguage.toLowerCase()
+
   console.log('[musixmatch] translation response', {
     statusCode,
-    translatedLength: translatedBody.length,
-    sourceLength: sourceBody.length,
-    firstTranslated: translatedBody ? translatedBody.slice(0, 80) : null,
+    bodyLength: lyricsBody.length,
+    lyricsLanguage,
+    lyricsTranslatedFlag,
+    requestedLanguage: selectedLanguage,
+    looksLikeRealTranslation,
+    firstChars: lyricsBody ? lyricsBody.slice(0, 80) : null,
   })
 
-  if (!translatedBody) {
-    logMusixmatchDebug('translation empty', { selectedLanguage, trackId, commontrackId, isrc })
+  if (!looksLikeRealTranslation) {
+    logMusixmatchDebug('translation unavailable for target', {
+      selectedLanguage,
+      returnedLanguage: lyricsLanguage,
+      flag: lyricsTranslatedFlag,
+      trackId,
+      commontrackId,
+      isrc,
+    })
     return null
   }
 
-  const cleaned = cleanMusixmatchLyrics(translatedBody)
+  const cleaned = cleanMusixmatchLyrics(lyricsBody)
   const lines = cleaned
     .split(/\r?\n/)
     .map((line) => line.trim())

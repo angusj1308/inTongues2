@@ -262,6 +262,43 @@
   background: none;
 }
 
+/* Music lyrics (TranscriptRoller) — mirror the .transcript-flow-window
+   rules so word-status highlighting works when the user toggles "Show
+   word status" on a song. Light mode paints the highlight on the word
+   background; dark mode flips it onto the text colour for readability
+   against the dark surface. */
+.listening-lab-page .transcript-roller-window .reader-word--highlighted[data-word-status='new'],
+.listening-lab-page .transcript-roller-window .reader-word--highlighted[data-word-status='unknown'] {
+  color: inherit;
+  background: var(--hlt-new);
+}
+
+.listening-lab-page .transcript-roller-window .reader-word--highlighted[data-word-status='recognised'] {
+  color: inherit;
+  background: var(--hlt-recognised);
+}
+
+.listening-lab-page .transcript-roller-window .reader-word--highlighted[data-word-status='familiar'] {
+  color: inherit;
+  background: var(--hlt-familiar);
+}
+
+[data-theme='dark'] .listening-lab-page .transcript-roller-window .reader-word--highlighted[data-word-status='new'],
+[data-theme='dark'] .listening-lab-page .transcript-roller-window .reader-word--highlighted[data-word-status='unknown'] {
+  color: var(--hlt-new);
+  background: none;
+}
+
+[data-theme='dark'] .listening-lab-page .transcript-roller-window .reader-word--highlighted[data-word-status='recognised'] {
+  color: var(--hlt-recognised);
+  background: none;
+}
+
+[data-theme='dark'] .listening-lab-page .transcript-roller-window .reader-word--highlighted[data-word-status='familiar'] {
+  color: var(--hlt-familiar);
+  background: none;
+}
+
 .transcript-flow-window .reader-word--highlighted[data-word-status='recognised'] {
   color: var(--hlt-recognised);
   background: none;

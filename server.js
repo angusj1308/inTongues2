@@ -1937,6 +1937,101 @@ async function fetchMusixmatchLyricsTranslation({ trackId, commontrackId, isrc, 
   return { lines }
 }
 
+// --- AI lyrics translation fallback ----------------------------------------
+// When Musixmatch doesn't have a translation for the requested language we
+// generate one with Claude Haiku and persist it in Firestore so subsequent
+// plays don't re-spend tokens. We translate OUR text (Claude output), not
+// Musixmatch's, so storing is fine per their ToS — we still hit Musixmatch
+// on every play for the source lyrics.
+
+const aiTranslationCacheDocId = (trackId, targetLanguageCode) =>
+  `${trackId}__${String(targetLanguageCode || '').toLowerCase()}`
+
+async function getCachedAITranslation(trackId, targetLanguageCode) {
+  if (!firestore || !trackId || !targetLanguageCode) return null
+  try {
+    const doc = await firestore
+      .collection('musicLyricTranslations')
+      .doc(aiTranslationCacheDocId(trackId, targetLanguageCode))
+      .get()
+    if (!doc.exists) return null
+    const data = doc.data() || {}
+    return Array.isArray(data.lines) ? data.lines : null
+  } catch (err) {
+    console.warn('AI translation cache read failed', err?.message || err)
+    return null
+  }
+}
+
+async function saveCachedAITranslation(trackId, targetLanguageCode, lines, sourceLanguageCode) {
+  if (!firestore || !trackId || !targetLanguageCode || !Array.isArray(lines) || !lines.length) return
+  try {
+    await firestore
+      .collection('musicLyricTranslations')
+      .doc(aiTranslationCacheDocId(trackId, targetLanguageCode))
+      .set({
+        lines,
+        targetLanguage: targetLanguageCode,
+        sourceLanguage: sourceLanguageCode || null,
+        model: 'claude-haiku-4-5-20251001',
+        generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+  } catch (err) {
+    console.warn('AI translation cache write failed', err?.message || err)
+  }
+}
+
+async function generateAILyricsTranslation({ sourceLines, sourceLanguageCode, targetLanguageCode }) {
+  if (!anthropicClient || !Array.isArray(sourceLines) || !sourceLines.length || !targetLanguageCode) {
+    return null
+  }
+
+  // Round-trip lines through JSON so quotes/punctuation survive the prompt.
+  const sourceLanguageName = LANGUAGE_CODE_TO_NAME[sourceLanguageCode] || sourceLanguageCode || 'the source language'
+  const targetLanguageName = LANGUAGE_CODE_TO_NAME[targetLanguageCode] || targetLanguageCode
+
+  const userMessage = `Translate these song lyrics from ${sourceLanguageName} to ${targetLanguageName}.
+
+Return ONLY a JSON array of strings — one element per input line, in the SAME ORDER, and with EXACTLY the same number of elements (${sourceLines.length}). Do not add commentary, headers, or extra elements. Preserve empty strings as empty strings.
+
+Input lines (JSON array):
+${JSON.stringify(sourceLines)}
+
+Output (JSON array, length ${sourceLines.length}):`
+
+  try {
+    const response = await anthropicClient.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: userMessage }],
+    })
+    const text = response?.content?.[0]?.type === 'text' ? response.content[0].text : ''
+    if (!text) return null
+
+    // Extract the first JSON array we find in the response (handles cases
+    // where Claude wraps the array in prose, ``` fences, etc.).
+    const firstBracket = text.indexOf('[')
+    const lastBracket = text.lastIndexOf(']')
+    if (firstBracket < 0 || lastBracket <= firstBracket) return null
+    const jsonSlice = text.slice(firstBracket, lastBracket + 1)
+    const parsed = JSON.parse(jsonSlice)
+
+    if (!Array.isArray(parsed)) return null
+    if (parsed.length !== sourceLines.length) {
+      console.warn('[ai-translate] line-count mismatch', {
+        expected: sourceLines.length,
+        got: parsed.length,
+      })
+      return null
+    }
+    const cleaned = parsed.map((line) => (typeof line === 'string' ? line.trim() : ''))
+    return cleaned
+  } catch (err) {
+    console.warn('[ai-translate] generation failed', err?.message || err)
+    return null
+  }
+}
+
 async function fetchMusixmatchRichsync({ trackId, commontrackId, isrc }) {
   if (!MUSIXMATCH_API_KEY) return null
 
@@ -2739,6 +2834,29 @@ app.get('/api/music/lyrics/:id', async (req, res) => {
             segments: result.segments.length,
             translatedLines: trimmedLines.length,
           })
+        }
+      }
+    }
+
+    // AI translation fallback: Musixmatch didn't have a real translation
+    // for this language. Try Firestore cache first; if miss, generate one
+    // with Claude Haiku and cache it for next time. Result is shaped the
+    // same as Musixmatch's so the client doesn't need to know the source.
+    if (!translations.length && nativeCode && result?.segments?.length) {
+      const cached = await getCachedAITranslation(id, nativeCode)
+      if (cached && cached.length === result.segments.length) {
+        translations = cached
+      } else {
+        const sourceLines = result.segments.map((s) => s.text || '')
+        const generated = await generateAILyricsTranslation({
+          sourceLines,
+          sourceLanguageCode: resolveTargetCode(language || ''),
+          targetLanguageCode: nativeCode,
+        })
+        if (generated && generated.length === result.segments.length) {
+          translations = generated
+          // Fire-and-forget cache write; don't block the response.
+          saveCachedAITranslation(id, nativeCode, generated, resolveTargetCode(language || '')).catch(() => {})
         }
       }
     }

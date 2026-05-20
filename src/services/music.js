@@ -300,24 +300,44 @@ export const fetchTrack = async (trackId, { language } = {}) => {
   }
 }
 
-// Time-synced lyrics (Musixmatch richsync) for an Apple Music track.
-// Returns { segments: [{ start, end, text }], translations: [string] } —
-// segments empty when no lyrics; translations aligned 1:1 with segments
-// when the user's native language is passed and Musixmatch has a
-// translation whose line count matches the source.
-export const fetchTrackLyrics = async (trackId, { language, native } = {}) => {
-  if (!trackId) return { segments: [], translations: [] }
-  try {
-    const params = new URLSearchParams()
-    if (language) params.set('lang', language)
-    if (native) params.set('native', native)
-    const qs = params.toString()
-    const res = await fetch(`/api/music/lyrics/${encodeURIComponent(trackId)}${qs ? `?${qs}` : ''}`)
-    if (!res.ok) return { segments: [], translations: [] }
-    return await res.json()
-  } catch {
-    return { segments: [], translations: [] }
-  }
+// Client-side cache for resolved lyrics responses, keyed by
+// `<trackId>|<lang>|<native>`. Lets us prefetch the next/previous track's
+// lyrics while the current one plays, so a Skip Next never has to wait
+// on Musixmatch + Claude. Also lets the AudioPlayer hand the prewarm
+// flow the lyrics promise so the "preparing" overlay can wait on it.
+const lyricsCache = new Map()
+
+const lyricsCacheKey = (trackId, language, native) =>
+  `${trackId}|${language || ''}|${native || ''}`
+
+const fetchTrackLyricsFresh = async (trackId, { language, native } = {}) => {
+  const params = new URLSearchParams()
+  if (language) params.set('lang', language)
+  if (native) params.set('native', native)
+  const qs = params.toString()
+  const res = await fetch(`/api/music/lyrics/${encodeURIComponent(trackId)}${qs ? `?${qs}` : ''}`)
+  if (!res.ok) return { segments: [], translations: [] }
+  return await res.json()
+}
+
+// Returns the lyrics result for a track, hitting the in-memory cache if
+// available. The promise itself is cached, so concurrent calls for the
+// same key share one network request.
+export const fetchTrackLyrics = (trackId, options = {}) => {
+  if (!trackId) return Promise.resolve({ segments: [], translations: [] })
+  const key = lyricsCacheKey(trackId, options.language, options.native)
+  if (lyricsCache.has(key)) return lyricsCache.get(key)
+  const promise = fetchTrackLyricsFresh(trackId, options).catch(() => ({ segments: [], translations: [] }))
+  lyricsCache.set(key, promise)
+  return promise
+}
+
+// Fire-and-forget warm of the cache for an upcoming track. Errors are
+// swallowed — the next "real" fetchTrackLyrics call will hit the cache
+// if it succeeded or re-fetch if it didn't.
+export const prefetchTrackLyrics = (trackId, options = {}) => {
+  if (!trackId) return
+  fetchTrackLyrics(trackId, options)
 }
 
 export const fetchAlbum = async (albumId, { language } = {}) => {

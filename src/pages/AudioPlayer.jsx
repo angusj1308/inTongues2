@@ -12,7 +12,7 @@ import {
   seek as seekSpotify,
   subscribeToStateChanges,
 } from '../services/spotifyPlayer'
-import { fetchTrack, fetchTrackLyrics } from '../services/music'
+import { fetchTrack, fetchTrackLyrics, prefetchTrackLyrics } from '../services/music'
 import { getMusicKit, getActivePrewarm } from '../services/musicKit'
 import IntensiveListeningMode from '../components/listen/IntensiveListeningMode'
 import ExtensiveMode from '../components/listen/ExtensiveMode'
@@ -772,6 +772,18 @@ const AudioPlayer = () => {
               normaliseTranscriptSegments(lyricsResult?.segments || []),
             )
             setLyricsTranslations(Array.isArray(lyricsResult?.translations) ? lyricsResult.translations : [])
+            // Prefetch lyrics for the surrounding tracks so a Skip never
+            // hits cold Musixmatch + Claude. We warm both directions
+            // since Back can also jump tracks. Cached promise dedupes
+            // concurrent calls so this is free if it's already warm.
+            const currentIndex = musicQueue.indexOf(id)
+            const native = profile?.nativeLanguage || ''
+            ;[currentIndex + 1, currentIndex - 1].forEach((i) => {
+              const neighbour = i >= 0 && i < musicQueue.length ? musicQueue[i] : null
+              if (neighbour) {
+                prefetchTrackLyrics(neighbour, { language: trackLanguage, native })
+              }
+            })
           })
           .finally(() => {
             setMusicLyricsReady(true)

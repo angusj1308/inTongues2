@@ -760,16 +760,22 @@ const AudioPlayer = () => {
         // Fetch synced lyrics from Musixmatch (richsync). Empty array if
         // the track has no lyrics — UI just won't show a transcript. Also
         // request a translation in the user's native language; the server
-        // aligns it 1:1 with segments when available.
+        // aligns it 1:1 with segments when available. Marks the "lyrics"
+        // half of the preparing overlay as done either way so the overlay
+        // doesn't hang if the lyrics endpoint fails or is empty.
         fetchTrackLyrics(id, {
           language: trackLanguage,
           native: profile?.nativeLanguage || '',
-        }).then((lyricsResult) => {
-          setSpotifyTranscriptSegments(
-            normaliseTranscriptSegments(lyricsResult?.segments || []),
-          )
-          setLyricsTranslations(Array.isArray(lyricsResult?.translations) ? lyricsResult.translations : [])
         })
+          .then((lyricsResult) => {
+            setSpotifyTranscriptSegments(
+              normaliseTranscriptSegments(lyricsResult?.segments || []),
+            )
+            setLyricsTranslations(Array.isArray(lyricsResult?.translations) ? lyricsResult.translations : [])
+          })
+          .finally(() => {
+            setMusicLyricsReady(true)
+          })
       })()
       return
     }
@@ -972,26 +978,36 @@ const AudioPlayer = () => {
   // same isPlaying / progressSeconds / durationSeconds state the existing UI
   // already reads.
   const musicKitRef = useRef(null)
-  // True while the library-click prewarm is still fetching the first HLS
-  // segment. Drives the "preparing your learning experience" screen so the
-  // user doesn't see a paused player + dead UI during Apple's ~5s startup.
-  const [musicPreparing, setMusicPreparing] = useState(() => isMusic && !!getActivePrewarm(id))
+  // The "preparing your learning experience" overlay covers both the
+  // MusicKit cold-start buffer AND the Musixmatch lyrics+translation
+  // fetch. We track them as two independent readiness flags and hide
+  // the overlay only when both have settled. Only the click-from-library
+  // path triggers the overlay (gated on getActivePrewarm); skips between
+  // tracks in the same queue don't show it.
+  const [musicAudioReady, setMusicAudioReady] = useState(true)
+  const [musicLyricsReady, setMusicLyricsReady] = useState(true)
   useEffect(() => {
     if (!isMusic || !id) {
-      setMusicPreparing(false)
+      setMusicAudioReady(true)
+      setMusicLyricsReady(true)
       return undefined
     }
     const prewarm = getActivePrewarm(id)
     if (!prewarm) {
-      setMusicPreparing(false)
+      // No prewarm in flight (e.g., direct nav, skip-driven URL change) —
+      // don't gate the UI on lyrics either; let it render whenever.
+      setMusicAudioReady(true)
+      setMusicLyricsReady(true)
       return undefined
     }
-    setMusicPreparing(true)
+    setMusicAudioReady(false)
+    setMusicLyricsReady(false)
     let cancelled = false
-    const done = () => { if (!cancelled) setMusicPreparing(false) }
-    prewarm.then(done, done)
+    const onAudioDone = () => { if (!cancelled) setMusicAudioReady(true) }
+    prewarm.then(onAudioDone, onAudioDone)
     return () => { cancelled = true }
   }, [isMusic, id])
+  const musicPreparing = isMusic && !!id && (!musicAudioReady || !musicLyricsReady)
 
   // Re-init only when the queue identity changes — id changes within the
   // same queue (skip / auto-next) should NOT teardown MusicKit, otherwise

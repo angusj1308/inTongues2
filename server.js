@@ -1885,7 +1885,15 @@ async function fetchMusixmatchLyricsTranslation({ trackId, commontrackId, isrc, 
     return null
   }
 
-  const response = await fetch(`${MUSIXMATCH_BASE_URL}/track.lyrics.translation.get?${params.toString()}`)
+  const requestUrl = `${MUSIXMATCH_BASE_URL}/track.lyrics.translation.get?${params.toString()}`
+  console.log('[musixmatch] translation request', {
+    selectedLanguage,
+    isrc: isrc || null,
+    trackId: trackId || null,
+    commontrackId: commontrackId || null,
+  })
+
+  const response = await fetch(requestUrl)
 
   if (!response.ok) {
     console.error('Musixmatch track.lyrics.translation.get failed', response.status, await response.text())
@@ -1893,7 +1901,13 @@ async function fetchMusixmatchLyricsTranslation({ trackId, commontrackId, isrc, 
   }
 
   const data = await response.json()
+  const statusCode = data?.message?.header?.status_code
   const lyricsBody = data?.message?.body?.lyrics?.lyrics_body
+  console.log('[musixmatch] translation response', {
+    statusCode,
+    bodyLength: lyricsBody?.length || 0,
+    firstChars: lyricsBody ? lyricsBody.slice(0, 80) : null,
+  })
 
   if (!lyricsBody) {
     logMusixmatchDebug('translation empty', { selectedLanguage, trackId, commontrackId, isrc })
@@ -2678,6 +2692,13 @@ app.get('/api/music/lyrics/:id', async (req, res) => {
     // the translation array empty rather than risk misaligned glosses.
     const nativeRaw = String(req.query.native || '').trim()
     const nativeCode = nativeRaw ? resolveTargetCode(nativeRaw) : null
+    console.log('[musixmatch] lyrics endpoint', {
+      trackId: id,
+      lang: language,
+      nativeRaw,
+      nativeCode,
+      sourceSegmentCount: result?.segments?.length || 0,
+    })
     let translations = []
     if (nativeCode && result?.segments?.length && (isrc || match?.trackId || match?.commontrackId)) {
       const trans = await fetchMusixmatchLyricsTranslation({
@@ -2689,7 +2710,20 @@ app.get('/api/music/lyrics/:id', async (req, res) => {
       if (trans?.lines?.length) {
         const trimmedLines = trans.lines.filter((line) => line.length > 0)
         if (trimmedLines.length === result.segments.length) {
-          translations = trimmedLines
+          // Musixmatch sometimes returns the source lyrics verbatim
+          // when no real translation exists for the target language —
+          // treat that as "no translation" so the client doesn't render
+          // the same text twice under each line.
+          const isSourceEcho = trimmedLines.every(
+            (line, i) => line.trim().toLowerCase() === (result.segments[i]?.text || '').trim().toLowerCase(),
+          )
+          if (isSourceEcho) {
+            logMusixmatchDebug('translation echoed source — skipping', {
+              target: nativeCode,
+            })
+          } else {
+            translations = trimmedLines
+          }
         } else {
           logMusixmatchDebug('translation line-count mismatch', {
             segments: result.segments.length,

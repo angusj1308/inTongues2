@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>inTongues</title>
+    <script>
+      // Set data-theme from localStorage before React mounts, so dark
+      // mode survives reloads without a flash of light theme. Components
+      // that read data-theme on init will see the right value from the
+      // first paint.
+      (function () {
+        try {
+          var saved = localStorage.getItem('darkMode')
+          var isDark = saved ? JSON.parse(saved) === true : false
+          document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light')
+        }
+      })()
+    </script>
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0;48,700,0,0"

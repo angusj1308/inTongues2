@@ -92,6 +92,7 @@ const TranscriptPanel = ({
             onUserScroll={onUserScroll}
             syncToken={syncToken}
             contentExpressions={contentExpressions}
+            forceAllActive={!lyricsTimed}
           />
         )}
       </div>

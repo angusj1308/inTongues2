@@ -80,6 +80,7 @@ const TranscriptRoller = ({
   syncToken = 0,
   contentExpressions = [],
   forceAllActive = false,
+  lyricsTranslations = [],
 }) => {
   const containerRef = useRef(null)
   const trackRef = useRef(null)
@@ -268,17 +269,23 @@ const TranscriptRoller = ({
     >
       <div className="transcript-roller" ref={containerRef}>
         <div className="transcript-track" ref={trackRef}>
-          {renderedSegments.map((segment, index) => (
-            <div
-              key={segment.key}
-              ref={(el) => {
-                itemRefs.current[index] = el
-              }}
-              className={`transcript-line ${forceAllActive || segment.isActive ? 'active' : ''}`}
-            >
-              {segment.content}
-            </div>
-          ))}
+          {renderedSegments.map((segment, index) => {
+            const translation = lyricsTranslations[index]
+            return (
+              <div
+                key={segment.key}
+                ref={(el) => {
+                  itemRefs.current[index] = el
+                }}
+                className={`transcript-line ${forceAllActive || segment.isActive ? 'active' : ''}`}
+              >
+                {segment.content}
+                {translation ? (
+                  <div className="transcript-line-translation">{translation}</div>
+                ) : null}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

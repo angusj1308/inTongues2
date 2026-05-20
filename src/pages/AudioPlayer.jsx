@@ -163,6 +163,10 @@ const AudioPlayer = () => {
   const [voiceGender, setVoiceGender] = useState('male')
   const [transcriptDoc, setTranscriptDoc] = useState({ wordTimestamps: [], sentenceSegments: [], segments: [] })
   const [spotifyTranscriptSegments, setSpotifyTranscriptSegments] = useState([])
+  // Per-line translations (Musixmatch track.lyrics.translation.get),
+  // aligned 1:1 with spotifyTranscriptSegments. Empty array when the
+  // user has no native language set or Musixmatch has no translation.
+  const [lyricsTranslations, setLyricsTranslations] = useState([])
   const [popup, setPopup] = useState(null)
   const [popupPosition, setPopupPosition] = useState({ top: null, left: null })
   const missingLanguageMessage =
@@ -708,6 +712,11 @@ const AudioPlayer = () => {
     }
 
     if (isMusic) {
+      // Clear stale lyrics/translations from the previous track so the
+      // TranscriptRoller doesn't briefly render the wrong song's text
+      // while the new fetch is in flight.
+      setSpotifyTranscriptSegments([])
+      setLyricsTranslations([])
       ;(async () => {
         const trackLanguage = resolveSupportedLanguageLabel(
           profile?.lastUsedLanguage,
@@ -749,11 +758,17 @@ const AudioPlayer = () => {
         setPages([])
         setLoading(false)
         // Fetch synced lyrics from Musixmatch (richsync). Empty array if
-        // the track has no lyrics — UI just won't show a transcript.
-        fetchTrackLyrics(id, { language: trackLanguage }).then((lyricsResult) => {
+        // the track has no lyrics — UI just won't show a transcript. Also
+        // request a translation in the user's native language; the server
+        // aligns it 1:1 with segments when available.
+        fetchTrackLyrics(id, {
+          language: trackLanguage,
+          native: profile?.nativeLanguage || '',
+        }).then((lyricsResult) => {
           setSpotifyTranscriptSegments(
             normaliseTranscriptSegments(lyricsResult?.segments || []),
           )
+          setLyricsTranslations(Array.isArray(lyricsResult?.translations) ? lyricsResult.translations : [])
         })
       })()
       return
@@ -2932,6 +2947,7 @@ const AudioPlayer = () => {
                         onScrubChange={setScrubSeconds}
                         transcriptSegments={transcriptSegments}
                         activeTranscriptIndex={activeTranscriptIndex}
+                        lyricsTranslations={isMusic ? lyricsTranslations : []}
                         vocabEntries={vocabEntries}
                         language={storyLanguage}
                         nativeLanguage={profile?.nativeLanguage}

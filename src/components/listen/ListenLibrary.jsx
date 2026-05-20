@@ -327,6 +327,16 @@ export default function ListenLibrary() {
       )
       return
     }
+    // Music: prewarm MusicKit in the click gesture (same flow as the
+    // saved-tracks shelf) so the "preparing" overlay can show and the
+    // player doesn't fall back to the previously-queued track.
+    if (item.medium === 'music' && item.id) {
+      prewarmMusicPlayback(item.id, { queue: [item.id] })
+      navigate(`/listen/${item.id}?source=music`, {
+        state: { queue: [item.id], startIndex: 0, contextLabel: 'Continue Listening' },
+      })
+      return
+    }
     if (item.playHref) navigate(item.playHref)
   }
 

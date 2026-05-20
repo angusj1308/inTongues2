@@ -79,6 +79,7 @@ const TranscriptRoller = ({
   onUserScroll,
   syncToken = 0,
   contentExpressions = [],
+  forceAllActive = false,
 }) => {
   const containerRef = useRef(null)
   const trackRef = useRef(null)
@@ -273,7 +274,7 @@ const TranscriptRoller = ({
               ref={(el) => {
                 itemRefs.current[index] = el
               }}
-              className={`transcript-line ${segment.isActive ? 'active' : ''}`}
+              className={`transcript-line ${forceAllActive || segment.isActive ? 'active' : ''}`}
             >
               {segment.content}
             </div>

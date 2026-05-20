@@ -1781,6 +1781,88 @@ const parseRichsyncSegments = (richsyncBody) => {
   }
 }
 
+const parseSubtitleSegments = (subtitleBody) => {
+  if (!subtitleBody) return []
+
+  try {
+    const parsed = JSON.parse(subtitleBody)
+    if (!Array.isArray(parsed)) return []
+
+    const entries = parsed
+      .map((entry) => ({
+        start: Number(entry?.time?.total),
+        text: (entry?.text || '').trim(),
+      }))
+      .filter((entry) => Number.isFinite(entry.start) && entry.text)
+      .sort((a, b) => a.start - b.start)
+
+    if (!entries.length) return []
+
+    // Subtitle entries only have a start time. Use the next entry's start
+    // as the current line's end so the transcript highlight stays on the
+    // line until the next one begins. Last line gets a 3s tail.
+    return entries.map((entry, index) => {
+      const next = entries[index + 1]
+      const end = next && next.start > entry.start ? next.start : entry.start + 3
+      return { start: entry.start, end, text: entry.text }
+    })
+  } catch (error) {
+    console.error('Failed to parse Musixmatch subtitle body', error)
+    return []
+  }
+}
+
+async function fetchMusixmatchSubtitle({ trackId, commontrackId, isrc }) {
+  if (!MUSIXMATCH_API_KEY) return null
+
+  const params = new URLSearchParams({
+    apikey: MUSIXMATCH_API_KEY,
+    subtitle_format: 'mxm',
+  })
+
+  if (isrc) {
+    params.set('track_isrc', isrc)
+  } else if (trackId) {
+    params.set('track_id', String(trackId))
+  } else if (commontrackId) {
+    params.set('commontrack_id', String(commontrackId))
+  } else {
+    return null
+  }
+
+  const response = await fetch(`${MUSIXMATCH_BASE_URL}/track.subtitle.get?${params.toString()}`)
+
+  if (!response.ok) {
+    console.error('Musixmatch track.subtitle.get failed', response.status, await response.text())
+    return null
+  }
+
+  const data = await response.json()
+  const subtitle = data?.message?.body?.subtitle
+
+  if (!subtitle || subtitle?.restricted) {
+    logMusixmatchDebug('subtitle restricted/unavailable', {
+      restricted: subtitle?.restricted,
+    })
+    return null
+  }
+
+  const segments = parseSubtitleSegments(subtitle?.subtitle_body)
+
+  if (!segments.length) {
+    logMusixmatchDebug('subtitle empty', { isrc, trackId, commontrackId })
+    return null
+  }
+
+  logMusixmatchDebug('subtitle parsed', {
+    count: segments.length,
+    first: segments[0]?.start,
+    last: segments[segments.length - 1]?.start,
+  })
+
+  return { segments }
+}
+
 async function fetchMusixmatchRichsync({ trackId, commontrackId, isrc }) {
   if (!MUSIXMATCH_API_KEY) return null
 
@@ -2490,12 +2572,27 @@ app.get('/api/music/lyrics/:id', async (req, res) => {
     const title = attrs.name || ''
     const primaryArtist = (attrs.artistName || '').split(',')[0].trim()
 
+    // Preference order: word-timed richsync (best UX) → line-timed
+    // subtitle (broader Musixmatch coverage; what Spotify typically shows).
     let result = isrc ? await fetchMusixmatchRichsync({ isrc }) : null
+    let match = null
 
     if (!result?.segments?.length && title && primaryArtist) {
-      const match = await searchMusixmatchTrackId(title, primaryArtist)
+      match = await searchMusixmatchTrackId(title, primaryArtist)
       if (match?.trackId || match?.commontrackId) {
         result = await fetchMusixmatchRichsync({
+          trackId: match.trackId,
+          commontrackId: match.commontrackId,
+        })
+      }
+    }
+
+    if (!result?.segments?.length) {
+      if (isrc) {
+        result = await fetchMusixmatchSubtitle({ isrc })
+      }
+      if (!result?.segments?.length && (match?.trackId || match?.commontrackId)) {
+        result = await fetchMusixmatchSubtitle({
           trackId: match.trackId,
           commontrackId: match.commontrackId,
         })

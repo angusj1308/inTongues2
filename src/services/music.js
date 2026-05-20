@@ -301,18 +301,22 @@ export const fetchTrack = async (trackId, { language } = {}) => {
 }
 
 // Time-synced lyrics (Musixmatch richsync) for an Apple Music track.
-// Returns { segments: [{ start, end, text }] } — empty array when no lyrics.
-export const fetchTrackLyrics = async (trackId, { language } = {}) => {
-  if (!trackId) return { segments: [] }
+// Returns { segments: [{ start, end, text }], translations: [string] } —
+// segments empty when no lyrics; translations aligned 1:1 with segments
+// when the user's native language is passed and Musixmatch has a
+// translation whose line count matches the source.
+export const fetchTrackLyrics = async (trackId, { language, native } = {}) => {
+  if (!trackId) return { segments: [], translations: [] }
   try {
     const params = new URLSearchParams()
     if (language) params.set('lang', language)
+    if (native) params.set('native', native)
     const qs = params.toString()
     const res = await fetch(`/api/music/lyrics/${encodeURIComponent(trackId)}${qs ? `?${qs}` : ''}`)
-    if (!res.ok) return { segments: [] }
+    if (!res.ok) return { segments: [], translations: [] }
     return await res.json()
   } catch {
-    return { segments: [] }
+    return { segments: [], translations: [] }
   }
 }
 

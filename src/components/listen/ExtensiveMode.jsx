@@ -124,6 +124,7 @@ const ExtensiveMode = ({
   setPopup,
   contentExpressions = [],
   lineMode = false,
+  lyricsTranslations = [],
   onSkipPreviousTrack = null,
   onSkipNextTrack = null,
   canSkipPreviousTrack = false,
@@ -793,6 +794,7 @@ const ExtensiveMode = ({
               flowMode={!lineMode}
               currentTime={transcriptCurrentTime ?? playbackPositionSeconds}
               getCurrentTime={getTranscriptCurrentTime}
+              lyricsTranslations={lyricsTranslations}
             />
           ) : null}
         </div>

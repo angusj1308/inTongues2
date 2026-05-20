@@ -1863,6 +1863,56 @@ async function fetchMusixmatchSubtitle({ trackId, commontrackId, isrc }) {
   return { segments }
 }
 
+// Musixmatch translation. Calls track.lyrics.translation.get to get the
+// full lyrics translated into the user's native language. Returns the
+// translated text as an array of lines (Musixmatch returns one big string
+// with \n separators); the caller aligns these to segments by index.
+async function fetchMusixmatchLyricsTranslation({ trackId, commontrackId, isrc, selectedLanguage }) {
+  if (!MUSIXMATCH_API_KEY || !selectedLanguage) return null
+
+  const params = new URLSearchParams({
+    apikey: MUSIXMATCH_API_KEY,
+    selected_language: selectedLanguage,
+  })
+
+  if (isrc) {
+    params.set('track_isrc', isrc)
+  } else if (trackId) {
+    params.set('track_id', String(trackId))
+  } else if (commontrackId) {
+    params.set('commontrack_id', String(commontrackId))
+  } else {
+    return null
+  }
+
+  const response = await fetch(`${MUSIXMATCH_BASE_URL}/track.lyrics.translation.get?${params.toString()}`)
+
+  if (!response.ok) {
+    console.error('Musixmatch track.lyrics.translation.get failed', response.status, await response.text())
+    return null
+  }
+
+  const data = await response.json()
+  const lyricsBody = data?.message?.body?.lyrics?.lyrics_body
+
+  if (!lyricsBody) {
+    logMusixmatchDebug('translation empty', { selectedLanguage, trackId, commontrackId, isrc })
+    return null
+  }
+
+  const cleaned = cleanMusixmatchLyrics(lyricsBody)
+  const lines = cleaned
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+
+  logMusixmatchDebug('translation parsed', {
+    lines: lines.filter(Boolean).length,
+    target: selectedLanguage,
+  })
+
+  return { lines }
+}
+
 async function fetchMusixmatchRichsync({ trackId, commontrackId, isrc }) {
   if (!MUSIXMATCH_API_KEY) return null
 
@@ -2621,10 +2671,38 @@ app.get('/api/music/lyrics/:id', async (req, res) => {
       }
     }
 
-    res.json({ segments: result?.segments || [] })
+    // Optional translation. If the client passed a `native` language and
+    // we got some lyrics back, fetch Musixmatch's translation and align
+    // by line index. Lyrics + translation typically have matching line
+    // counts since both come from the same source body; if not, we leave
+    // the translation array empty rather than risk misaligned glosses.
+    const nativeRaw = String(req.query.native || '').trim()
+    const nativeCode = nativeRaw ? resolveTargetCode(nativeRaw) : null
+    let translations = []
+    if (nativeCode && result?.segments?.length && (isrc || match?.trackId || match?.commontrackId)) {
+      const trans = await fetchMusixmatchLyricsTranslation({
+        isrc,
+        trackId: match?.trackId,
+        commontrackId: match?.commontrackId,
+        selectedLanguage: nativeCode,
+      })
+      if (trans?.lines?.length) {
+        const trimmedLines = trans.lines.filter((line) => line.length > 0)
+        if (trimmedLines.length === result.segments.length) {
+          translations = trimmedLines
+        } else {
+          logMusixmatchDebug('translation line-count mismatch', {
+            segments: result.segments.length,
+            translatedLines: trimmedLines.length,
+          })
+        }
+      }
+    }
+
+    res.json({ segments: result?.segments || [], translations })
   } catch (err) {
     console.error('Apple Music lyrics failure', err)
-    res.status(500).json({ error: 'Music lyrics fetch failed', segments: [] })
+    res.status(500).json({ error: 'Music lyrics fetch failed', segments: [], translations: [] })
   }
 })
 

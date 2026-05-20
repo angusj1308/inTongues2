@@ -1908,6 +1908,13 @@ async function fetchMusixmatchLyricsTranslation({ trackId, commontrackId, isrc, 
     bodyLength: lyricsBody?.length || 0,
     firstChars: lyricsBody ? lyricsBody.slice(0, 80) : null,
   })
+  console.log('[musixmatch] translation FULL response keys', {
+    headerKeys: Object.keys(data?.message?.header || {}),
+    bodyKeys: Object.keys(data?.message?.body || {}),
+    lyricsKeys: Object.keys(data?.message?.body?.lyrics || {}),
+  })
+  console.log('[musixmatch] translation FULL body (first 1500 chars)',
+    JSON.stringify(data?.message?.body || {}, null, 2).slice(0, 1500))
 
   if (!lyricsBody) {
     logMusixmatchDebug('translation empty', { selectedLanguage, trackId, commontrackId, isrc })

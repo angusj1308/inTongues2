@@ -6,9 +6,11 @@ export default defineConfig({
     jsxImportSource: 'react',
   },
   optimizeDeps: {
-    esbuildOptions: {
-      jsx: 'automatic',
-      jsxImportSource: 'react',
+    rolldownOptions: {
+      jsx: {
+        mode: 'automatic',
+        importSource: 'react',
+      },
     },
   },
   server: {

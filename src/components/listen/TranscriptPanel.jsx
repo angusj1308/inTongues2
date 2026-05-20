@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import TranscriptRoller from './TranscriptRoller'
 import TranscriptFlow from '../cinema/TranscriptFlow'
 
@@ -29,6 +29,16 @@ const TranscriptPanel = ({
   // remount, which was rebuilding the entire transcript on every click.
   const [vocabVersion, setVocabVersion] = useState(0)
   const prevEntriesRef = useRef(vocabEntries)
+
+  // Untimed lyrics fallback (Musixmatch plain track.lyrics.get when no
+  // richsync/subtitle was available): every segment has start === 0 and
+  // end === 0, so sync is meaningless. Disable auto-scroll and the Sync
+  // button so the user can scroll freely without the panel fighting them.
+  const lyricsTimed = useMemo(() => {
+    if (!segments.length) return true
+    return segments.some((s) => (s?.start ?? 0) > 0 || (s?.end ?? 0) > 0)
+  }, [segments])
+  const effectiveIsSynced = lyricsTimed ? isSynced : false
 
   useEffect(() => {
     const prev = prevEntriesRef.current
@@ -63,7 +73,7 @@ const TranscriptPanel = ({
             showWordStatus={showWordStatus}
             currentTime={currentTime}
             getCurrentTime={getCurrentTime}
-            isSynced={isSynced}
+            isSynced={effectiveIsSynced}
             onUserScroll={onUserScroll}
             syncToken={syncToken}
             contentExpressions={contentExpressions}
@@ -78,7 +88,7 @@ const TranscriptPanel = ({
             onWordClick={onWordClick}
             onSelectionTranslate={onSelectionTranslate}
             showWordStatus={showWordStatus}
-            isSynced={isSynced}
+            isSynced={effectiveIsSynced}
             onUserScroll={onUserScroll}
             syncToken={syncToken}
             contentExpressions={contentExpressions}
@@ -89,10 +99,11 @@ const TranscriptPanel = ({
       <button
         type="button"
         className="transcript-sync-btn"
-        onClick={onResync}
-        disabled={isSynced || !onResync}
+        onClick={lyricsTimed ? onResync : undefined}
+        disabled={!lyricsTimed || effectiveIsSynced || !onResync}
+        title={lyricsTimed ? undefined : 'Lyrics not time-synced'}
       >
-        {isSynced ? 'Synced' : 'Sync'}
+        {effectiveIsSynced ? 'Synced' : 'Sync'}
       </button>
       {showWordStatusToggle || wordStatusDisabled ? (
         <button

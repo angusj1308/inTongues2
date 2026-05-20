@@ -10898,22 +10898,32 @@ body.active-pass-locked {
 }
 
 .transcript-line {
-  padding: 6px 8px;
+  padding: 8px 10px;
   line-height: 1.32;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 0.98rem;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
   color: #57534e;
   border-radius: 6px;
   background-color: transparent;
-  transition: color 300ms ease-out, font-weight 200ms ease, opacity 300ms ease-out, background-color 300ms ease-out, transform 200ms ease-out;
+  transition: color 300ms ease-out, opacity 300ms ease-out, background-color 300ms ease-out, transform 200ms ease-out;
 }
 
 .transcript-line.active {
   color: #1C1A17;
-  font-weight: 600;
+  font-weight: 700;
   opacity: 1;
   line-height: 1.38;
   background-color: rgba(15, 23, 42, 0.04);
+}
+
+[data-theme='dark'] .transcript-line {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+[data-theme='dark'] .transcript-line.active {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 .mini-controls-bar {

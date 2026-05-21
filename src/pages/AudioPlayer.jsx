@@ -2579,12 +2579,14 @@ const AudioPlayer = () => {
         const firstTimestamped = timestampedSegments[0]
         const lastTimestamped = timestampedSegments[timestampedSegments.length - 1]
 
-        // Musixmatch's richsync timestamps lead the audible note by a
-        // small amount (calibrated for word-level karaoke render lag).
-        // For line-level highlighting that reads as preempting the next
-        // line. Shift the matching by ~250ms so the highlight flips
-        // when the audible position actually catches up to the start.
-        const ACTIVE_LINE_OFFSET_S = 0.25
+        // Music-only: Musixmatch's richsync timestamps lead the audible
+        // note by a small amount (calibrated for word-level karaoke
+        // render lag). For line-level highlighting that reads as
+        // preempting the next line. Shift the matching by ~250ms so the
+        // highlight flips when audio catches up. Audiobook / podcast /
+        // Spotify transcripts come from other sources with their own
+        // alignment and should not be offset.
+        const ACTIVE_LINE_OFFSET_S = isMusic ? 0.25 : 0
         const adjustedTime = playbackPositionSeconds - ACTIVE_LINE_OFFSET_S
 
         if (adjustedTime < firstTimestamped.segment.start) {

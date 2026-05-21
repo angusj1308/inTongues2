@@ -3786,16 +3786,27 @@ textarea {
 }
 
 /* Music-only translate toggle. Material Symbols "translate" glyph.
-   Off = muted grey (matches the inactive control look). On = full text
-   colour for the current theme (black on light, white on dark) — does
-   NOT take the palette colour, just reads as "active". */
+   Off = muted grey. On = full theme text colour. Hover is intentionally
+   suppressed (overriding the default .reader-header-button:hover
+   opacity dim) because the on/off state is the only thing that should
+   communicate — a hover dim makes the active state ambiguous. */
 .reader-header-button.reader-translate-trigger {
   color: #9b958c;
   transition: color 160ms ease;
 }
 
+.reader-header-button.reader-translate-trigger:hover {
+  opacity: 1;
+}
+
 .reader-header-button.reader-translate-trigger.is-on {
   color: #1C1A17;
+}
+
+.reader-header-button.reader-translate-trigger.is-on .material-symbols-outlined {
+  /* Bolder, filled glyph reads as decisively "on" — pure #ffffff on
+     a 400-weight outline icon still looks dim against dark surfaces. */
+  font-variation-settings: 'FILL' 1, 'wght' 700;
 }
 
 [data-theme='dark'] .reader-header-button.reader-translate-trigger {

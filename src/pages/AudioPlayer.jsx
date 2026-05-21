@@ -2843,11 +2843,26 @@ const AudioPlayer = () => {
         event.preventDefault()
         togglePlay()
       }
+
+      // Left / right arrows = 5-second scrub. Matches the on-screen
+      // ±5 transport buttons. Modifier keys are ignored so browser /
+      // OS shortcuts (Cmd+←, Alt+→ etc.) still work.
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+
+      if (event.code === 'ArrowLeft' || event.key === 'ArrowLeft') {
+        event.preventDefault()
+        handleRewind(5)
+      }
+
+      if (event.code === 'ArrowRight' || event.key === 'ArrowRight') {
+        event.preventDefault()
+        handleForward(5)
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [listeningMode, togglePlay])
+  }, [listeningMode, togglePlay, handleRewind, handleForward])
 
   const ambientColor = storyMeta.coverColor || ''
 

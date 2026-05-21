@@ -14801,6 +14801,74 @@ body:has(.cinema-page) {
   height: 44px;
 }
 
+/* Alphabet card back (Learn to Read Spanish deck) */
+.alphabet-card-back {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+.alphabet-card-ipa {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 2.5rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.alphabet-card-ipa-symbol {
+  line-height: 1;
+}
+.alphabet-card-audio-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.alphabet-card-audio-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.alphabet-card-audio-button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+.alphabet-card-audio-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.alphabet-card-audio-sound {
+  font-weight: 600;
+}
+.alphabet-card-articulation {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  text-align: center;
+  max-width: 32ch;
+  color: #1e293b;
+}
+.alphabet-card-context-note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  text-align: center;
+  max-width: 36ch;
+  color: #64748b;
+  font-style: italic;
+}
+
 /* Review Actions */
 .review-actions {
   display: flex;

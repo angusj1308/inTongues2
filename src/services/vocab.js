@@ -63,6 +63,8 @@ export const loadUserVocab = async (userId, language) => {
       recallStreak: data.recallStreak ?? 0,
       nextReviewAt: data.nextReviewAt,
       sourceContentIds: data.sourceContentIds ?? [],
+      cardKind: data.cardKind ?? null,
+      cardMeta: data.cardMeta ?? null,
     }
   })
 
@@ -124,6 +126,8 @@ export const loadDueCards = async (userId, language) => {
         recallStreak: data.recallStreak ?? 0,
         nextReviewAt: data.nextReviewAt,
         sourceContentIds: data.sourceContentIds ?? [],
+        cardKind: data.cardKind ?? null,
+        cardMeta: data.cardMeta ?? null,
       })
     }
   })
@@ -174,6 +178,8 @@ export const loadCardsByStatus = async (userId, language, status) => {
         recallStreak: data.recallStreak ?? 0,
         nextReviewAt: data.nextReviewAt,
         sourceContentIds: data.sourceContentIds ?? [],
+        cardKind: data.cardKind ?? null,
+        cardMeta: data.cardMeta ?? null,
       })
     }
   })
@@ -551,4 +557,58 @@ export const resetVocabProgress = async (userId, language) => {
   }
 
   return totalReset
+}
+
+/**
+ * Seed an authored deck's cards into the user's vocab collection.
+ *
+ * Idempotent: each card is written only if its document doesn't already
+ * exist, so repeated calls are safe (and cheap — one getDoc per card).
+ * Cards seed in 'unknown' status with nextReviewAt = now so they appear
+ * in the due-card list immediately and flow through the standard SRS.
+ *
+ * @param {string} userId
+ * @param {string} language - Canonical label (e.g. 'Spanish')
+ * @param {string} sourceContentId - Shared sourceContentId tying the cards together
+ * @param {string} cardKind - Discriminator the review UI uses to pick a renderer
+ * @param {Array<{ text: string, [key: string]: any }>} cards - Authored card data;
+ *        every field other than `text` is stored under cardMeta
+ */
+export const seedAuthoredDeck = async (
+  userId,
+  language,
+  sourceContentId,
+  cardKind,
+  cards,
+) => {
+  const normalisedLang = normaliseLanguage(language)
+  const vocabCollection = collection(doc(collection(db, 'users'), userId), 'vocab')
+
+  let seeded = 0
+  for (const card of cards) {
+    const { text, ...meta } = card
+    const ref = doc(vocabCollection, `${normalisedLang.toLowerCase()}_${normaliseExpression(text).replace(/\s+/g, '_')}`)
+    const existing = await getDoc(ref)
+    if (existing.exists()) continue
+
+    await setDoc(ref, {
+      text,
+      translation: null,
+      language: normalisedLang,
+      status: 'unknown',
+      cardKind,
+      cardMeta: meta,
+      sourceContentIds: [sourceContentId],
+      intervalDays: 0,
+      easeFactor: DEFAULT_EASE_FACTOR,
+      correctStreak: 0,
+      recallStreak: 0,
+      nextReviewAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+    seeded += 1
+  }
+
+  return seeded
 }

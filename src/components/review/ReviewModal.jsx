@@ -11,6 +11,17 @@ import {
   VOCAB_STATUSES,
 } from '../../services/vocab'
 import { incrementReviewCount } from '../../services/stats'
+import { getSpanishIpaAudio } from '../../data/learnToReadSpanish'
+
+const ALPHABET_CARD_KIND = 'alphabet-grapheme'
+
+// Resolve a soundKey to a curated MP3 URL under /audio/spanish-ipa/, or null
+// if the slug is intentionally absent (e.g. silent letters).
+const getCuratedIpaUrl = (soundKey) => {
+  const entry = getSpanishIpaAudio(soundKey)
+  if (!entry || !entry.slug) return null
+  return `/audio/spanish-ipa/${entry.slug}.mp3`
+}
 
 // Helper to get language color (unified brand color)
 const getLanguageColor = () => HIGHLIGHT_COLOR
@@ -67,6 +78,60 @@ const getStatusStyle = (statusLevel, isActive, languageColor) => {
     default:
       return {}
   }
+}
+
+const AlphabetCardBack = ({ card, onPlaySound, onPlayName, audioDisabled }) => {
+  const meta = card?.cardMeta || {}
+  const ipa = meta.ipa || []
+  const soundKeys = meta.soundKeys || []
+  const showMultipleSounds = soundKeys.length > 1
+
+  return (
+    <div className="alphabet-card-back">
+      <div className="alphabet-card-ipa">
+        {ipa.map((symbol, idx) => (
+          <span key={idx} className="alphabet-card-ipa-symbol">
+            {symbol}
+          </span>
+        ))}
+      </div>
+
+      <div className="alphabet-card-audio-row">
+        {soundKeys.map((soundKey, idx) => {
+          if (!soundKey || soundKey === 'silent') return null
+          const label = showMultipleSounds ? (ipa[idx] || soundKey) : 'Sound'
+          return (
+            <button
+              key={`${soundKey}-${idx}`}
+              type="button"
+              className="alphabet-card-audio-button alphabet-card-audio-sound"
+              onClick={() => onPlaySound(soundKey)}
+              disabled={audioDisabled}
+            >
+              <PlayIcon />
+              <span>{label}</span>
+            </button>
+          )
+        })}
+        <button
+          type="button"
+          className="alphabet-card-audio-button alphabet-card-audio-name"
+          onClick={onPlayName}
+          disabled={audioDisabled}
+        >
+          <PlayIcon />
+          <span>Name ({meta.name})</span>
+        </button>
+      </div>
+
+      {meta.articulation && (
+        <p className="alphabet-card-articulation">{meta.articulation}</p>
+      )}
+      {meta.contextNote && (
+        <p className="alphabet-card-context-note">{meta.contextNote}</p>
+      )}
+    </div>
+  )
 }
 
 const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
@@ -148,6 +213,11 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   useEffect(() => {
     const currentCard = cards[currentIndex]
     if (!currentCard || !isMissingTranslation(currentCard.translation)) {
+      setTranslationLoading(false)
+      return
+    }
+    // Authored cards (e.g. alphabet) carry no translation by design.
+    if (currentCard.cardKind === ALPHABET_CARD_KIND) {
       setTranslationLoading(false)
       return
     }
@@ -236,12 +306,52 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
     [language, profile?.nativeLanguage]
   )
 
-  // Auto-play audio when card is first shown (not when answer is revealed)
+  // Play a curated phoneme recording with TTS fallback (used by alphabet cards).
+  // Curated files live at /audio/spanish-ipa/{slug}.mp3. Until those assets
+  // ship, the player falls back to ElevenLabs TTS of an example Spanish word
+  // that prominently features the phoneme (see SPANISH_IPA_AUDIO).
+  const playSound = useCallback(
+    async (soundKey) => {
+      const entry = getSpanishIpaAudio(soundKey)
+      if (!entry) return
+
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+
+      if (entry.slug) {
+        const curatedUrl = `/audio/spanish-ipa/${entry.slug}.mp3`
+        try {
+          const head = await fetch(curatedUrl, { method: 'HEAD' })
+          if (head.ok) {
+            const audio = new Audio(curatedUrl)
+            audioRef.current = audio
+            audio.play().catch((err) => console.error('Curated audio playback failed:', err))
+            return
+          }
+        } catch (err) {
+          // Network error checking the file — fall through to TTS fallback.
+        }
+      }
+
+      if (entry.ttsFallback) {
+        playAudio(entry.ttsFallback)
+      }
+    },
+    [playAudio],
+  )
+
+  // Auto-play audio when card is first shown (not when answer is revealed).
+  // Alphabet cards: don't auto-play on the front — the front is the grapheme
+  // and the sound only belongs after reveal.
   useEffect(() => {
     if (!autoPlayAudio || cards.length === 0 || showAnswer) return
 
     const currentCard = cards[currentIndex]
-    if (currentCard && !isRecallMode) {
+    if (!currentCard) return
+    if (currentCard.cardKind === ALPHABET_CARD_KIND) return
+    if (!isRecallMode) {
       playAudio(currentCard.text)
     }
   }, [currentIndex, autoPlayAudio, isRecallMode, cards, playAudio, showAnswer])
@@ -249,8 +359,15 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   // Handle reveal answer
   const handleReveal = () => {
     setShowAnswer(true)
-    if (autoPlayAudio && isRecallMode && cards[currentIndex]) {
-      playAudio(cards[currentIndex].text)
+    const currentCard = cards[currentIndex]
+    if (!currentCard) return
+    if (autoPlayAudio && currentCard.cardKind === ALPHABET_CARD_KIND) {
+      const firstSoundKey = currentCard.cardMeta?.soundKeys?.[0]
+      if (firstSoundKey) playSound(firstSoundKey)
+      return
+    }
+    if (autoPlayAudio && isRecallMode) {
+      playAudio(currentCard.text)
     }
   }
 
@@ -406,7 +523,13 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                   {/* Front of card */}
                   <div className="review-card-front">
                     <div className="review-card-content">
-                      {isRecallMode ? (
+                      {currentCard?.cardKind === ALPHABET_CARD_KIND ? (
+                        // Alphabet: always grapheme on front, no auto-audio.
+                        <>
+                          <div className="review-card-text">{currentCard?.text}</div>
+                          <div className="review-audio-placeholder" />
+                        </>
+                      ) : isRecallMode ? (
                         <>
                           <div className="review-card-text">
                             {translationLoading ? '...' : (currentCard?.translation || 'No translation')}
@@ -432,7 +555,14 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                   {/* Back of card */}
                   <div className="review-card-back">
                     <div className="review-card-content">
-                      {isRecallMode ? (
+                      {currentCard?.cardKind === ALPHABET_CARD_KIND ? (
+                        <AlphabetCardBack
+                          card={currentCard}
+                          onPlaySound={playSound}
+                          onPlayName={() => playAudio(currentCard.cardMeta?.name || currentCard.text)}
+                          audioDisabled={audioLoading}
+                        />
+                      ) : isRecallMode ? (
                         <>
                           <div className="review-card-text">{currentCard?.text}</div>
                           <button

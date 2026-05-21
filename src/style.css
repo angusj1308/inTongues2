@@ -8353,6 +8353,11 @@ pre {
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
+  /* Pin to the right edge of the grid column. Without this, when the
+     centre column is empty (music has no Extensive/Active/Intensive
+     nav), the actions land at the start of col 3 which sits at the
+     middle of the band — looks like the controls are centred. */
+  justify-self: end;
 }
 
 .listening-mode-nav {

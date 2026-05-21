@@ -129,13 +129,11 @@ const ExtensiveMode = ({
   onSkipNextTrack = null,
   canSkipPreviousTrack = false,
   canSkipNextTrack = false,
+  showWordStatus,
+  onToggleWordStatus,
 }) => {
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
-  const [showWordStatus, setShowWordStatus] = useState(() => {
-    if (typeof window === 'undefined') return true
-    return localStorage.getItem('extensiveShowWordStatus') !== 'false'
-  })
   const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
   const [syncToken, setSyncToken] = useState(0)
   const rewindButtonRef = useRef(null)
@@ -210,11 +208,6 @@ const ExtensiveMode = ({
     event.preventDefault()
     setScrubMenuOpen((prev) => !prev)
   }
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem('extensiveShowWordStatus', showWordStatus ? 'true' : 'false')
-  }, [showWordStatus])
 
   useEffect(() => {
     setIsTranscriptSynced(true)
@@ -785,7 +778,8 @@ const ExtensiveMode = ({
               onWordClick={handleTranscriptWordClick}
               onSelectionTranslate={handleTranscriptSelection}
               showWordStatus={showWordStatus}
-              onToggleWordStatus={() => setShowWordStatus((prev) => !prev)}
+              onToggleWordStatus={onToggleWordStatus}
+              showWordStatusToggle={!lineMode}
               isSynced={isTranscriptSynced}
               onUserScroll={handleTranscriptUnsync}
               onResync={handleTranscriptResync}

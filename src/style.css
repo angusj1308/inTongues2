@@ -10935,7 +10935,7 @@ body.active-pass-locked {
 }
 
 .transcript-line {
-  padding: 8px 10px 8px calc(10px + 1cm);
+  padding: 8px 10px 8px calc(10px + 2cm);
   line-height: 1.32;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-size: 1.4rem;

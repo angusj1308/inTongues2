@@ -202,6 +202,19 @@ const AudioPlayer = () => {
   const toggleWordStatus = useCallback(() => {
     setShowWordStatus((prev) => !prev)
   }, [])
+  // Music-only: toggle the per-line native-language translation that
+  // renders under each lyric. Defaults to ON; persisted across sessions.
+  const [showTranslations, setShowTranslations] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('musicShowTranslations') !== 'false'
+  })
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('musicShowTranslations', showTranslations ? 'true' : 'false')
+  }, [showTranslations])
+  const toggleTranslations = useCallback(() => {
+    setShowTranslations((prev) => !prev)
+  }, [])
   const [scrubSeconds, setScrubSeconds] = useState(5)
   const [activePageIndex, setActivePageIndex] = useState(0)
   const [hasSeenAdvancePrompt, setHasSeenAdvancePrompt] = useState(false)
@@ -2992,6 +3005,21 @@ const AudioPlayer = () => {
                     Aa
                   </button>
                 )}
+                {isMusic && (
+                  <button
+                    type="button"
+                    className={`reader-header-button icon-button reader-translate-trigger ${showTranslations ? 'is-on' : ''}`}
+                    aria-label={showTranslations ? 'Hide translations' : 'Show translations'}
+                    aria-pressed={showTranslations}
+                    title={showTranslations ? 'Hide translations' : 'Show translations'}
+                    onClick={(e) => {
+                      toggleTranslations()
+                      e.currentTarget.blur()
+                    }}
+                  >
+                    <span className="material-symbols-outlined">translate</span>
+                  </button>
+                )}
                 <div className="reader-palette-popover-wrap" ref={palettePopoverRef}>
                   <button
                     className={`reader-header-button icon-button reader-palette-trigger ${palettePopoverOpen ? 'is-open' : ''}`}
@@ -3102,6 +3130,7 @@ const AudioPlayer = () => {
                         canSkipNextTrack={canSkipNextTrack}
                         showWordStatus={showWordStatus}
                         onToggleWordStatus={toggleWordStatus}
+                        showTranslations={showTranslations}
                       />
                     </div>
                   </section>

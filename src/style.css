@@ -3785,6 +3785,19 @@ textarea {
   color: var(--hlt-new);
 }
 
+/* Music-only translate toggle. Same visual treatment as the Aa button —
+   takes on the user's selected highlight palette colour when on,
+   neutral when off. Material Symbols glyph is the universal "translate"
+   icon (A → 文). */
+.reader-header-button.reader-translate-trigger {
+  transition: color 160ms ease;
+}
+
+.reader-header-button.reader-translate-trigger.is-on,
+[data-theme='dark'] .reader-header-button.reader-translate-trigger.is-on {
+  color: var(--hlt-new);
+}
+
 .reader-themed[data-reader-tone='dark'] .reader-header-button {
   color: #ffffff;
 }

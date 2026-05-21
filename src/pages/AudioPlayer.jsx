@@ -2594,13 +2594,16 @@ const AudioPlayer = () => {
 
         if (matchingSegment) return matchingSegment.index
 
-        const nearestByStart = timestampedSegments.reduce((nearest, current) => {
-          const nearestDelta = Math.abs(playbackPositionSeconds - nearest.segment.start)
-          const currentDelta = Math.abs(playbackPositionSeconds - current.segment.start)
-          return currentDelta < nearestDelta ? current : nearest
-        })
+        // We're in a gap between two timestamped segments (common with
+        // richsync where end < next.start). Stay on whichever line most
+        // recently started — matches Spotify: the next line only lights
+        // up when its start time is actually hit, never preempts during
+        // the silence at the end of the current line.
+        const lastStarted = [...timestampedSegments]
+          .reverse()
+          .find(({ segment }) => segment.start <= playbackPositionSeconds)
 
-        return nearestByStart.index
+        return lastStarted ? lastStarted.index : firstTimestamped.index
       }
 
       if (!Number.isFinite(playbackDurationSeconds) || playbackDurationSeconds <= 0) {

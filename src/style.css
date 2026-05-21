@@ -299,6 +299,13 @@
   background: none;
 }
 
+/* When word status is on, fade the highlighted words on inactive lyric
+   lines so the active line stands out. Without this the palette colour
+   washes every line equally and the active line is hard to pick out. */
+.listening-lab-page .transcript-roller-window .transcript-line:not(.active) .reader-word--highlighted {
+  opacity: 0.5;
+}
+
 .transcript-flow-window .reader-word--highlighted[data-word-status='recognised'] {
   color: var(--hlt-recognised);
   background: none;

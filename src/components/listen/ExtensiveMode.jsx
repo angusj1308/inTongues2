@@ -780,6 +780,7 @@ const ExtensiveMode = ({
               showWordStatus={showWordStatus}
               onToggleWordStatus={onToggleWordStatus}
               showWordStatusToggle={!lineMode}
+              showSyncToggle={!lineMode}
               isSynced={isTranscriptSynced}
               onUserScroll={handleTranscriptUnsync}
               onResync={handleTranscriptResync}

@@ -89,6 +89,7 @@ const TranscriptRoller = ({
   const [hasBottomFade, setHasBottomFade] = useState(false)
   const programmaticScrollRef = useRef(false)
   const clearProgrammaticTimerRef = useRef(null)
+  const scrollAnimationFrameRef = useRef(null)
 
   itemRefs.current = []
 
@@ -185,18 +186,34 @@ const TranscriptRoller = ({
     const nextScrollTop = Math.min(Math.max(0, desiredScrollTop), maxScroll)
 
     programmaticScrollRef.current = true
-    try {
-      if (typeof container.scrollTo === 'function') {
-        try {
-          container.scrollTo({ top: nextScrollTop, behavior: 'smooth' })
-        } catch (err) {
-          container.scrollTo(0, nextScrollTop)
-        }
-      } else {
-        container.scrollTop = nextScrollTop
-      }
-    } catch (err) {
+
+    // Custom rAF-driven scroll so we can pick the duration. The browser
+    // default (scrollTo behavior:'smooth') is ~300-400ms which snaps the
+    // new line into place too fast to track with the eye; a longer
+    // ease-in-out lets the eye stay on the line throughout the motion.
+    if (scrollAnimationFrameRef.current) {
+      cancelAnimationFrame(scrollAnimationFrameRef.current)
+      scrollAnimationFrameRef.current = null
+    }
+    const startTop = container.scrollTop
+    const distance = nextScrollTop - startTop
+    if (Math.abs(distance) < 1) {
       container.scrollTop = nextScrollTop
+    } else {
+      const durationMs = 1200
+      const startTime = performance.now()
+      const easeInOutCubic = (t) =>
+        t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+      const step = (now) => {
+        const progress = Math.min((now - startTime) / durationMs, 1)
+        container.scrollTop = startTop + distance * easeInOutCubic(progress)
+        if (progress < 1) {
+          scrollAnimationFrameRef.current = requestAnimationFrame(step)
+        } else {
+          scrollAnimationFrameRef.current = null
+        }
+      }
+      scrollAnimationFrameRef.current = requestAnimationFrame(step)
     }
 
     if (clearProgrammaticTimerRef.current) {
@@ -205,7 +222,7 @@ const TranscriptRoller = ({
 
     clearProgrammaticTimerRef.current = setTimeout(() => {
       programmaticScrollRef.current = false
-    }, 1000)
+    }, 1500)
   }, [activeIndex])
 
   useEffect(() => {
@@ -258,6 +275,9 @@ const TranscriptRoller = ({
   useEffect(() => () => {
     if (clearProgrammaticTimerRef.current) {
       clearTimeout(clearProgrammaticTimerRef.current)
+    }
+    if (scrollAnimationFrameRef.current) {
+      cancelAnimationFrame(scrollAnimationFrameRef.current)
     }
   }, [])
 

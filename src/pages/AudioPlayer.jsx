@@ -27,10 +27,48 @@ import {
   READER_PALETTE_ORDER,
   DEFAULT_READER_PALETTE,
   resolveReaderPalette,
+  HIGHLIGHT_COLOR,
+  STATUS_OPACITY,
 } from '../constants/highlightColors'
 import { READER_FONT_OPTIONS, DEFAULT_READER_FONT, resolveReaderFont } from '../constants/readerFonts'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
+
+// Status pills in the translate popup — mirror the reader so the
+// music popup uses the same compact N/U/R/F/K layout. "New" is the
+// implicit "no status yet" state and isn't a real vocab status, so
+// clicking it is a no-op (the button just confirms the current state).
+const POPUP_STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const POPUP_STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
+
+const getPopupStatusStyle = (statusLevel, isActive) => {
+  if (!isActive) return {}
+  switch (statusLevel) {
+    case 'new':
+    case 'unknown':
+      return {
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY[statusLevel === 'new' ? 'new' : 'unknown'] * 100}%, white)`,
+        color: '#5C1A22',
+      }
+    case 'recognised':
+      return {
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, white)`,
+        color: '#5C1A22',
+      }
+    case 'familiar':
+      return {
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.familiar * 100}%, white)`,
+        color: '#64748b',
+      }
+    case 'known':
+      return {
+        background: 'color-mix(in srgb, #22c55e 40%, white)',
+        color: '#166534',
+      }
+    default:
+      return {}
+  }
+}
 
 const LISTENING_MODES = ['extensive', 'active', 'intensive']
 
@@ -1509,6 +1547,18 @@ const AudioPlayer = () => {
         return
       }
 
+      // Show the popup immediately with a loading state so the user
+      // sees the panel right after their click — translation streams
+      // in when the fetch returns. Matches the reader UX.
+      setPopup({
+        x: rect.left + window.scrollX,
+        y: rect.bottom + window.scrollY + 8,
+        word: phrase,
+        translation: null,
+        audioBase64: null,
+        audioUrl: null,
+      })
+
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
@@ -1585,6 +1635,18 @@ const AudioPlayer = () => {
       })
       return
     }
+
+    // Show the popup immediately with a loading state — translation
+    // streams in when the fetch returns. Same fast-feeling UX as the
+    // reader.
+    setPopup({
+      x: rect.left + window.scrollX,
+      y: rect.bottom + window.scrollY + 8,
+      word: clean,
+      translation: null,
+      audioBase64: null,
+      audioUrl: null,
+    })
 
     // Fetch from API if not preloaded
     let translation = 'No translation found'
@@ -3417,23 +3479,34 @@ const AudioPlayer = () => {
               <p className="translate-popup-language-label">
                 {resolveSupportedLanguageLabel(profile?.nativeLanguage)}
               </p>
-              <p className="translate-popup-language-text">{popup.translation}</p>
+              <p className="translate-popup-language-text">
+                {popup.translation === null ? (
+                  <span style={{ opacity: 0.5, fontStyle: 'italic' }}>Translating...</span>
+                ) : (
+                  popup.translation
+                )}
+              </p>
             </div>
           </div>
 
           <div className="translate-popup-status">
-            {VOCAB_STATUSES.map((status) => {
-              const isActive = vocabEntries[normaliseExpression(popup.word)]?.status === status
+            {POPUP_STATUS_ABBREV.map((abbrev, i) => {
+              const level = POPUP_STATUS_LEVELS[i]
+              const currentStatus = vocabEntries[normaliseExpression(popup.word)]?.status
+              const isActive = level === 'new' ? !currentStatus : currentStatus === level
 
               return (
                 <button
-                  key={status}
+                  key={abbrev}
                   type="button"
                   className={`translate-popup-status-button ${isActive ? 'active' : ''}`}
-                  onClick={() => handleSetWordStatus(status)}
+                  style={getPopupStatusStyle(level, isActive)}
+                  onClick={() => level !== 'new' && handleSetWordStatus(level)}
                   onMouseDown={(event) => event.preventDefault()}
+                  aria-label={`Set status to ${level}`}
+                  aria-pressed={isActive}
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {abbrev}
                 </button>
               )
             })}

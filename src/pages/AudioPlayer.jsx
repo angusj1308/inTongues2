@@ -2889,29 +2889,31 @@ const AudioPlayer = () => {
                   </svg>
                 </button>
               </div>
-              <nav className="dashboard-nav listening-mode-nav reader-mode-nav" aria-label="Listening mode">
-                {[{ id: 'extensive', label: 'Extensive' }, { id: 'active', label: 'Active' }, { id: 'intensive', label: 'Intensive' }].map(
-                  (mode) => (
-                    <div
-                      key={mode.id}
-                      className={`dashboard-nav-item ${listeningMode === mode.id ? 'active' : ''}`}
-                    >
-                      <button
-                        className={`dashboard-nav-button ui-text ${
-                          listeningMode === mode.id ? 'active' : ''
-                        }`}
-                        type="button"
-                        onClick={(e) => {
-                          handleChangeMode(mode.id)
-                          e.currentTarget.blur()
-                        }}
+              {!isMusic && (
+                <nav className="dashboard-nav listening-mode-nav reader-mode-nav" aria-label="Listening mode">
+                  {[{ id: 'extensive', label: 'Extensive' }, { id: 'active', label: 'Active' }, { id: 'intensive', label: 'Intensive' }].map(
+                    (mode) => (
+                      <div
+                        key={mode.id}
+                        className={`dashboard-nav-item ${listeningMode === mode.id ? 'active' : ''}`}
                       >
-                        {mode.label.toUpperCase()}
-                      </button>
-                    </div>
-                  ),
-                )}
-              </nav>
+                        <button
+                          className={`dashboard-nav-button ui-text ${
+                            listeningMode === mode.id ? 'active' : ''
+                          }`}
+                          type="button"
+                          onClick={(e) => {
+                            handleChangeMode(mode.id)
+                            e.currentTarget.blur()
+                          }}
+                        >
+                          {mode.label.toUpperCase()}
+                        </button>
+                      </div>
+                    ),
+                  )}
+                </nav>
+              )}
               <div className="listening-header-actions reader-header-actions">
                 <button
                   className="reader-header-button icon-button reader-theme-trigger"

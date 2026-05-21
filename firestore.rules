@@ -11,5 +11,32 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    // Cross-user audiobook catalogue: generated stories anyone can play,
+    // and public-domain imports (Gutenberg etc.). Per-user progress and
+    // vocab stay under /users/{uid}/. Reads are open to signed-in users.
+    //
+    // Writes:
+    //   - CREATE allowed from client when the signed-in user authors it
+    //     (createdByUid matches auth uid). Used by generation flow.
+    //   - UPDATE / DELETE only via firebase-admin from the server (which
+    //     bypasses these rules). Prevents popularity tampering and edits
+    //     to other users' catalog entries.
+    match /sharedAudiobooks/{audiobookId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdByUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /sharedAudiobooks/{audiobookId}/chapters/{chapterIndex} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /sharedAudiobooks/{audiobookId}/pages/{pageIndex} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

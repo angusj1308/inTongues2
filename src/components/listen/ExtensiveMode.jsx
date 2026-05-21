@@ -131,6 +131,7 @@ const ExtensiveMode = ({
   canSkipNextTrack = false,
   showWordStatus,
   onToggleWordStatus,
+  showTranslations = true,
 }) => {
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
@@ -789,7 +790,7 @@ const ExtensiveMode = ({
               flowMode={!lineMode}
               currentTime={transcriptCurrentTime ?? playbackPositionSeconds}
               getCurrentTime={getTranscriptCurrentTime}
-              lyricsTranslations={lyricsTranslations}
+              lyricsTranslations={showTranslations ? lyricsTranslations : []}
             />
           ) : null}
         </div>

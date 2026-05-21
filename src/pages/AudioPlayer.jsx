@@ -2579,17 +2579,25 @@ const AudioPlayer = () => {
         const firstTimestamped = timestampedSegments[0]
         const lastTimestamped = timestampedSegments[timestampedSegments.length - 1]
 
-        if (playbackPositionSeconds < firstTimestamped.segment.start) {
+        // Musixmatch's richsync timestamps lead the audible note by a
+        // small amount (calibrated for word-level karaoke render lag).
+        // For line-level highlighting that reads as preempting the next
+        // line. Shift the matching by ~250ms so the highlight flips
+        // when the audible position actually catches up to the start.
+        const ACTIVE_LINE_OFFSET_S = 0.25
+        const adjustedTime = playbackPositionSeconds - ACTIVE_LINE_OFFSET_S
+
+        if (adjustedTime < firstTimestamped.segment.start) {
           return firstTimestamped.index
         }
 
-        if (playbackPositionSeconds >= lastTimestamped.segment.end) {
+        if (adjustedTime >= lastTimestamped.segment.end) {
           return lastTimestamped.index
         }
 
         const matchingSegment = timestampedSegments.find(
           ({ segment }) =>
-            playbackPositionSeconds >= segment.start && playbackPositionSeconds < segment.end,
+            adjustedTime >= segment.start && adjustedTime < segment.end,
         )
 
         if (matchingSegment) return matchingSegment.index
@@ -2601,7 +2609,7 @@ const AudioPlayer = () => {
         // the silence at the end of the current line.
         const lastStarted = [...timestampedSegments]
           .reverse()
-          .find(({ segment }) => segment.start <= playbackPositionSeconds)
+          .find(({ segment }) => segment.start <= adjustedTime)
 
         return lastStarted ? lastStarted.index : firstTimestamped.index
       }

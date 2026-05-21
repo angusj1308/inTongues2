@@ -2562,6 +2562,12 @@ const AudioPlayer = () => {
   const [activeTranscriptIndex, setActiveTranscriptIndex] = useState(-1)
 
   useEffect(() => {
+    // Music has a rAF-driven effect below that reads currentPlaybackTime
+    // directly each frame (MusicKit's playbackTimeDidChange event only
+    // fires every ~250ms, which leaves the active-line highlight up to
+    // a quarter-second late). Skip this state-driven path for music.
+    if (isMusic) return
+
     if (!transcriptSegments.length) {
       setActiveTranscriptIndex(-1)
       return
@@ -2613,7 +2619,76 @@ const AudioPlayer = () => {
 
       return Math.min(Math.max(scaledIndex, 0), transcriptSegments.length - 1)
     })
-  }, [playbackDurationSeconds, playbackPositionSeconds, transcriptSegments])
+  }, [isMusic, playbackDurationSeconds, playbackPositionSeconds, transcriptSegments])
+
+  // Music-only: poll MusicKit's currentPlaybackTime once per animation
+  // frame so the active-line highlight flips within ~16ms of the audio
+  // crossing each segment boundary. MusicKit's playbackTimeDidChange
+  // event only fires every ~250ms, which is too coarse for line-accurate
+  // karaoke. Reading inst.currentPlaybackTime directly gives us the live
+  // position. Loop runs as long as we have music + timestamped segments.
+  useEffect(() => {
+    if (!isMusic) return undefined
+    if (!transcriptSegments.length) {
+      setActiveTranscriptIndex(-1)
+      return undefined
+    }
+
+    const timestampedSegments = transcriptSegments
+      .map((segment, index) => ({ segment, index }))
+      .filter(
+        ({ segment }) =>
+          Number.isFinite(segment.start) && Number.isFinite(segment.end) && segment.end > segment.start,
+      )
+
+    if (!timestampedSegments.length) {
+      setActiveTranscriptIndex(-1)
+      return undefined
+    }
+
+    const firstTimestamped = timestampedSegments[0]
+    const lastTimestamped = timestampedSegments[timestampedSegments.length - 1]
+
+    let rafId = null
+    let lastEmittedIndex = -1
+
+    const tick = () => {
+      const inst = musicKitRef.current
+      if (inst) {
+        const t = Number(inst.currentPlaybackTime) || 0
+        let nextIndex
+        if (t < firstTimestamped.segment.start) {
+          nextIndex = firstTimestamped.index
+        } else if (t >= lastTimestamped.segment.end) {
+          nextIndex = lastTimestamped.index
+        } else {
+          const matching = timestampedSegments.find(
+            ({ segment }) => t >= segment.start && t < segment.end,
+          )
+          if (matching) {
+            nextIndex = matching.index
+          } else {
+            const nearest = timestampedSegments.reduce((acc, current) => {
+              const accDelta = Math.abs(t - acc.segment.start)
+              const curDelta = Math.abs(t - current.segment.start)
+              return curDelta < accDelta ? current : acc
+            })
+            nextIndex = nearest.index
+          }
+        }
+        if (nextIndex !== lastEmittedIndex) {
+          lastEmittedIndex = nextIndex
+          setActiveTranscriptIndex(nextIndex)
+        }
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+
+    rafId = requestAnimationFrame(tick)
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId)
+    }
+  }, [isMusic, transcriptSegments])
 
   const chunkActiveTranscriptIndex = useMemo(() => {
     if (!chunkTranscriptSegments.length) return -1

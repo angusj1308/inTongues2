@@ -24,6 +24,7 @@ const TranscriptPanel = ({
   currentTime = 0,
   getCurrentTime,
   lyricsTranslations = [],
+  onLineClick = null,
 }) => {
   // Bump vocabVersion (→ full remount) only when the SET of vocab keys
   // changes — i.e. a word/phrase was added or removed. Status-only changes
@@ -96,6 +97,7 @@ const TranscriptPanel = ({
             contentExpressions={contentExpressions}
             forceAllActive={!lyricsTimed}
             lyricsTranslations={lyricsTranslations}
+            onLineClick={onLineClick}
           />
         )}
       </div>

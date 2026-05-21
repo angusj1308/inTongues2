@@ -81,6 +81,7 @@ const TranscriptRoller = ({
   contentExpressions = [],
   forceAllActive = false,
   lyricsTranslations = [],
+  onLineClick = null,
 }) => {
   const containerRef = useRef(null)
   const trackRef = useRef(null)
@@ -122,6 +123,7 @@ const TranscriptRoller = ({
               enableHighlight={showWordStatus}
               onWordClick={onWordClick}
               onSelectionTranslate={onSelectionTranslate}
+              requireDoubleClick={!!onLineClick}
             />,
           )
           return
@@ -155,6 +157,7 @@ const TranscriptRoller = ({
               enableHighlight={showWordStatus}
               onWordClick={onWordClick}
               onSelectionTranslate={onSelectionTranslate}
+              requireDoubleClick={!!onLineClick}
             />,
           )
         })
@@ -168,7 +171,7 @@ const TranscriptRoller = ({
       content: renderWordSegments(segment.text || ''),
       isActive: index === activeIndex,
     }))
-  }, [activeIndex, contentExpressions, language, onSelectionTranslate, onWordClick, segments, showWordStatus, vocabEntries])
+  }, [activeIndex, contentExpressions, language, onSelectionTranslate, onWordClick, onLineClick, segments, showWordStatus, vocabEntries])
 
   // Auto-scroll is killed for music: the active-line highlight still
   // tracks playback, but the transcript no longer follows it. The user
@@ -229,13 +232,28 @@ const TranscriptRoller = ({
         <div className="transcript-track" ref={trackRef}>
           {renderedSegments.map((segment, index) => {
             const translation = lyricsTranslations[index]
+            const sourceSegment = segments[index]
+            const handleLineClick = onLineClick && sourceSegment
+              ? () => onLineClick(sourceSegment)
+              : undefined
             return (
               <div
                 key={segment.key}
                 ref={(el) => {
                   itemRefs.current[index] = el
                 }}
-                className={`transcript-line ${forceAllActive || segment.isActive ? 'active' : ''}`}
+                className={`transcript-line ${forceAllActive || segment.isActive ? 'active' : ''} ${handleLineClick ? 'is-clickable' : ''}`}
+                onClick={handleLineClick}
+                role={handleLineClick ? 'button' : undefined}
+                tabIndex={handleLineClick ? 0 : undefined}
+                onKeyDown={handleLineClick
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleLineClick()
+                      }
+                    }
+                  : undefined}
               >
                 {segment.content}
                 {translation ? (

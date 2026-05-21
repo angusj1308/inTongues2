@@ -89,6 +89,7 @@ const TranscriptRoller = ({
   const [hasBottomFade, setHasBottomFade] = useState(false)
   const programmaticScrollRef = useRef(false)
   const clearProgrammaticTimerRef = useRef(null)
+  const scrollAnimationFrameRef = useRef(null)
 
   itemRefs.current = []
 
@@ -185,18 +186,33 @@ const TranscriptRoller = ({
     const nextScrollTop = Math.min(Math.max(0, desiredScrollTop), maxScroll)
 
     programmaticScrollRef.current = true
-    try {
-      if (typeof container.scrollTo === 'function') {
-        try {
-          container.scrollTo({ top: nextScrollTop, behavior: 'smooth' })
-        } catch (err) {
-          container.scrollTo(0, nextScrollTop)
-        }
-      } else {
-        container.scrollTop = nextScrollTop
-      }
-    } catch (err) {
+
+    // Custom rAF-driven scroll so we can control the duration. The
+    // browser's behavior: 'smooth' is ~300-400ms which feels jolting on
+    // dense transcripts — at this pace we ease over 750ms with a soft
+    // cubic-out so the eye can track the line move without re-locating.
+    if (scrollAnimationFrameRef.current) {
+      cancelAnimationFrame(scrollAnimationFrameRef.current)
+      scrollAnimationFrameRef.current = null
+    }
+    const startTop = container.scrollTop
+    const distance = nextScrollTop - startTop
+    if (Math.abs(distance) < 1) {
       container.scrollTop = nextScrollTop
+    } else {
+      const durationMs = 750
+      const startTime = performance.now()
+      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
+      const step = (now) => {
+        const progress = Math.min((now - startTime) / durationMs, 1)
+        container.scrollTop = startTop + distance * easeOutCubic(progress)
+        if (progress < 1) {
+          scrollAnimationFrameRef.current = requestAnimationFrame(step)
+        } else {
+          scrollAnimationFrameRef.current = null
+        }
+      }
+      scrollAnimationFrameRef.current = requestAnimationFrame(step)
     }
 
     if (clearProgrammaticTimerRef.current) {
@@ -258,6 +274,9 @@ const TranscriptRoller = ({
   useEffect(() => () => {
     if (clearProgrammaticTimerRef.current) {
       clearTimeout(clearProgrammaticTimerRef.current)
+    }
+    if (scrollAnimationFrameRef.current) {
+      cancelAnimationFrame(scrollAnimationFrameRef.current)
     }
   }, [])
 

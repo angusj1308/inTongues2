@@ -8360,6 +8360,20 @@ pre {
   justify-self: end;
 }
 
+/* Higher-specificity override for the music brand band: the column
+   takes the full right half when the middle nav is hidden, so we also
+   need to actually fill that column from the right — set grid-column
+   explicitly and use end-justified placement. */
+.listening-brand-band > .listening-header-actions {
+  justify-self: end;
+  grid-column: 3;
+}
+
+.listening-brand-band > .listening-header-left {
+  justify-self: start;
+  grid-column: 1;
+}
+
 .listening-mode-nav {
   display: flex;
   justify-content: center;

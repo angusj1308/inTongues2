@@ -11,5 +11,26 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    // Cross-user audiobook catalogue: generated stories anyone can play,
+    // and public-domain imports (Gutenberg etc.). Per-user progress and
+    // vocab stay under /users/{uid}/. Reads are open so signed-in users
+    // can list them; writes are server-side only (the generator and the
+    // import endpoints in server.js do these via firebase-admin and bypass
+    // these rules anyway — restricting client writes prevents tampering).
+    match /sharedAudiobooks/{audiobookId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /sharedAudiobooks/{audiobookId}/chapters/{chapterIndex} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /sharedAudiobooks/{audiobookId}/pages/{pageIndex} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

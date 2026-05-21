@@ -92,6 +92,10 @@ const TranscriptRoller = ({
   // syncToken snap programmatically sets scrollTop — otherwise that
   // scroll event would immediately flip the user back out of sync.
   const suppressUserScrollRef = useRef(false)
+  // Pending single-click seek. Held in a ref so the second click of a
+  // double-click can cancel it before it fires — otherwise a word's
+  // double-click-to-translate also seeks the song to that line.
+  const pendingLineClickTimerRef = useRef(null)
 
   itemRefs.current = []
 
@@ -195,6 +199,15 @@ const TranscriptRoller = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSynced, syncToken])
 
+  // Clear any pending line-click seek timer on unmount so we don't
+  // call onLineClick on a stale segment after the component has gone.
+  useEffect(() => () => {
+    if (pendingLineClickTimerRef.current) {
+      clearTimeout(pendingLineClickTimerRef.current)
+      pendingLineClickTimerRef.current = null
+    }
+  }, [])
+
   useEffect(() => {
     const container = containerRef.current
     if (!container) return undefined
@@ -233,8 +246,30 @@ const TranscriptRoller = ({
           {renderedSegments.map((segment, index) => {
             const translation = lyricsTranslations[index]
             const sourceSegment = segments[index]
+            // Delay the line-click seek slightly so a quick second click
+            // (the double-click that triggers word translation) can
+            // cancel it. Otherwise both clicks of the double-click fire
+            // a seek and the song jumps when the user only meant to
+            // translate a word.
             const handleLineClick = onLineClick && sourceSegment
-              ? () => onLineClick(sourceSegment)
+              ? (event) => {
+                  if (event && event.detail >= 2) {
+                    // Second click of a native double-click — kill the
+                    // first click's pending seek and bail.
+                    if (pendingLineClickTimerRef.current) {
+                      clearTimeout(pendingLineClickTimerRef.current)
+                      pendingLineClickTimerRef.current = null
+                    }
+                    return
+                  }
+                  if (pendingLineClickTimerRef.current) {
+                    clearTimeout(pendingLineClickTimerRef.current)
+                  }
+                  pendingLineClickTimerRef.current = setTimeout(() => {
+                    pendingLineClickTimerRef.current = null
+                    onLineClick(sourceSegment)
+                  }, 220)
+                }
               : undefined
             return (
               <div

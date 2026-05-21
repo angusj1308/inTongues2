@@ -2579,41 +2579,28 @@ const AudioPlayer = () => {
         const firstTimestamped = timestampedSegments[0]
         const lastTimestamped = timestampedSegments[timestampedSegments.length - 1]
 
-        // Music-only: Musixmatch's richsync timestamps lead the audible
-        // note by a small amount (calibrated for word-level karaoke
-        // render lag). For line-level highlighting that reads as
-        // preempting the next line. Shift the matching by ~250ms so the
-        // highlight flips when audio catches up. Audiobook / podcast /
-        // Spotify transcripts come from other sources with their own
-        // alignment and should not be offset.
-        const ACTIVE_LINE_OFFSET_S = isMusic ? 0.25 : 0
-        const adjustedTime = playbackPositionSeconds - ACTIVE_LINE_OFFSET_S
-
-        if (adjustedTime < firstTimestamped.segment.start) {
+        if (playbackPositionSeconds < firstTimestamped.segment.start) {
           return firstTimestamped.index
         }
 
-        if (adjustedTime >= lastTimestamped.segment.end) {
+        if (playbackPositionSeconds >= lastTimestamped.segment.end) {
           return lastTimestamped.index
         }
 
         const matchingSegment = timestampedSegments.find(
           ({ segment }) =>
-            adjustedTime >= segment.start && adjustedTime < segment.end,
+            playbackPositionSeconds >= segment.start && playbackPositionSeconds < segment.end,
         )
 
         if (matchingSegment) return matchingSegment.index
 
-        // We're in a gap between two timestamped segments (common with
-        // richsync where end < next.start). Stay on whichever line most
-        // recently started — matches Spotify: the next line only lights
-        // up when its start time is actually hit, never preempts during
-        // the silence at the end of the current line.
-        const lastStarted = [...timestampedSegments]
-          .reverse()
-          .find(({ segment }) => segment.start <= adjustedTime)
+        const nearestByStart = timestampedSegments.reduce((nearest, current) => {
+          const nearestDelta = Math.abs(playbackPositionSeconds - nearest.segment.start)
+          const currentDelta = Math.abs(playbackPositionSeconds - current.segment.start)
+          return currentDelta < nearestDelta ? current : nearest
+        })
 
-        return lastStarted ? lastStarted.index : firstTimestamped.index
+        return nearestByStart.index
       }
 
       if (!Number.isFinite(playbackDurationSeconds) || playbackDurationSeconds <= 0) {

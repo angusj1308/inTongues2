@@ -67,14 +67,6 @@ const segmentTextByExpressions = (text, expressions = [], vocabEntries = {}) => 
   return segments
 }
 
-// Must match the line-activation offset in AudioPlayer.jsx so the
-// predictive scroll lands exactly when the highlight flips.
-const ACTIVE_LINE_OFFSET_S = 0.25
-// Match the duration used in the rAF scroll animation below — the
-// lookahead window for predictive scroll has to equal the scroll's
-// settle time so it arrives just as the new line lights up.
-const SCROLL_DURATION_MS = 750
-
 const TranscriptRoller = ({
   segments = [],
   activeIndex = 0,
@@ -89,7 +81,6 @@ const TranscriptRoller = ({
   contentExpressions = [],
   forceAllActive = false,
   lyricsTranslations = [],
-  currentTime = null,
 }) => {
   const containerRef = useRef(null)
   const trackRef = useRef(null)
@@ -98,7 +89,6 @@ const TranscriptRoller = ({
   const [hasBottomFade, setHasBottomFade] = useState(false)
   const programmaticScrollRef = useRef(false)
   const clearProgrammaticTimerRef = useRef(null)
-  const scrollAnimationFrameRef = useRef(null)
 
   itemRefs.current = []
 
@@ -178,16 +168,16 @@ const TranscriptRoller = ({
     }))
   }, [activeIndex, contentExpressions, language, onSelectionTranslate, onWordClick, segments, showWordStatus, vocabEntries])
 
-  const scrollToIndex = useCallback((index) => {
+  const scrollToActive = useCallback(() => {
     const container = containerRef.current
     const track = trackRef.current
-    const targetItem = itemRefs.current[index]
+    const activeItem = itemRefs.current[activeIndex]
 
-    if (!container || !track || !targetItem) return
+    if (!container || !track || !activeItem) return
 
     const containerHeight = container.clientHeight
     const trackHeight = track.scrollHeight
-    const itemCenter = targetItem.offsetTop + targetItem.offsetHeight / 2
+    const itemCenter = activeItem.offsetTop + activeItem.offsetHeight / 2
     const targetCenter = containerHeight * 0.40
     const desiredScrollTop = itemCenter - targetCenter
 
@@ -195,32 +185,18 @@ const TranscriptRoller = ({
     const nextScrollTop = Math.min(Math.max(0, desiredScrollTop), maxScroll)
 
     programmaticScrollRef.current = true
-
-    // Custom rAF-driven scroll over SCROLL_DURATION_MS with a cubic-out
-    // ease — paired with the predictive trigger below, the animation
-    // settles right when the highlight flips to this index, so the user
-    // never has to read a line that's still in motion.
-    if (scrollAnimationFrameRef.current) {
-      cancelAnimationFrame(scrollAnimationFrameRef.current)
-      scrollAnimationFrameRef.current = null
-    }
-    const startTop = container.scrollTop
-    const distance = nextScrollTop - startTop
-    if (Math.abs(distance) < 1) {
-      container.scrollTop = nextScrollTop
-    } else {
-      const startTime = performance.now()
-      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
-      const step = (now) => {
-        const progress = Math.min((now - startTime) / SCROLL_DURATION_MS, 1)
-        container.scrollTop = startTop + distance * easeOutCubic(progress)
-        if (progress < 1) {
-          scrollAnimationFrameRef.current = requestAnimationFrame(step)
-        } else {
-          scrollAnimationFrameRef.current = null
+    try {
+      if (typeof container.scrollTo === 'function') {
+        try {
+          container.scrollTo({ top: nextScrollTop, behavior: 'smooth' })
+        } catch (err) {
+          container.scrollTo(0, nextScrollTop)
         }
+      } else {
+        container.scrollTop = nextScrollTop
       }
-      scrollAnimationFrameRef.current = requestAnimationFrame(step)
+    } catch (err) {
+      container.scrollTop = nextScrollTop
     }
 
     if (clearProgrammaticTimerRef.current) {
@@ -230,60 +206,26 @@ const TranscriptRoller = ({
     clearProgrammaticTimerRef.current = setTimeout(() => {
       programmaticScrollRef.current = false
     }, 1000)
-  }, [])
+  }, [activeIndex])
 
-  // Segment-level activation times: when the active-line highlight will
-  // flip to each segment, equal to segment.start + the offset we use in
-  // AudioPlayer's activeTranscriptIndex calculation. Used for predictive
-  // scroll lookahead so the scroll lands exactly on each flip.
-  const segmentActivationTimes = useMemo(() => {
-    return segments.map((segment) =>
-      Number.isFinite(segment?.start) ? segment.start + ACTIVE_LINE_OFFSET_S : null,
-    )
-  }, [segments])
-
-  const lastScrolledIndexRef = useRef(-1)
-
-  // Predictive scroll: at each playback tick figure out which segment
-  // will be active SCROLL_DURATION_MS from now, and start scrolling to
-  // it. The motion runs DURING the tail of the current line and arrives
-  // settled exactly when the next line lights up — so the user never
-  // reads a line that's still in motion. Falls back to scrolling to the
-  // currently-active index when timestamps aren't available.
   useEffect(() => {
-    if (!isSynced) return
-    if (!segments.length) return
-
-    let targetIndex = activeIndex
-    if (Number.isFinite(currentTime)) {
-      const lookAhead = currentTime + SCROLL_DURATION_MS / 1000
-      let predicted = -1
-      for (let i = 0; i < segmentActivationTimes.length; i += 1) {
-        const t = segmentActivationTimes[i]
-        if (t === null) continue
-        if (t <= lookAhead) predicted = i
-        else break
-      }
-      if (predicted >= 0) targetIndex = predicted
+    if (isSynced) {
+      // Small delay so active highlight appears before scroll starts
+      const timer = setTimeout(scrollToActive, 50)
+      return () => clearTimeout(timer)
     }
+  }, [activeIndex, isSynced, scrollToActive, segments, syncToken])
 
-    if (targetIndex === lastScrolledIndexRef.current) return
-    lastScrolledIndexRef.current = targetIndex
-    scrollToIndex(targetIndex)
-  }, [activeIndex, currentTime, isSynced, segments, segmentActivationTimes, syncToken, scrollToIndex])
-
-  // Re-scroll on resize and on sync-restore (user clicked Sync after
-  // manual scroll) to make sure the active line is back in view.
   useEffect(() => {
     const handleResize = () => {
       if (isSynced) {
-        lastScrolledIndexRef.current = -1 // force re-scroll on next effect
-        scrollToIndex(activeIndex)
+        scrollToActive()
       }
     }
+
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [isSynced, activeIndex, scrollToIndex])
+  }, [isSynced, scrollToActive])
 
   useEffect(() => {
     const container = containerRef.current
@@ -316,9 +258,6 @@ const TranscriptRoller = ({
   useEffect(() => () => {
     if (clearProgrammaticTimerRef.current) {
       clearTimeout(clearProgrammaticTimerRef.current)
-    }
-    if (scrollAnimationFrameRef.current) {
-      cancelAnimationFrame(scrollAnimationFrameRef.current)
     }
   }, [])
 

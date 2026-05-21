@@ -791,6 +791,11 @@ const ExtensiveMode = ({
               currentTime={transcriptCurrentTime ?? playbackPositionSeconds}
               getCurrentTime={getTranscriptCurrentTime}
               lyricsTranslations={showTranslations ? lyricsTranslations : []}
+              onLineClick={lineMode
+                ? (seg) => {
+                    if (Number.isFinite(seg?.start) && onSeek) onSeek(seg.start)
+                  }
+                : null}
             />
           ) : null}
         </div>

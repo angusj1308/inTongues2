@@ -34,6 +34,7 @@ const WordTokenListening = forwardRef(({
   onSelectionTranslate,
   enableHighlight = false,
   isWordPairMatch = false,
+  requireDoubleClick = false,
 }, ref) => {
   const normalisedStatus = normaliseStatus(status)
   const style = getHighlightStyle({
@@ -75,7 +76,9 @@ const WordTokenListening = forwardRef(({
   // Only install handlers when callbacks are actually provided. Callers that
   // delegate click/selection handling to an ancestor (see TranscriptFlow)
   // pass null for both, which lets us skip attaching 2000+ React listeners
-  // to individual words.
+  // to individual words. requireDoubleClick = true (music) shifts the
+  // translation popup off single click onto double click — single click
+  // then bubbles up to the line's seek handler instead.
   const nodeProps = {
     ref,
     className: classNames.join(' '),
@@ -83,7 +86,13 @@ const WordTokenListening = forwardRef(({
     'data-word-status': normalisedStatus,
     'data-word-text': text,
   }
-  if (onWordClick) nodeProps.onClick = handleClick
+  if (onWordClick) {
+    if (requireDoubleClick) {
+      nodeProps.onDoubleClick = handleClick
+    } else {
+      nodeProps.onClick = handleClick
+    }
+  }
   if (onWordClick || onSelectionTranslate) nodeProps.onMouseUp = handleMouseUp
 
   return <span {...nodeProps}>{text}</span>

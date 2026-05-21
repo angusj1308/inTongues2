@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
+import {
+  buildCatalogPayload,
+  createSharedAudiobookCatalogEntry,
+} from '../../services/sharedAudiobooks'
 import {
   generateShortStory,
   generateNovelConcept,
@@ -258,6 +262,34 @@ export default function GenerateInlineForm({ activeLanguage }) {
         coverUrl: null,
         coverStatus: 'pending',
       })
+
+      // Mirror to shared catalogue (see GenerateStoryPanel for rationale).
+      try {
+        const sharedId = await createSharedAudiobookCatalogEntry(
+          buildCatalogPayload({
+            kind: 'generated',
+            sourceType: 'generated',
+            sourceId: storyDocRef.id,
+            title: storyResult.storyTitle || `${genreLabelText} Short Story`,
+            author: storyResult.authorName || '',
+            language: activeLanguage,
+            level,
+            genre: genreLabelText,
+            description: setting.trim(),
+            isFlat: true,
+            createdByUid: user.uid,
+          }),
+        )
+        if (sharedId) {
+          setDoc(
+            doc(db, 'users', user.uid, 'stories', storyDocRef.id),
+            { sharedAudiobookId: sharedId },
+            { merge: true },
+          ).catch((linkErr) => console.warn('sharedAudiobookId link failed', linkErr?.message || linkErr))
+        }
+      } catch (catalogErr) {
+        console.warn('Shared catalogue write failed', catalogErr?.message || catalogErr)
+      }
 
       if (generateAudio) {
         try {

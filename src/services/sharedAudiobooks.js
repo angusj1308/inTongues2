@@ -48,10 +48,15 @@ import {
   doc,
   getDoc,
   getDocs,
+  setDoc,
+  addDoc,
+  updateDoc,
   query,
   where,
   limit,
   orderBy,
+  serverTimestamp,
+  increment,
 } from 'firebase/firestore'
 import db from '../firebase'
 
@@ -134,5 +139,123 @@ export const fetchSharedAudiobookPages = async (audiobookId) => {
   } catch (err) {
     console.warn('fetchSharedAudiobookPages failed', err?.message || err)
     return []
+  }
+}
+
+// ── Write helpers ─────────────────────────────────────────────────────
+//
+// Stage 2 stores CATALOG-ONLY entries: enough metadata for the discover
+// page to render a card (title, author, cover, language, kind) plus a
+// stable source identifier so the user's per-user copy can be linked
+// back. Per-user docs continue to hold the full text/audio because each
+// user's adaptation level / voice differs, so duplicating the entire
+// adapted content here would be both wasteful and frequently wrong.
+//
+// When a user "discovers" a shared catalog entry and adds it to their
+// library, Stage 3 will run the existing generation/import flow with
+// the original `sourceId` to rebuild the content for that user — and
+// drop a per-user doc with sharedAudiobookId set so the popularity
+// counter is incremented.
+
+// Build the catalog payload from a per-user story doc. Used by both the
+// client (generation) and the server (imports). Returns a plain object
+// safe to setDoc/addDoc.
+export const buildCatalogPayload = ({
+  kind,
+  sourceType,
+  sourceId,
+  title,
+  author,
+  language,
+  originalLanguage = null,
+  level = null,
+  genre = null,
+  description = null,
+  coverImageUrl = null,
+  coverImageUrlSquare = null,
+  isFlat = null,
+  chapterCount = null,
+  totalWords = null,
+  hasFullAudio = false,
+  durationMs = null,
+  createdByUid,
+}) => ({
+  kind,
+  sourceType: sourceType || null,
+  sourceId: sourceId ? String(sourceId) : null,
+  title: title || 'Untitled',
+  author: author || '',
+  language: language || '',
+  originalLanguage: originalLanguage || null,
+  level: level || null,
+  genre: genre || null,
+  description: description || null,
+  coverImageUrl: coverImageUrl || null,
+  coverImageUrlSquare: coverImageUrlSquare || null,
+  isFlat: typeof isFlat === 'boolean' ? isFlat : null,
+  chapterCount: Number.isFinite(chapterCount) ? chapterCount : null,
+  totalWords: Number.isFinite(totalWords) ? totalWords : null,
+  hasFullAudio: !!hasFullAudio,
+  durationMs: Number.isFinite(durationMs) ? durationMs : null,
+  popularityCount: 0,
+  createdByUid: createdByUid || null,
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+})
+
+// Upsert a shared catalog entry with a DETERMINISTIC id. Used for
+// public-domain content (e.g. Gutenberg) so the same source resolves
+// to one shared doc regardless of which user imports it. Existing
+// popularityCount and createdByUid are preserved on update.
+export const upsertSharedAudiobookBySource = async (payload) => {
+  const audiobookId = buildSharedAudiobookId({
+    sourceType: payload.sourceType,
+    sourceId: payload.sourceId,
+  })
+  if (!audiobookId) return null
+  try {
+    const ref = sharedAudiobookRef(audiobookId)
+    const existing = await getDoc(ref)
+    if (existing.exists()) {
+      // Don't clobber popularity or original creator on subsequent imports.
+      const next = { ...payload, updatedAt: serverTimestamp() }
+      delete next.popularityCount
+      delete next.createdByUid
+      delete next.createdAt
+      await updateDoc(ref, next)
+    } else {
+      await setDoc(ref, payload)
+    }
+    return audiobookId
+  } catch (err) {
+    console.warn('upsertSharedAudiobookBySource failed', err?.message || err)
+    return null
+  }
+}
+
+// Create a shared catalog entry with an AUTO-GENERATED id. Used for
+// generated content where each generation is unique even if the prompt
+// happens to match a previous one.
+export const createSharedAudiobookCatalogEntry = async (payload) => {
+  try {
+    const ref = await addDoc(sharedAudiobooksCol(), payload)
+    return ref.id
+  } catch (err) {
+    console.warn('createSharedAudiobookCatalogEntry failed', err?.message || err)
+    return null
+  }
+}
+
+// Bump the popularity counter on a shared doc. Fire when a user adds a
+// shared item to their library, or plays one.
+export const incrementSharedAudiobookPopularity = async (audiobookId) => {
+  if (!audiobookId) return
+  try {
+    await updateDoc(sharedAudiobookRef(audiobookId), {
+      popularityCount: increment(1),
+      lastInteractionAt: serverTimestamp(),
+    })
+  } catch (err) {
+    console.warn('incrementSharedAudiobookPopularity failed', err?.message || err)
   }
 }

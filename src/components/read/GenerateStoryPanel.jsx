@@ -10,6 +10,10 @@ import { db } from '../../firebase'
 import { generateShortStory, generateNovelConcept, generateChapterSummaries } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
 import { GENRES, SHORT_STORY_GENRES, NOVEL_GENRES } from '../../services/Authors'
+import {
+  buildCatalogPayload,
+  createSharedAudiobookCatalogEntry,
+} from '../../services/sharedAudiobooks'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -222,6 +226,39 @@ const GenerateStoryPanel = ({
         coverUrl: null,
         coverStatus: 'pending',
       })
+
+      // Mirror the new story to the cross-user shared catalogue so it
+      // can surface in discover and contribute to popularity counts. The
+      // per-user story doc remains the source of truth for playback (it
+      // has the adapted text + audio); the shared doc is metadata-only.
+      // Fire-and-forget — never block the user on this. If it fails the
+      // story still works, the catalogue entry just gets skipped.
+      try {
+        const sharedId = await createSharedAudiobookCatalogEntry(
+          buildCatalogPayload({
+            kind: 'generated',
+            sourceType: 'generated',
+            sourceId: storyDocRef.id,
+            title: storyResult.storyTitle || `${genreLabel} Short Story`,
+            author: storyResult.authorName || '',
+            language: activeLanguage,
+            level: selectedLevel,
+            genre: genreLabel,
+            description: description.trim(),
+            isFlat: true,
+            createdByUid: user.uid,
+          }),
+        )
+        if (sharedId) {
+          setDoc(
+            doc(db, 'users', user.uid, 'stories', storyDocRef.id),
+            { sharedAudiobookId: sharedId },
+            { merge: true },
+          ).catch((linkErr) => console.warn('sharedAudiobookId link failed', linkErr?.message || linkErr))
+        }
+      } catch (catalogErr) {
+        console.warn('Shared catalogue write failed', catalogErr?.message || catalogErr)
+      }
 
       // Trigger audio generation if requested
       if (generateAudio) {

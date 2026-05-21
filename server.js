@@ -8346,6 +8346,74 @@ async function saveImportedBookToFirestore({
  * Stores adaptation chunks and accumulates adapted text in one blob.
  * Final 250-word pages are created after all chunks are adapted.
  */
+// Server-side shared-catalog helper. Mirrors the client helper in
+// src/services/sharedAudiobooks.js — uses admin SDK so it bypasses
+// Firestore rules (server is trusted). Returns the shared doc id, or
+// null on failure. Idempotent for deterministic ids via setDoc+merge,
+// preserves popularityCount and createdByUid on updates.
+async function upsertSharedAudiobookCatalog({
+  kind,
+  sourceType,
+  sourceId,
+  title,
+  author,
+  language,
+  originalLanguage = null,
+  level = null,
+  genre = null,
+  description = null,
+  coverImageUrl = null,
+  coverImageUrlSquare = null,
+  isFlat = null,
+  chapterCount = null,
+  totalWords = null,
+  hasFullAudio = false,
+  durationMs = null,
+  createdByUid,
+}) {
+  if (!sourceType || !sourceId) return null
+  try {
+    const id = `${sourceType}-${String(sourceId)}`
+    const ref = firestore.collection('sharedAudiobooks').doc(id)
+    const existing = await ref.get()
+    const base = {
+      kind,
+      sourceType,
+      sourceId: String(sourceId),
+      title: title || 'Untitled',
+      author: author || '',
+      language: language || '',
+      originalLanguage: originalLanguage || null,
+      level: level || null,
+      genre: genre || null,
+      description: description || null,
+      coverImageUrl: coverImageUrl || null,
+      coverImageUrlSquare: coverImageUrlSquare || null,
+      isFlat: typeof isFlat === 'boolean' ? isFlat : null,
+      chapterCount: Number.isFinite(chapterCount) ? chapterCount : null,
+      totalWords: Number.isFinite(totalWords) ? totalWords : null,
+      hasFullAudio: !!hasFullAudio,
+      durationMs: Number.isFinite(durationMs) ? durationMs : null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+    if (existing.exists) {
+      // Preserve original popularity + creator + createdAt across re-imports.
+      await ref.update(base)
+    } else {
+      await ref.set({
+        ...base,
+        popularityCount: 0,
+        createdByUid: createdByUid || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    }
+    return id
+  } catch (err) {
+    console.warn('upsertSharedAudiobookCatalog failed', err?.message || err)
+    return null
+  }
+}
+
 async function saveImportedFlatBookToFirestore({
   userId,
   title,
@@ -8362,6 +8430,7 @@ async function saveImportedFlatBookToFirestore({
   wordCount,
   voiceGender,
   sourceType = 'txt',
+  sourceId = null,
   coverImageUrl = null,
 }) {
   if (!userId) {
@@ -8427,6 +8496,39 @@ async function saveImportedFlatBookToFirestore({
     })
   }
 
+  // Public-domain imports also get a shared catalogue entry so other
+  // users can discover them. Protected (copyrighted) imports stay
+  // private. The shared doc is metadata-only — per-user docs hold the
+  // adapted text. Re-imports by other users upsert the same shared id.
+  if (isPublicDomain === 'true' || isPublicDomain === true) {
+    const effectiveSourceId = sourceId || storyRef.id
+    upsertSharedAudiobookCatalog({
+      kind: 'public-domain',
+      sourceType,
+      sourceId: effectiveSourceId,
+      title,
+      author,
+      language: outputLanguage,
+      originalLanguage,
+      level,
+      description: `Imported: ${title || 'Untitled book'}`,
+      coverImageUrl,
+      isFlat: true,
+      totalWords: wordCount,
+      createdByUid: userId,
+    })
+      .then((sharedId) => {
+        if (sharedId) {
+          storyRef
+            .set({ sharedAudiobookId: sharedId }, { merge: true })
+            .catch((err) =>
+              console.warn('sharedAudiobookId link failed (flat)', err?.message || err),
+            )
+        }
+      })
+      .catch((err) => console.warn('shared catalogue write failed (flat)', err?.message || err))
+  }
+
   return storyRef.id
 }
 
@@ -8447,6 +8549,7 @@ async function saveImportedChapterBookToFirestore({
   chapters,
   voiceGender,
   sourceType = 'epub', // 'epub', 'txt', etc.
+  sourceId = null,
   coverImageUrl = null,
 }) {
   if (!userId) {
@@ -8519,6 +8622,37 @@ async function saveImportedChapterBookToFirestore({
     ensureSquareCoverForStory(userId, storyRef.id).catch((err) => {
       console.error('Square cover generation failed (imported chapter book):', err)
     })
+  }
+
+  // Public-domain imports → shared catalogue (see flat-book counterpart).
+  if (isPublicDomain === 'true' || isPublicDomain === true) {
+    const effectiveSourceId = sourceId || storyRef.id
+    upsertSharedAudiobookCatalog({
+      kind: 'public-domain',
+      sourceType,
+      sourceId: effectiveSourceId,
+      title,
+      author,
+      language: outputLanguage,
+      originalLanguage,
+      level,
+      description: `Imported: ${title || 'Untitled book'}`,
+      coverImageUrl,
+      isFlat: false,
+      chapterCount: totalChapters,
+      totalWords,
+      createdByUid: userId,
+    })
+      .then((sharedId) => {
+        if (sharedId) {
+          storyRef
+            .set({ sharedAudiobookId: sharedId }, { merge: true })
+            .catch((err) =>
+              console.warn('sharedAudiobookId link failed (chapter)', err?.message || err),
+            )
+        }
+      })
+      .catch((err) => console.warn('shared catalogue write failed (chapter)', err?.message || err))
   }
 
   return storyRef.id
@@ -8960,6 +9094,7 @@ async function processEpubImport({
   voiceGender,
   generateAudio,
   sourceType = 'epub',
+  sourceId = null,
   testMode = false,
 }) {
   // Parse EPUB to extract both chapters and cover
@@ -9124,6 +9259,7 @@ async function processEpubImport({
     chapters: chaptersToSave,
     voiceGender,
     sourceType,
+    sourceId,
     coverImageUrl,
   })
 
@@ -10085,6 +10221,7 @@ app.post('/api/import-gutenberg', async (req, res) => {
       voiceGender: voiceGender || 'male',
       generateAudio: Boolean(generateAudio),
       sourceType: 'gutenberg',
+      sourceId: gutenbergId,
       testMode: false,
     })
 

@@ -11,6 +11,7 @@ const TranscriptPanel = ({
   onSelectionTranslate,
   showWordStatus = false,
   showWordStatusToggle = true,
+  showSyncToggle = true,
   wordStatusDisabled = false,
   onToggleWordStatus,
   isSynced = true,
@@ -99,15 +100,19 @@ const TranscriptPanel = ({
         )}
       </div>
     <div className="transcript-panel-footer">
-      <button
-        type="button"
-        className="transcript-sync-btn"
-        onClick={lyricsTimed ? onResync : undefined}
-        disabled={!lyricsTimed || effectiveIsSynced || !onResync}
-        title={lyricsTimed ? undefined : 'Lyrics not time-synced'}
-      >
-        {effectiveIsSynced ? 'Synced' : 'Sync'}
-      </button>
+      {showSyncToggle ? (
+        <button
+          type="button"
+          className="transcript-sync-btn"
+          onClick={lyricsTimed ? onResync : undefined}
+          disabled={!lyricsTimed || effectiveIsSynced || !onResync}
+          title={lyricsTimed ? undefined : 'Lyrics not time-synced'}
+        >
+          {effectiveIsSynced ? 'Synced' : 'Sync'}
+        </button>
+      ) : (
+        <span className="transcript-panel-footer-spacer" aria-hidden="true" />
+      )}
       {showWordStatusToggle || wordStatusDisabled ? (
         <button
           type="button"

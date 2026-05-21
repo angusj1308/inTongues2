@@ -7101,6 +7101,63 @@ html.reader-active body {
   background: rgba(255, 255, 255, 0.15);
 }
 
+/* Translation popup — dark mode (global theme). Mirrors the
+   reader-themed dark rules above so the popup is themed correctly
+   when triggered from the audio player / music transcript, which uses
+   the global [data-theme='dark'] flag rather than reader-themed. */
+[data-theme='dark'] .translate-popup {
+  background: #1C1A17;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+}
+
+[data-theme='dark'] .translate-popup-close {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .translate-popup-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .translate-popup-close:focus-visible {
+  outline-color: #ffffff;
+}
+
+[data-theme='dark'] .translate-popup-body {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .translate-popup-language-label {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .translate-popup-language-text {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+[data-theme='dark'] .translate-popup-status {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .translate-popup-status-button {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .translate-popup-status-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .translate-popup-status-button:focus-visible {
+  outline-color: #ffffff;
+}
+
+[data-theme='dark'] .translate-popup-status-button.active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 /* ── Tutor FAB ── */
 
 .tutor-fab {

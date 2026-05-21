@@ -87,9 +87,10 @@ const TranscriptRoller = ({
   const itemRefs = useRef([])
   const [hasTopFade, setHasTopFade] = useState(false)
   const [hasBottomFade, setHasBottomFade] = useState(false)
-  const programmaticScrollRef = useRef(false)
-  const clearProgrammaticTimerRef = useRef(null)
-  const scrollAnimationFrameRef = useRef(null)
+  // Suppresses the onUserScroll callback for the brief moment after the
+  // syncToken snap programmatically sets scrollTop — otherwise that
+  // scroll event would immediately flip the user back out of sync.
+  const suppressUserScrollRef = useRef(false)
 
   itemRefs.current = []
 
@@ -169,80 +170,27 @@ const TranscriptRoller = ({
     }))
   }, [activeIndex, contentExpressions, language, onSelectionTranslate, onWordClick, segments, showWordStatus, vocabEntries])
 
-  const scrollToActive = useCallback(() => {
+  // Auto-scroll is killed for music: the active-line highlight still
+  // tracks playback, but the transcript no longer follows it. The user
+  // scrolls manually. The Sync button (in TranscriptPanel) bumps the
+  // syncToken — when that happens, snap the active line back into view
+  // so the user can re-locate after scrolling away. Instant set, no
+  // animation, no rAF.
+  useEffect(() => {
+    if (!isSynced) return
     const container = containerRef.current
-    const track = trackRef.current
     const activeItem = itemRefs.current[activeIndex]
-
-    if (!container || !track || !activeItem) return
-
+    if (!container || !activeItem) return
     const containerHeight = container.clientHeight
-    const trackHeight = track.scrollHeight
     const itemCenter = activeItem.offsetTop + activeItem.offsetHeight / 2
     const targetCenter = containerHeight * 0.40
-    const desiredScrollTop = itemCenter - targetCenter
-
-    const maxScroll = Math.max(0, trackHeight - containerHeight)
-    const nextScrollTop = Math.min(Math.max(0, desiredScrollTop), maxScroll)
-
-    programmaticScrollRef.current = true
-
-    // Custom rAF-driven scroll so we can pick the duration. The browser
-    // default (scrollTo behavior:'smooth') is ~300-400ms which snaps the
-    // new line into place too fast to track with the eye; a longer
-    // ease-in-out lets the eye stay on the line throughout the motion.
-    if (scrollAnimationFrameRef.current) {
-      cancelAnimationFrame(scrollAnimationFrameRef.current)
-      scrollAnimationFrameRef.current = null
-    }
-    const startTop = container.scrollTop
-    const distance = nextScrollTop - startTop
-    if (Math.abs(distance) < 1) {
-      container.scrollTop = nextScrollTop
-    } else {
-      const durationMs = 1200
-      const startTime = performance.now()
-      const easeInOutCubic = (t) =>
-        t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-      const step = (now) => {
-        const progress = Math.min((now - startTime) / durationMs, 1)
-        container.scrollTop = startTop + distance * easeInOutCubic(progress)
-        if (progress < 1) {
-          scrollAnimationFrameRef.current = requestAnimationFrame(step)
-        } else {
-          scrollAnimationFrameRef.current = null
-        }
-      }
-      scrollAnimationFrameRef.current = requestAnimationFrame(step)
-    }
-
-    if (clearProgrammaticTimerRef.current) {
-      clearTimeout(clearProgrammaticTimerRef.current)
-    }
-
-    clearProgrammaticTimerRef.current = setTimeout(() => {
-      programmaticScrollRef.current = false
-    }, 1500)
-  }, [activeIndex])
-
-  useEffect(() => {
-    if (isSynced) {
-      // Small delay so active highlight appears before scroll starts
-      const timer = setTimeout(scrollToActive, 50)
-      return () => clearTimeout(timer)
-    }
-  }, [activeIndex, isSynced, scrollToActive, segments, syncToken])
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (isSynced) {
-        scrollToActive()
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [isSynced, scrollToActive])
+    suppressUserScrollRef.current = true
+    container.scrollTop = Math.max(0, itemCenter - targetCenter)
+    setTimeout(() => { suppressUserScrollRef.current = false }, 100)
+    // activeIndex intentionally not a dep — we don't want to snap on
+    // every line change, only when the user re-syncs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSynced, syncToken])
 
   useEffect(() => {
     const container = containerRef.current
@@ -255,12 +203,11 @@ const TranscriptRoller = ({
       setHasTopFade(scrollTop > threshold)
       setHasBottomFade(scrollTop + clientHeight < scrollHeight - threshold)
 
-      if (programmaticScrollRef.current) return
-
-      if (container.matches(':hover')) {
-        if (onUserScroll) {
-          onUserScroll()
-        }
+      // Any scroll while not suppressed is user-driven — flip sync
+      // state so the Sync button can re-snap them to active later.
+      if (suppressUserScrollRef.current) return
+      if (onUserScroll) {
+        onUserScroll()
       }
     }
 
@@ -271,15 +218,6 @@ const TranscriptRoller = ({
       container.removeEventListener('scroll', handleScroll)
     }
   }, [onUserScroll])
-
-  useEffect(() => () => {
-    if (clearProgrammaticTimerRef.current) {
-      clearTimeout(clearProgrammaticTimerRef.current)
-    }
-    if (scrollAnimationFrameRef.current) {
-      cancelAnimationFrame(scrollAnimationFrameRef.current)
-    }
-  }, [])
 
   return (
     <div

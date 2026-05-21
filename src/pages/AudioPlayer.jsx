@@ -1547,6 +1547,18 @@ const AudioPlayer = () => {
         return
       }
 
+      // Show the popup immediately with a loading state so the user
+      // sees the panel right after their click — translation streams
+      // in when the fetch returns. Matches the reader UX.
+      setPopup({
+        x: rect.left + window.scrollX,
+        y: rect.bottom + window.scrollY + 8,
+        word: phrase,
+        translation: null,
+        audioBase64: null,
+        audioUrl: null,
+      })
+
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
@@ -1623,6 +1635,18 @@ const AudioPlayer = () => {
       })
       return
     }
+
+    // Show the popup immediately with a loading state — translation
+    // streams in when the fetch returns. Same fast-feeling UX as the
+    // reader.
+    setPopup({
+      x: rect.left + window.scrollX,
+      y: rect.bottom + window.scrollY + 8,
+      word: clean,
+      translation: null,
+      audioBase64: null,
+      audioUrl: null,
+    })
 
     // Fetch from API if not preloaded
     let translation = 'No translation found'
@@ -3455,7 +3479,13 @@ const AudioPlayer = () => {
               <p className="translate-popup-language-label">
                 {resolveSupportedLanguageLabel(profile?.nativeLanguage)}
               </p>
-              <p className="translate-popup-language-text">{popup.translation}</p>
+              <p className="translate-popup-language-text">
+                {popup.translation === null ? (
+                  <span style={{ opacity: 0.5, fontStyle: 'italic' }}>Translating...</span>
+                ) : (
+                  popup.translation
+                )}
+              </p>
             </div>
           </div>
 

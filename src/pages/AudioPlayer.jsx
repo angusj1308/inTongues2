@@ -186,6 +186,22 @@ const AudioPlayer = () => {
     try { localStorage.setItem('darkMode', JSON.stringify(darkMode)) } catch {}
   }, [darkMode])
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false)
+  // Show word-status highlighting on lyric tokens (music) and transcript
+  // words (audiobook/podcast). Lifted from ExtensiveMode so the music
+  // header's Aa button can toggle it without an awkward indirect path.
+  // Persisted across sessions with the existing localStorage key so user
+  // preferences survive reloads.
+  const [showWordStatus, setShowWordStatus] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('extensiveShowWordStatus') !== 'false'
+  })
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('extensiveShowWordStatus', showWordStatus ? 'true' : 'false')
+  }, [showWordStatus])
+  const toggleWordStatus = useCallback(() => {
+    setShowWordStatus((prev) => !prev)
+  }, [])
   const [scrubSeconds, setScrubSeconds] = useState(5)
   const [activePageIndex, setActivePageIndex] = useState(0)
   const [hasSeenAdvancePrompt, setHasSeenAdvancePrompt] = useState(false)
@@ -2942,19 +2958,40 @@ const AudioPlayer = () => {
                     </svg>
                   )}
                 </button>
-                <button
-                  className="reader-header-button ui-text"
-                  type="button"
-                  aria-label={`Font: ${currentFont.label}`}
-                  title={`Font: ${currentFont.label}`}
-                  style={{ fontFamily: currentFont.fontFamily }}
-                  onClick={(e) => {
-                    cycleFont()
-                    e.currentTarget.blur()
-                  }}
-                >
-                  Aa
-                </button>
+                {isMusic ? (
+                  // For music the Aa button is repurposed as the word-
+                  // status toggle (the in-transcript "Show word status"
+                  // button is removed for music). Always renders in DM
+                  // Sans bold; takes on the user's selected highlight
+                  // palette colour when on, neutral when off.
+                  <button
+                    className={`reader-header-button ui-text reader-word-status-trigger ${showWordStatus ? 'is-on' : ''}`}
+                    type="button"
+                    aria-label={showWordStatus ? 'Hide word status' : 'Show word status'}
+                    aria-pressed={showWordStatus}
+                    title={showWordStatus ? 'Hide word status' : 'Show word status'}
+                    onClick={(e) => {
+                      toggleWordStatus()
+                      e.currentTarget.blur()
+                    }}
+                  >
+                    Aa
+                  </button>
+                ) : (
+                  <button
+                    className="reader-header-button ui-text"
+                    type="button"
+                    aria-label={`Font: ${currentFont.label}`}
+                    title={`Font: ${currentFont.label}`}
+                    style={{ fontFamily: currentFont.fontFamily }}
+                    onClick={(e) => {
+                      cycleFont()
+                      e.currentTarget.blur()
+                    }}
+                  >
+                    Aa
+                  </button>
+                )}
                 <div className="reader-palette-popover-wrap" ref={palettePopoverRef}>
                   <button
                     className={`reader-header-button icon-button reader-palette-trigger ${palettePopoverOpen ? 'is-open' : ''}`}
@@ -3063,6 +3100,8 @@ const AudioPlayer = () => {
                         onSkipNextTrack={isMusic ? handleSkipNextTrack : null}
                         canSkipPreviousTrack={canSkipPreviousTrack}
                         canSkipNextTrack={canSkipNextTrack}
+                        showWordStatus={showWordStatus}
+                        onToggleWordStatus={toggleWordStatus}
                       />
                     </div>
                   </section>

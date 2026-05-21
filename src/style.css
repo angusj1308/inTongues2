@@ -3760,6 +3760,24 @@ textarea {
   color: inherit;
 }
 
+/* Music header Aa button repurposed as the word-status toggle. Always
+   renders in DM Sans bold; when on it picks up the user's selected
+   highlight palette colour (the "new" hue, mirroring how the palette
+   shows the active state). When off the button uses inherited colour. */
+.reader-header-button.reader-word-status-trigger {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-weight: 700;
+  transition: color 160ms ease;
+}
+
+.reader-header-button.reader-word-status-trigger.is-on {
+  color: var(--hlt-new);
+}
+
+[data-theme='dark'] .reader-header-button.reader-word-status-trigger.is-on {
+  color: var(--hlt-new);
+}
+
 .reader-themed[data-reader-tone='dark'] .reader-header-button {
   color: #ffffff;
 }

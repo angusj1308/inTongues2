@@ -95,7 +95,6 @@ const TranscriptPanel = ({
             contentExpressions={contentExpressions}
             forceAllActive={!lyricsTimed}
             lyricsTranslations={lyricsTranslations}
-            currentTime={currentTime}
           />
         )}
       </div>

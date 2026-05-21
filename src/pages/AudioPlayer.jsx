@@ -3005,21 +3005,6 @@ const AudioPlayer = () => {
                     Aa
                   </button>
                 )}
-                {isMusic && (
-                  <button
-                    type="button"
-                    className={`reader-header-button icon-button reader-translate-trigger ${showTranslations ? 'is-on' : ''}`}
-                    aria-label={showTranslations ? 'Hide translations' : 'Show translations'}
-                    aria-pressed={showTranslations}
-                    title={showTranslations ? 'Hide translations' : 'Show translations'}
-                    onClick={(e) => {
-                      toggleTranslations()
-                      e.currentTarget.blur()
-                    }}
-                  >
-                    <span className="material-symbols-outlined">translate</span>
-                  </button>
-                )}
                 <div className="reader-palette-popover-wrap" ref={palettePopoverRef}>
                   <button
                     className={`reader-header-button icon-button reader-palette-trigger ${palettePopoverOpen ? 'is-open' : ''}`}
@@ -3067,6 +3052,21 @@ const AudioPlayer = () => {
                     </div>
                   )}
                 </div>
+                {isMusic && (
+                  <button
+                    type="button"
+                    className={`reader-header-button icon-button reader-translate-trigger ${showTranslations ? 'is-on' : ''}`}
+                    aria-label={showTranslations ? 'Hide translations' : 'Show translations'}
+                    aria-pressed={showTranslations}
+                    title={showTranslations ? 'Hide translations' : 'Show translations'}
+                    onClick={(e) => {
+                      toggleTranslations()
+                      e.currentTarget.blur()
+                    }}
+                  >
+                    <span className="material-symbols-outlined">translate</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`reader-header-button icon-button ${tutorOpen ? 'is-active' : ''}`}

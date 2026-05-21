@@ -10910,32 +10910,15 @@ body.active-pass-locked {
   height: 100%;
   padding: 10px 6px;
   scroll-behavior: smooth;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
+  /* Hide the scrollbar entirely so the lyrics appear to float. Scroll
+     still works via wheel / touchpad / drag — only the thumb is hidden. */
+  scrollbar-width: none;
 }
 
 .transcript-roller::-webkit-scrollbar {
-  width: 4px;
-}
-
-.transcript-roller::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.transcript-roller::-webkit-scrollbar-thumb {
-  background-color: transparent;
-  border-radius: 999px;
-  transition: background-color 160ms ease;
-}
-
-.transcript-roller:hover {
-  scrollbar-color: rgba(51, 65, 85, 0.32) transparent;
-}
-
-.transcript-roller:hover::-webkit-scrollbar-thumb,
-.transcript-roller:focus-visible::-webkit-scrollbar-thumb,
-.transcript-roller:active::-webkit-scrollbar-thumb {
-  background-color: rgba(51, 65, 85, 0.32);
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .transcript-roller-window::before,

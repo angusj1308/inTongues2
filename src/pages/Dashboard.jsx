@@ -33,6 +33,7 @@ import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
 import { rewriteProse, validateCoherence, repairCoherence, regenerateConcept, generateStoryProse } from '../services/generator'
+import { incrementSharedAudiobookPopularity } from '../services/sharedAudiobooks'
 
 // Target language translations for card headers
 const CARD_HEADERS = {
@@ -1139,6 +1140,10 @@ const Dashboard = () => {
       updateDoc(bookRef, { lastOpenedAt: serverTimestamp() }).catch((err) =>
         console.error('Failed to stamp lastOpenedAt:', err),
       )
+    }
+
+    if (book.sharedAudiobookId) {
+      incrementSharedAudiobookPopularity(book.sharedAudiobookId)
     }
 
     const languageForReader = resolveSupportedLanguageLabel(book.language || activeLanguage, '')

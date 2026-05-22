@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { prewarmMusicPlayback } from '../../services/musicKit'
 import { playPodcastEpisode } from '../../services/podcast'
+import { incrementSharedAudiobookPopularity } from '../../services/sharedAudiobooks'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 import useListenLibraryData, { pickContinueListening } from './useListenLibraryData'
 import MusicKitConnect from '../music/MusicKitConnect'
@@ -181,7 +182,12 @@ export default function ListenLibrary() {
         subtitle: b.author || '',
         trailing: '',
         coverUrl: b.coverImageUrlSquare || b.coverImageUrl || '',
-        onClick: () => navigate(`/listen/${b.id}`),
+        onClick: () => {
+          if (b.sharedAudiobookId) {
+            incrementSharedAudiobookPopularity(b.sharedAudiobookId)
+          }
+          navigate(`/listen/${b.id}`)
+        },
       })),
     [data.audiobooks, navigate],
   )

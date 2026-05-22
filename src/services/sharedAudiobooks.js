@@ -114,6 +114,26 @@ export const listSharedAudiobooks = async ({ language, kind = null, max = 30 } =
   }
 }
 
+// Same as listSharedAudiobooks but ranked by popularityCount DESC for the
+// Discover "Recommended Audiobooks" rail.
+export const listPopularSharedAudiobooks = async ({ language, max = 12 } = {}) => {
+  if (!language) return []
+  try {
+    const snap = await getDocs(
+      query(
+        sharedAudiobooksCol(),
+        where('language', '==', language),
+        orderBy('popularityCount', 'desc'),
+        limit(max),
+      ),
+    )
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  } catch (err) {
+    console.warn('listPopularSharedAudiobooks failed', err?.message || err)
+    return []
+  }
+}
+
 // Load the chapter docs for a chapter-book shared audiobook in order.
 export const fetchSharedAudiobookChapters = async (audiobookId) => {
   if (!audiobookId) return []

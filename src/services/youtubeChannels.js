@@ -9,6 +9,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore'
 import db from '../firebase'
+import { recordMediaInteraction, MEDIA_KIND } from './sharedMedia'
 
 // Firestore layout:
 //   users/{uid}/youtubeChannelFollows/{channelId}
@@ -33,14 +34,25 @@ export const subscribeFollowedChannels = (uid, callback) => {
 
 export const followChannel = async (uid, channel, language = '') => {
   if (!uid || !channel?.id) return
+  const resolvedLanguage = language || channel.language || ''
   await setDoc(doc(followsCol(uid), channel.id), {
     channelId: channel.id,
     title: channel.title || '',
     description: channel.description || '',
     coverUrl: channel.coverUrl || '',
-    ...(language || channel.language ? { language: language || channel.language } : {}),
+    ...(resolvedLanguage ? { language: resolvedLanguage } : {}),
     followedAt: serverTimestamp(),
   })
+  if (resolvedLanguage) {
+    recordMediaInteraction({
+      kind: MEDIA_KIND.YOUTUBE_CHANNEL,
+      externalId: channel.id,
+      language: resolvedLanguage,
+      title: channel.title || '',
+      subtitle: '',
+      coverUrl: channel.coverUrl || '',
+    })
+  }
 }
 
 export const unfollowChannel = async (uid, channelId) => {

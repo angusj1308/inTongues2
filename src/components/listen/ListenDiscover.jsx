@@ -38,7 +38,7 @@ const RAILS = [
   { key: 'audiobooks', title: 'Popular Audiobooks', shape: 'portrait', cols: 6 },
   { key: 'podcasts', title: 'Popular Podcasts', shape: 'square', cols: 6 },
   { key: 'music', title: 'Popular Artists', shape: 'square', cols: 6 },
-  { key: 'youtube', title: 'Popular Channels', shape: 'wide', cols: 4 },
+  { key: 'youtube', title: 'Popular YouTube Channels', shape: 'wide', cols: 4 },
 ]
 
 const FILTER_CHIPS = ['All', 'Audiobooks', 'Podcasts', 'Music', 'YouTube']

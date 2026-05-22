@@ -18,6 +18,7 @@ import IntonguesCinema from './pages/IntonguesCinema'
 import SpotifyCollectionPage from './pages/SpotifyCollectionPage'
 import PodcastShowPage from './pages/PodcastShow'
 import YoutubeChannelPage from './pages/YoutubeChannelPage'
+import YoutubePlaylistPage from './pages/YoutubePlaylistPage'
 import MusicArtistPage from './pages/MusicArtist'
 import MusicAlbumPage from './pages/MusicAlbum'
 import JuanComprehension from './pages/JuanComprehension'
@@ -252,6 +253,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <YoutubeChannelPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/youtube/playlist/:id"
+        element={
+          <ProtectedRoute>
+            <YoutubePlaylistPage />
           </ProtectedRoute>
         }
       />

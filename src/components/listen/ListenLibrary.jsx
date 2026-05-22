@@ -228,11 +228,26 @@ export default function ListenLibrary() {
     [data.followedShows, episodeCountByShow, navigate],
   )
 
-  // -- YouTube shelf: derived channels --------------------------------------
-  // No channel-follow API exists; channels are derived by grouping the user's
-  // imported videos by channelTitle. Card art is the first video's thumb;
-  // trailing detail is the user's video count for that channel.
+  // -- YouTube shelf: saved playlists + derived channels --------------------
+  // Saved playlists (explicit add-to-library) take precedence; derived
+  // channels (grouped from imported videos) fill the rest of the shelf.
+  // Cap at 4 total tiles so the row stays one neat line.
+  const YOUTUBE_SHELF_LIMIT = 4
   const channelCards = useMemo(() => {
+    const playlistCards = (data.savedPlaylists || [])
+      .slice()
+      .sort((a, b) => (b.savedAt?.toMillis?.() || 0) - (a.savedAt?.toMillis?.() || 0))
+      .map((p) => ({
+        id: `yt-pl-${p.playlistId}`,
+        title: p.title || 'Untitled playlist',
+        subtitle: p.channelTitle || 'Playlist',
+        trailing: Number.isFinite(p.videoCount)
+          ? (p.videoCount === 1 ? '1 video' : `${p.videoCount} videos`)
+          : 'Playlist',
+        coverUrl: p.coverUrl,
+        onClick: () => navigate(`/youtube/playlist/${p.playlistId}`),
+      }))
+
     const channels = new Map()
     data.youtubeVideos.forEach((v) => {
       const key = v.channelId || v.channelTitle || 'Unknown'
@@ -249,20 +264,22 @@ export default function ListenLibrary() {
       }
       channels.set(key, existing)
     })
-    return [...channels.values()]
+    const channelTiles = [...channels.values()]
       .sort((a, b) => b.count - a.count)
-      .slice(0, 3)
       .map((c) => ({
-        id: c.id,
+        id: `yt-ch-${c.id}`,
         title: c.title,
         subtitle: '',
         trailing: c.count === 1 ? '1 video' : `${c.count} videos`,
         coverUrl: c.coverUrl,
-        // No channel landing page exists today — defer to the deep view's
-        // Channels tab so the user still has somewhere to go.
+        // No channel landing page exists today for derived channels — defer
+        // to the deep view's Channels tab so the user still has somewhere
+        // to go.
         onClick: () => navigate('/listen/library/youtube'),
       }))
-  }, [data.youtubeVideos, navigate])
+
+    return [...playlistCards, ...channelTiles].slice(0, YOUTUBE_SHELF_LIMIT)
+  }, [data.savedPlaylists, data.youtubeVideos, navigate])
 
   // -- Music shelf: cascade ------------------------------------------------
   // Albums → followed artists → saved tracks, all visible together in the

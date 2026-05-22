@@ -11,6 +11,7 @@ import {
   subscribeSavedTracks,
 } from '../../services/music'
 import { subscribeFollowedChannels } from '../../services/youtubeChannels'
+import { subscribeSavedPlaylists } from '../../services/youtubePlaylists'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 
 // Reads every Listen library source the existing front-end already uses, in
@@ -31,6 +32,7 @@ export default function useListenLibraryData(uid, activeLanguage = '') {
   const [savedAlbums, setSavedAlbums] = useState([])
   const [followedArtists, setFollowedArtists] = useState([])
   const [followedYoutubeChannels, setFollowedYoutubeChannels] = useState([])
+  const [savedPlaylists, setSavedPlaylists] = useState([])
   // spotifyItems carries the actual lastPlayedAt timestamp for music tracks
   // (the player writes there on every progress tick). savedTracks only
   // has savedAt — not enough to drive Continue Listening.
@@ -46,6 +48,7 @@ export default function useListenLibraryData(uid, activeLanguage = '') {
       setSavedAlbums([])
       setFollowedArtists([])
       setFollowedYoutubeChannels([])
+      setSavedPlaylists([])
       setSpotifyItems([])
       return undefined
     }
@@ -101,6 +104,9 @@ export default function useListenLibraryData(uid, activeLanguage = '') {
     const unsubYoutubeChannels = subscribeFollowedChannels(uid, (rows) => {
       setFollowedYoutubeChannels(rows.filter(matchesLanguage))
     })
+    const unsubPlaylists = subscribeSavedPlaylists(uid, (rows) => {
+      setSavedPlaylists(rows.filter(matchesLanguage))
+    })
 
     return () => {
       unsubStories()
@@ -112,6 +118,7 @@ export default function useListenLibraryData(uid, activeLanguage = '') {
       unsubAlbums && unsubAlbums()
       unsubArtists && unsubArtists()
       unsubYoutubeChannels && unsubYoutubeChannels()
+      unsubPlaylists && unsubPlaylists()
     }
   }, [uid, activeLanguage])
 
@@ -124,6 +131,7 @@ export default function useListenLibraryData(uid, activeLanguage = '') {
     savedAlbums,
     followedArtists,
     followedYoutubeChannels,
+    savedPlaylists,
     spotifyItems,
   }
 }

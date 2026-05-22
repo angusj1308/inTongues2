@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { doc, updateDoc } from 'firebase/firestore'
 import db from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
+import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { playPodcastEpisode, unsaveEpisode, unfollowShow, fetchShowEpisodes } from '../../services/podcast'
 import { unfollowArtist, unsaveAlbum, unsaveTrack, removeTrackFromSavedAlbum } from '../../services/music'
 import { prewarmMusicPlayback } from '../../services/musicKit'
@@ -141,8 +142,12 @@ function EmptyState({ label }) {
 
 export default function ListenDeepView({ medium }) {
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const data = useListenLibraryData(user?.uid)
+  const { user, profile } = useAuth()
+  const activeLanguage = useMemo(
+    () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
+    [profile?.lastUsedLanguage],
+  )
+  const data = useListenLibraryData(user?.uid, activeLanguage)
   const [activeTab, setActiveTab] = useState(TABS[medium]?.[0])
 
   const title = TITLES[medium]

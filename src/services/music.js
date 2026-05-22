@@ -111,13 +111,14 @@ export const subscribePlaylists = (uid, callback) => {
 
 // Mutations
 
-export const followArtist = async (uid, artist) => {
+export const followArtist = async (uid, artist, language = '') => {
   if (!uid || !artist?.id) return
   await setDoc(doc(followsCol(uid), artist.id), {
     artistId: artist.id,
     name: artist.name || '',
     coverUrl: artist.coverUrl || '',
     genres: artist.genres || [],
+    ...(language || artist.language ? { language: language || artist.language } : {}),
     followedAt: serverTimestamp(),
   })
 }
@@ -127,7 +128,7 @@ export const unfollowArtist = async (uid, artistId) => {
   await deleteDoc(doc(followsCol(uid), artistId))
 }
 
-export const saveAlbum = async (uid, album) => {
+export const saveAlbum = async (uid, album, language = '') => {
   if (!uid || !album?.id) return
   // Persist tracklist alongside album so the Tracks tab can flatten saved
   // albums into the saved-tracks view (matches Apple/Spotify behaviour).
@@ -147,6 +148,7 @@ export const saveAlbum = async (uid, album) => {
     year: album.year || null,
     coverUrl: album.coverUrl || '',
     tracks,
+    ...(language || album.language ? { language: language || album.language } : {}),
     savedAt: serverTimestamp(),
   })
 }
@@ -169,7 +171,7 @@ export const removeTrackFromSavedAlbum = async (uid, albumId, trackId) => {
   await updateDoc(ref, { tracks: next })
 }
 
-export const saveTrack = async (uid, track) => {
+export const saveTrack = async (uid, track, language = '') => {
   if (!uid || !track?.id) return
   await setDoc(doc(savedTracksCol(uid), track.id), {
     trackId: track.id,
@@ -180,6 +182,7 @@ export const saveTrack = async (uid, track) => {
     albumId: track.albumId || '',
     coverUrl: track.coverUrl || '',
     durationMs: track.durationMs || 0,
+    ...(language || track.language ? { language: language || track.language } : {}),
     savedAt: serverTimestamp(),
   })
 }

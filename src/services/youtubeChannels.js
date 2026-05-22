@@ -31,13 +31,14 @@ export const subscribeFollowedChannels = (uid, callback) => {
   )
 }
 
-export const followChannel = async (uid, channel) => {
+export const followChannel = async (uid, channel, language = '') => {
   if (!uid || !channel?.id) return
   await setDoc(doc(followsCol(uid), channel.id), {
     channelId: channel.id,
     title: channel.title || '',
     description: channel.description || '',
     coverUrl: channel.coverUrl || '',
+    ...(language || channel.language ? { language: language || channel.language } : {}),
     followedAt: serverTimestamp(),
   })
 }

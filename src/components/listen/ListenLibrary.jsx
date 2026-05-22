@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { prewarmMusicPlayback } from '../../services/musicKit'
 import { playPodcastEpisode } from '../../services/podcast'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
@@ -161,8 +162,12 @@ function MusicColdStart({ onBrowse }) {
 
 export default function ListenLibrary() {
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const data = useListenLibraryData(user?.uid)
+  const { user, profile } = useAuth()
+  const activeLanguage = useMemo(
+    () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
+    [profile?.lastUsedLanguage],
+  )
+  const data = useListenLibraryData(user?.uid, activeLanguage)
 
   const continueItem = useMemo(() => pickContinueListening(data), [data])
 

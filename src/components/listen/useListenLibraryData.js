@@ -15,7 +15,14 @@ import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 
 // Reads every Listen library source the existing front-end already uses, in
 // one hook so callers don't have to repeat the Firestore wiring.
-export default function useListenLibraryData(uid) {
+//
+// All sources are scoped to the user's `activeLanguage`. Filtering runs
+// in-memory rather than via Firestore `where` clauses so we don't need
+// a new composite index for the audiobook query. Items missing a
+// `language` field are treated as Spanish, since Spanish was the only
+// environment with library content before per-language separation
+// landed.
+export default function useListenLibraryData(uid, activeLanguage = '') {
   const [audiobooks, setAudiobooks] = useState([])
   const [youtubeVideos, setYoutubeVideos] = useState([])
   const [episodeStates, setEpisodeStates] = useState([])
@@ -30,7 +37,7 @@ export default function useListenLibraryData(uid) {
   const [spotifyItems, setSpotifyItems] = useState([])
 
   useEffect(() => {
-    if (!uid) {
+    if (!uid || !activeLanguage) {
       setAudiobooks([])
       setYoutubeVideos([])
       setEpisodeStates([])
@@ -43,6 +50,10 @@ export default function useListenLibraryData(uid) {
       return undefined
     }
 
+    // Legacy items predate per-language tagging; assume Spanish (the
+    // only language with library content before this change).
+    const matchesLanguage = (item) => (item?.language || 'Spanish') === activeLanguage
+
     const storiesRef = collection(db, 'users', uid, 'stories')
     const storiesQuery = query(
       storiesRef,
@@ -50,31 +61,46 @@ export default function useListenLibraryData(uid) {
       orderBy('createdAt', 'desc'),
     )
     const unsubStories = onSnapshot(storiesQuery, (snap) => {
-      setAudiobooks(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      setAudiobooks(all.filter(matchesLanguage))
     })
 
     const videosRef = collection(db, 'users', uid, 'youtubeVideos')
     const videosQuery = query(videosRef, orderBy('createdAt', 'desc'))
     const unsubVideos = onSnapshot(videosQuery, (snap) => {
-      setYoutubeVideos(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      setYoutubeVideos(all.filter(matchesLanguage))
     })
 
     const spotifyRef = collection(db, 'users', uid, 'spotifyItems')
     const unsubSpotify = onSnapshot(
       spotifyRef,
       (snap) => {
-        setSpotifyItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+        const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        setSpotifyItems(all.filter(matchesLanguage))
       },
       // Collection may not exist for some users; non-fatal.
       () => setSpotifyItems([]),
     )
 
-    const unsubEpisodes = subscribeEpisodeStates(uid, setEpisodeStates)
-    const unsubShows = subscribeFollowedShows(uid, setFollowedShows)
-    const unsubTracks = subscribeSavedTracks(uid, setSavedTracks)
-    const unsubAlbums = subscribeSavedAlbums(uid, setSavedAlbums)
-    const unsubArtists = subscribeFollowedArtists(uid, setFollowedArtists)
-    const unsubYoutubeChannels = subscribeFollowedChannels(uid, setFollowedYoutubeChannels)
+    const unsubEpisodes = subscribeEpisodeStates(uid, (rows) => {
+      setEpisodeStates(rows.filter(matchesLanguage))
+    })
+    const unsubShows = subscribeFollowedShows(uid, (rows) => {
+      setFollowedShows(rows.filter(matchesLanguage))
+    })
+    const unsubTracks = subscribeSavedTracks(uid, (rows) => {
+      setSavedTracks(rows.filter(matchesLanguage))
+    })
+    const unsubAlbums = subscribeSavedAlbums(uid, (rows) => {
+      setSavedAlbums(rows.filter(matchesLanguage))
+    })
+    const unsubArtists = subscribeFollowedArtists(uid, (rows) => {
+      setFollowedArtists(rows.filter(matchesLanguage))
+    })
+    const unsubYoutubeChannels = subscribeFollowedChannels(uid, (rows) => {
+      setFollowedYoutubeChannels(rows.filter(matchesLanguage))
+    })
 
     return () => {
       unsubStories()
@@ -87,7 +113,7 @@ export default function useListenLibraryData(uid) {
       unsubArtists && unsubArtists()
       unsubYoutubeChannels && unsubYoutubeChannels()
     }
-  }, [uid])
+  }, [uid, activeLanguage])
 
   return {
     audiobooks,

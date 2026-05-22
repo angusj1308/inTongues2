@@ -15,7 +15,7 @@ import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptio
 import DashboardLayout from '../components/layout/DashboardLayout'
 import DubConfirmModal from '../components/listen/DubConfirmModal'
 import LoadingScreen from '../components/LoadingScreen'
-import { toLanguageCode } from '../constants/languages'
+import { resolveSupportedLanguageLabel, toLanguageCode } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 
 const SORT_OPTIONS = [
@@ -42,6 +42,10 @@ const PodcastShowPage = () => {
 
   const targetLangCode = useMemo(
     () => toLanguageCode(profile?.lastUsedLanguage) || '',
+    [profile?.lastUsedLanguage],
+  )
+  const activeLanguage = useMemo(
+    () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
     [profile?.lastUsedLanguage],
   )
 
@@ -144,7 +148,7 @@ const PodcastShowPage = () => {
         coverUrl: target.coverUrl || show?.coverUrl || '',
         durationMs: target.durationMs,
         publishedAt: target.publishedAt || '',
-      })
+      }, activeLanguage)
     } catch (err) {
       console.error('Failed to save', err)
     }

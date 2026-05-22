@@ -23,19 +23,44 @@ service cloud.firestore {
     // Writes:
     //   - CREATE allowed from client when the signed-in user authors it
     //     (createdByUid matches auth uid). Used by generation flow.
-    //   - UPDATE / DELETE only via firebase-admin from the server (which
-    //     bypasses these rules). Prevents popularity tampering and edits
-    //     to other users' catalog entries.
+    //   - UPDATE allowed only to bump popularityCount by exactly 1 and
+    //     refresh lastInteractionAt. Every other field is frozen client-
+    //     side; server (firebase-admin) bypasses rules for full edits.
+    //   - DELETE only via firebase-admin from the server.
     match /sharedAudiobooks/{audiobookId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
         && request.resource.data.createdByUid == request.auth.uid;
-      allow update, delete: if false;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['popularityCount', 'lastInteractionAt'])
+        && request.resource.data.popularityCount == resource.data.popularityCount + 1;
+      allow delete: if false;
     }
 
     match /sharedAudiobooks/{audiobookId}/{document=**} {
       allow read: if request.auth != null;
       allow write: if false;
+    }
+
+    // Cross-user popularity counters for podcast shows, music artists,
+    // and YouTube channels. One doc per (kind, externalId, language).
+    // Any signed-in user can create a new counter (bootstrapping the
+    // first interaction) or bump an existing counter by exactly 1.
+    // Other fields are write-once at creation; later writes only touch
+    // popularityCount + lastInteractionAt.
+    match /sharedMediaPopularity/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.popularityCount == 1
+        && request.resource.data.kind in ['podcast-show', 'music-artist', 'youtube-channel']
+        && request.resource.data.externalId is string
+        && request.resource.data.language is string;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['popularityCount', 'lastInteractionAt'])
+        && request.resource.data.popularityCount == resource.data.popularityCount + 1;
+      allow delete: if false;
     }
   }
 }

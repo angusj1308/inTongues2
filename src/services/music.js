@@ -14,6 +14,7 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import db from '../firebase'
+import { recordMediaInteraction, MEDIA_KIND } from './sharedMedia'
 
 // Firestore layout (front-end stubs — backend may evolve):
 //   users/{uid}/musicArtistFollows/{artistId}
@@ -113,14 +114,25 @@ export const subscribePlaylists = (uid, callback) => {
 
 export const followArtist = async (uid, artist, language = '') => {
   if (!uid || !artist?.id) return
+  const resolvedLanguage = language || artist.language || ''
   await setDoc(doc(followsCol(uid), artist.id), {
     artistId: artist.id,
     name: artist.name || '',
     coverUrl: artist.coverUrl || '',
     genres: artist.genres || [],
-    ...(language || artist.language ? { language: language || artist.language } : {}),
+    ...(resolvedLanguage ? { language: resolvedLanguage } : {}),
     followedAt: serverTimestamp(),
   })
+  if (resolvedLanguage) {
+    recordMediaInteraction({
+      kind: MEDIA_KIND.MUSIC_ARTIST,
+      externalId: artist.id,
+      language: resolvedLanguage,
+      title: artist.name || '',
+      subtitle: Array.isArray(artist.genres) ? artist.genres[0] || '' : '',
+      coverUrl: artist.coverUrl || '',
+    })
+  }
 }
 
 export const unfollowArtist = async (uid, artistId) => {
@@ -130,6 +142,7 @@ export const unfollowArtist = async (uid, artistId) => {
 
 export const saveAlbum = async (uid, album, language = '') => {
   if (!uid || !album?.id) return
+  const resolvedLanguage = language || album.language || ''
   // Persist tracklist alongside album so the Tracks tab can flatten saved
   // albums into the saved-tracks view (matches Apple/Spotify behaviour).
   const tracks = Array.isArray(album.tracks)
@@ -148,9 +161,21 @@ export const saveAlbum = async (uid, album, language = '') => {
     year: album.year || null,
     coverUrl: album.coverUrl || '',
     tracks,
-    ...(language || album.language ? { language: language || album.language } : {}),
+    ...(resolvedLanguage ? { language: resolvedLanguage } : {}),
     savedAt: serverTimestamp(),
   })
+  // Roll album-save up to the parent artist for the Recommended Music
+  // rail (artist-level aggregation).
+  if (album.artistId && resolvedLanguage) {
+    recordMediaInteraction({
+      kind: MEDIA_KIND.MUSIC_ARTIST,
+      externalId: album.artistId,
+      language: resolvedLanguage,
+      title: album.artistName || '',
+      subtitle: '',
+      coverUrl: album.coverUrl || '',
+    })
+  }
 }
 
 export const unsaveAlbum = async (uid, albumId) => {
@@ -173,6 +198,7 @@ export const removeTrackFromSavedAlbum = async (uid, albumId, trackId) => {
 
 export const saveTrack = async (uid, track, language = '') => {
   if (!uid || !track?.id) return
+  const resolvedLanguage = language || track.language || ''
   await setDoc(doc(savedTracksCol(uid), track.id), {
     trackId: track.id,
     title: track.title || '',
@@ -182,9 +208,21 @@ export const saveTrack = async (uid, track, language = '') => {
     albumId: track.albumId || '',
     coverUrl: track.coverUrl || '',
     durationMs: track.durationMs || 0,
-    ...(language || track.language ? { language: language || track.language } : {}),
+    ...(resolvedLanguage ? { language: resolvedLanguage } : {}),
     savedAt: serverTimestamp(),
   })
+  // Track saves roll up to the artist too — same parent-level
+  // aggregation as album saves.
+  if (track.artistId && resolvedLanguage) {
+    recordMediaInteraction({
+      kind: MEDIA_KIND.MUSIC_ARTIST,
+      externalId: track.artistId,
+      language: resolvedLanguage,
+      title: track.artistName || '',
+      subtitle: '',
+      coverUrl: track.coverUrl || '',
+    })
+  }
 }
 
 export const unsaveTrack = async (uid, trackId) => {

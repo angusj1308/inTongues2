@@ -12,6 +12,8 @@ import {
   dubPodcastEpisode,
 } from '../../services/podcast'
 import { searchMusic } from '../../services/music'
+import { listPopularSharedAudiobooks } from '../../services/sharedAudiobooks'
+import { listPopularMedia, MEDIA_KIND } from '../../services/sharedMedia'
 import { prewarmMusicPlayback } from '../../services/musicKit'
 import useMusicSubscriptions from '../music/useMusicSubscriptions'
 import { searchYouTube, importYoutubeVideo, dubYoutubeVideo } from '../../services/youtube'
@@ -179,6 +181,51 @@ function ResultRow({ row }) {
   )
 }
 
+// Shape a recommendations bucket into the { id, title, subtitle,
+// coverUrl, onClick } items the Rail component renders. Each rail kind
+// maps onClick to the existing detail route for that media type, so a
+// recommendation click lands on the same page as a library or search
+// click would.
+function buildRailItems(railKey, recommendations, navigate) {
+  if (railKey === 'audiobooks') {
+    return (recommendations.audiobooks || []).map((b) => ({
+      id: b.id,
+      title: b.title || 'Untitled',
+      subtitle: b.author || '',
+      coverUrl: b.coverImageUrlSquare || b.coverImageUrl || '',
+      onClick: () => navigate(`/listen/${b.id}`),
+    }))
+  }
+  if (railKey === 'podcasts') {
+    return (recommendations.podcasts || []).map((p) => ({
+      id: p.id,
+      title: p.title || 'Untitled show',
+      subtitle: p.subtitle || '',
+      coverUrl: p.coverUrl || '',
+      onClick: () => navigate(`/podcasts/show/${p.externalId}`),
+    }))
+  }
+  if (railKey === 'music') {
+    return (recommendations.music || []).map((a) => ({
+      id: a.id,
+      title: a.title || 'Unknown artist',
+      subtitle: a.subtitle || 'Artist',
+      coverUrl: a.coverUrl || '',
+      onClick: () => navigate(`/music/artist/${a.externalId}`),
+    }))
+  }
+  if (railKey === 'youtube') {
+    return (recommendations.youtube || []).map((c) => ({
+      id: c.id,
+      title: c.title || 'Unknown channel',
+      subtitle: c.subtitle || '',
+      coverUrl: c.coverUrl || '',
+      onClick: () => navigate(`/youtube/channel/${c.externalId}`),
+    }))
+  }
+  return []
+}
+
 function Rail({ title, cols, shape, items, emptyLabel }) {
   return (
     <section className="listen-shelf">
@@ -239,6 +286,12 @@ export default function ListenDiscover() {
   const [pendingFollow, setPendingFollow] = useState(() => new Set())
   const [dubModal, setDubModal] = useState(null)
   const [dubPending, setDubPending] = useState(false)
+  const [recommendations, setRecommendations] = useState({
+    audiobooks: [],
+    podcasts: [],
+    music: [],
+    youtube: [],
+  })
   const requestId = useRef(0)
 
   const activeLanguage = useMemo(
@@ -295,6 +348,31 @@ export default function ListenDiscover() {
     }
     return subscribeFollowedChannels(user.uid, setFollowedChannels)
   }, [user?.uid])
+
+  // Load popularity-ranked recommendations for each Discover rail. Fires
+  // on language change and on mount. Empty arrays are fine — the Rail
+  // component falls back to "Recommendations coming soon." when nothing
+  // has accumulated popularity yet in this language.
+  useEffect(() => {
+    if (!activeLanguage) {
+      setRecommendations({ audiobooks: [], podcasts: [], music: [], youtube: [] })
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const [audiobooks, podcasts, music, youtube] = await Promise.all([
+        listPopularSharedAudiobooks({ language: activeLanguage, max: 12 }),
+        listPopularMedia({ kind: MEDIA_KIND.PODCAST_SHOW, language: activeLanguage, max: 12 }),
+        listPopularMedia({ kind: MEDIA_KIND.MUSIC_ARTIST, language: activeLanguage, max: 12 }),
+        listPopularMedia({ kind: MEDIA_KIND.YOUTUBE_CHANNEL, language: activeLanguage, max: 12 }),
+      ])
+      if (cancelled) return
+      setRecommendations({ audiobooks, podcasts, music, youtube })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [activeLanguage])
 
   const hasQuery = query.trim().length > 0
 
@@ -827,16 +905,19 @@ export default function ListenDiscover() {
 
       {!hasQuery && (
         <div className="listen-discover-rails">
-          {RAILS.map((rail) => (
-            <Rail
-              key={rail.key}
-              title={rail.title}
-              cols={rail.cols}
-              shape={rail.shape}
-              items={[]}
-              emptyLabel="Recommendations coming soon."
-            />
-          ))}
+          {RAILS.map((rail) => {
+            const items = buildRailItems(rail.key, recommendations, navigate)
+            return (
+              <Rail
+                key={rail.key}
+                title={rail.title}
+                cols={rail.cols}
+                shape={rail.shape}
+                items={items}
+                emptyLabel="Recommendations coming soon."
+              />
+            )
+          })}
         </div>
       )}
 

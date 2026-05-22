@@ -15,6 +15,7 @@ import {
   limit,
 } from 'firebase/firestore'
 import db from '../firebase'
+import { recordMediaInteraction, MEDIA_KIND } from './sharedMedia'
 
 // Firestore layout (front-end stubs — backend may evolve):
 //   users/{uid}/podcastFollows/{showId}
@@ -80,15 +81,26 @@ export const subscribePlaylists = (uid, callback) => {
 
 export const followShow = async (uid, show, language = '') => {
   if (!uid || !show?.id) return
+  const resolvedLanguage = language || show.language || ''
   await setDoc(doc(followsCol(uid), show.id), {
     showId: show.id,
     title: show.title || '',
     host: show.host || '',
     coverUrl: show.coverUrl || '',
-    language: language || show.language || '',
+    language: resolvedLanguage,
     category: show.category || '',
     followedAt: serverTimestamp(),
   })
+  if (resolvedLanguage) {
+    recordMediaInteraction({
+      kind: MEDIA_KIND.PODCAST_SHOW,
+      externalId: show.id,
+      language: resolvedLanguage,
+      title: show.title || '',
+      subtitle: show.host || '',
+      coverUrl: show.coverUrl || '',
+    })
+  }
 }
 
 export const unfollowShow = async (uid, showId) => {
@@ -102,6 +114,7 @@ export const unfollowShow = async (uid, showId) => {
 // user has played it or just added it.
 export const saveEpisode = async (uid, episode, language = '') => {
   if (!uid || !episode?.id) return
+  const resolvedLanguage = language || episode.language || ''
   await setDoc(
     doc(episodeStatesCol(uid), String(episode.id)),
     {
@@ -111,12 +124,25 @@ export const saveEpisode = async (uid, episode, language = '') => {
       showId: episode.showId ? String(episode.showId) : '',
       coverUrl: episode.coverUrl || '',
       durationMs: Number(episode.durationMs) || 0,
-      ...(language || episode.language ? { language: language || episode.language } : {}),
+      ...(resolvedLanguage ? { language: resolvedLanguage } : {}),
       ...(episode.publishedAt ? { publishedAt: episode.publishedAt } : {}),
       savedAt: serverTimestamp(),
     },
     { merge: true },
   )
+  // Roll episode-save interactions up to the parent show so the
+  // Recommended Podcasts rail aggregates signal at show level.
+  const showId = episode.showId ? String(episode.showId) : ''
+  if (showId && resolvedLanguage) {
+    recordMediaInteraction({
+      kind: MEDIA_KIND.PODCAST_SHOW,
+      externalId: showId,
+      language: resolvedLanguage,
+      title: episode.showName || episode.showTitle || '',
+      subtitle: '',
+      coverUrl: episode.coverUrl || '',
+    })
+  }
 }
 
 export const unsaveEpisode = async (uid, episodeId) => {

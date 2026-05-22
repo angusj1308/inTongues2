@@ -30173,11 +30173,15 @@ body:has(.cinema-page) {
   gap: 16px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 4px;
   mask-image: linear-gradient(to right, black calc(100% - 48px), transparent);
   -webkit-mask-image: linear-gradient(to right, black calc(100% - 48px), transparent);
+}
+
+.listen-rail-scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
 }
 
 .listen-rail-card {

@@ -30163,6 +30163,32 @@ body:has(.cinema-page) {
 .listen-shelf-cover--square { aspect-ratio: 1 / 1; }
 .listen-shelf-cover--wide { aspect-ratio: 16 / 10; }
 
+/* Discover rails: single-row horizontal scroller. Cards keep their
+   shape-based aspect ratio but get a fixed track width so the rail
+   reads as a chart row (top 10) rather than a grid. Right-edge fade
+   hints at off-screen items; it disappears naturally when the user
+   scrolls to the end because there's nothing past the last card. */
+.listen-rail-scroll {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  mask-image: linear-gradient(to right, black calc(100% - 48px), transparent);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 48px), transparent);
+}
+
+.listen-rail-card {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.listen-rail-card--portrait { width: 180px; }
+.listen-rail-card--square   { width: 180px; }
+.listen-rail-card--wide     { width: 280px; }
+
 .listen-shelf-cover-fallback {
   position: absolute;
   inset: 0;

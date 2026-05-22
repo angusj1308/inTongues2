@@ -2257,6 +2257,19 @@ textarea {
   align-items: stretch;
 }
 
+/* The Listen tab redefines .listen-shelf as a vertical <section> wrapper
+   (header + grid). Re-assert horizontal layout for the Review tab, which
+   uses .listen-shelf directly as a horizontally-scrolling deck row. */
+.listening-hub .listen-shelf {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 0.25rem 0 0.5rem;
+  scroll-snap-type: x proximity;
+  align-items: stretch;
+}
+
 .listen-shelf .listening-media-card-youtube {
   height: 100%;
 }

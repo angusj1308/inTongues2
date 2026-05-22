@@ -8,6 +8,7 @@ const IMPORT_TITLES = {
   Spanish: 'Importar',
   French: 'Importer',
   Italian: 'Importare',
+  Russian: 'Импортировать',
   English: 'Import',
 }
 

@@ -8,6 +8,7 @@ import flagEnglish from '../../assets/english.png'
 import flagFrench from '../../assets/french.png'
 import flagSpanish from '../../assets/spanish.png'
 import flagItalian from '../../assets/italian.png'
+import flagRussian from '../../assets/russian.png'
 
 export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
 
@@ -22,6 +23,7 @@ const LANGUAGE_FLAGS = {
   French: flagFrench,
   Spanish: flagSpanish,
   Italian: flagItalian,
+  Russian: flagRussian,
 }
 
 const LANGUAGE_NATIVE_NAMES = {

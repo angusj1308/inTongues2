@@ -39,6 +39,7 @@ const EXPLORE_TITLES = {
   Spanish: 'Explorar',
   French: 'Explorer',
   Italian: 'Esplorare',
+  Russian: 'Исследовать',
   English: 'Explore',
 }
 

@@ -20,6 +20,7 @@ const SUPPORTED_LANGUAGES_MVP = {
   fr: 'French',
   es: 'Spanish',
   it: 'Italian',
+  ru: 'Russian',
 }
 
 const resolveSupportedLanguage = (language) => {

@@ -34,6 +34,14 @@ const STAT_TITLES = {
     wordsWritten: 'Parole Scritte',
     speakingSeconds: 'Tempo Parlato',
   },
+  Russian: {
+    knownWords: 'Известные слова',
+    wordsRead: 'Прочитанные слова',
+    listeningSeconds: 'Время прослушивания',
+    reviews: 'Просмотренные карточки',
+    wordsWritten: 'Написанные слова',
+    speakingSeconds: 'Время разговора',
+  },
   English: {
     knownWords: 'Known Words',
     wordsRead: 'Words Read',

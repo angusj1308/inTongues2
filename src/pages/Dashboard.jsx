@@ -66,6 +66,16 @@ const CARD_HEADERS = {
     recent: 'Recenti',
     allBooks: 'Tutti i Libri',
   },
+  Russian: {
+    continue: 'Продолжить',
+    generate: 'Создать',
+    import: 'Импортировать',
+    explore: 'Gutenberg',
+    routine: 'Расписание',
+    stats: 'Статистика',
+    recent: 'Недавние',
+    allBooks: 'Все книги',
+  },
   English: {
     continue: 'Continue',
     generate: 'Generate',

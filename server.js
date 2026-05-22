@@ -136,6 +136,7 @@ const LANGUAGE_NAME_TO_CODE = {
   French: 'fr',
   Spanish: 'es',
   Italian: 'it',
+  Russian: 'ru',
 }
 
 const LANGUAGE_CODE_TO_NAME = Object.fromEntries(
@@ -158,6 +159,10 @@ const ELEVENLABS_VOICE_MAP = {
   Italian: {
     male: 'W71zT1VwIFFx3mMGH2uZ',
     female: 'gfKKsLN1k0oYYN9n2dXX',
+  },
+  Russian: {
+    male: 'pvY1pikBdoI4SB62vEVo',
+    female: 'N8lIVPsFkvOoqev5Csxo',
   },
 }
 
@@ -16812,6 +16817,7 @@ const SPEECH_LANGUAGE_CODES = {
   'Spanish': 'es',
   'French': 'fr',
   'Italian': 'it',
+  'Russian': 'ru',
   'German': 'de',
   'Portuguese': 'pt',
   'Japanese': 'ja',

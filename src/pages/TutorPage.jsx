@@ -585,7 +585,7 @@ const TutorPage = () => {
       console.error('TTS error:', err)
       // Fallback to browser TTS
       const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = activeLanguage === 'Spanish' ? 'es' : activeLanguage === 'French' ? 'fr' : activeLanguage === 'Italian' ? 'it' : 'en'
+      utterance.lang = activeLanguage === 'Spanish' ? 'es' : activeLanguage === 'French' ? 'fr' : activeLanguage === 'Italian' ? 'it' : activeLanguage === 'Russian' ? 'ru' : 'en'
       utterance.rate = settings.speechSpeed === 'slow' ? 0.8 : settings.speechSpeed === 'fast' ? 1.2 : 1.0
       window.speechSynthesis.speak(utterance)
     }

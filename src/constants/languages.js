@@ -1,10 +1,11 @@
-export const SUPPORTED_LANGUAGES_MVP = ['en', 'fr', 'es', 'it']
+export const SUPPORTED_LANGUAGES_MVP = ['en', 'fr', 'es', 'it', 'ru']
 
 const LANGUAGE_LABELS_BY_CODE = {
   en: 'English',
   fr: 'French',
   es: 'Spanish',
   it: 'Italian',
+  ru: 'Russian',
 }
 
 export { LANGUAGE_LABELS_BY_CODE }
@@ -14,6 +15,7 @@ const LANGUAGE_CODE_BY_LABEL = {
   french: 'fr',
   spanish: 'es',
   italian: 'it',
+  russian: 'ru',
 }
 
 export const DEFAULT_LANGUAGE_CODE = 'en'

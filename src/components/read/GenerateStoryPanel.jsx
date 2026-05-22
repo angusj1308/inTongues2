@@ -22,6 +22,7 @@ const GENERATE_TITLES = {
   Spanish: 'Generar',
   French: 'Générer',
   Italian: 'Generare',
+  Russian: 'Создать',
   English: 'Generate',
 }
 

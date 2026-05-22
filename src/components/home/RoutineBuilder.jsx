@@ -52,6 +52,15 @@ const LOCALIZED_DAY_LABELS = {
     saturday: 'Sabato',
     sunday: 'Domenica',
   },
+  Russian: {
+    monday: 'Понедельник',
+    tuesday: 'Вторник',
+    wednesday: 'Среда',
+    thursday: 'Четверг',
+    friday: 'Пятница',
+    saturday: 'Суббота',
+    sunday: 'Воскресенье',
+  },
   English: {
     monday: 'Monday',
     tuesday: 'Tuesday',
@@ -68,6 +77,7 @@ const WEEKLY_ROUTINE_TITLES = {
   Spanish: 'Rutina Semanal',
   French: 'Routine Hebdomadaire',
   Italian: 'Routine Settimanale',
+  Russian: 'Еженедельное расписание',
   English: 'Weekly Routine',
 }
 

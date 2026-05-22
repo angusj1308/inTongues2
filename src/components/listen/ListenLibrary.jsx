@@ -228,10 +228,11 @@ export default function ListenLibrary() {
     [data.followedShows, episodeCountByShow, navigate],
   )
 
-  // -- YouTube shelf: saved playlists + derived channels --------------------
-  // Saved playlists (explicit add-to-library) take precedence; derived
-  // channels (grouped from imported videos) fill the rest of the shelf.
-  // Cap at 4 total tiles so the row stays one neat line.
+  // -- YouTube shelf: saved playlists + followed channels (+ derived) -------
+  // Cascade priority: saved playlists → explicitly-followed channels →
+  // derived channels (grouped from imported videos, fallback for users
+  // who haven't followed anyone yet). Cap at 4 total tiles so the row
+  // stays one neat line.
   const YOUTUBE_SHELF_LIMIT = 4
   const channelCards = useMemo(() => {
     const playlistCards = (data.savedPlaylists || [])
@@ -248,38 +249,56 @@ export default function ListenLibrary() {
         onClick: () => navigate(`/youtube/playlist/${p.playlistId}`),
       }))
 
-    const channels = new Map()
+    const followedChannelIds = new Set(
+      (data.followedYoutubeChannels || []).map((c) => c.channelId).filter(Boolean),
+    )
+
+    const followedChannelCards = (data.followedYoutubeChannels || [])
+      .slice()
+      .sort((a, b) => (b.followedAt?.toMillis?.() || 0) - (a.followedAt?.toMillis?.() || 0))
+      .map((c) => ({
+        id: `yt-ch-${c.channelId || c.id}`,
+        title: c.title || 'Untitled channel',
+        subtitle: 'Channel',
+        trailing: '',
+        coverUrl: c.coverUrl || '',
+        onClick: () => c.channelId && navigate(`/youtube/channel/${c.channelId}`),
+      }))
+
+    // Derived channels only fill in gaps where the user has imported
+    // videos from a channel they haven't explicitly followed.
+    const derivedMap = new Map()
     data.youtubeVideos.forEach((v) => {
       const key = v.channelId || v.channelTitle || 'Unknown'
+      if (followedChannelIds.has(key)) return
       const thumb = v.coverUrl || v.thumbnailUrl || getYouTubeThumbnailFromVideo(v)
-      const existing = channels.get(key) || {
+      const existing = derivedMap.get(key) || {
         id: key,
         title: v.channelTitle || 'Unknown channel',
         coverUrl: thumb,
         count: 0,
       }
       existing.count += 1
-      if (!existing.coverUrl) {
-        existing.coverUrl = thumb
-      }
-      channels.set(key, existing)
+      if (!existing.coverUrl) existing.coverUrl = thumb
+      derivedMap.set(key, existing)
     })
-    const channelTiles = [...channels.values()]
+    const derivedChannelCards = [...derivedMap.values()]
       .sort((a, b) => b.count - a.count)
       .map((c) => ({
-        id: `yt-ch-${c.id}`,
+        id: `yt-ch-derived-${c.id}`,
         title: c.title,
         subtitle: '',
         trailing: c.count === 1 ? '1 video' : `${c.count} videos`,
         coverUrl: c.coverUrl,
-        // No channel landing page exists today for derived channels — defer
-        // to the deep view's Channels tab so the user still has somewhere
-        // to go.
+        // Derived channels (no follow doc) don't have a channelId we can
+        // trust for the channel page route — defer to the deep view's
+        // Videos tab so the user still has somewhere to land.
         onClick: () => navigate('/listen/library/youtube'),
       }))
 
-    return [...playlistCards, ...channelTiles].slice(0, YOUTUBE_SHELF_LIMIT)
-  }, [data.savedPlaylists, data.youtubeVideos, navigate])
+    return [...playlistCards, ...followedChannelCards, ...derivedChannelCards]
+      .slice(0, YOUTUBE_SHELF_LIMIT)
+  }, [data.savedPlaylists, data.followedYoutubeChannels, data.youtubeVideos, navigate])
 
   // -- Music shelf: cascade ------------------------------------------------
   // Albums → followed artists → saved tracks, all visible together in the

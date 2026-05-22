@@ -35,10 +35,10 @@ import useListenLibraryData from './useListenLibraryData'
 import DubConfirmModal from './DubConfirmModal'
 
 const RAILS = [
-  { key: 'audiobooks', title: 'Recommended Audiobooks', shape: 'portrait', cols: 6 },
-  { key: 'podcasts', title: 'Recommended Podcasts', shape: 'square', cols: 6 },
-  { key: 'music', title: 'Recommended Music', shape: 'square', cols: 6 },
-  { key: 'youtube', title: 'Recommended Videos', shape: 'wide', cols: 4 },
+  { key: 'audiobooks', title: 'Popular Audiobooks', shape: 'portrait', cols: 6 },
+  { key: 'podcasts', title: 'Popular Podcasts', shape: 'square', cols: 6 },
+  { key: 'music', title: 'Popular Artists', shape: 'square', cols: 6 },
+  { key: 'youtube', title: 'Popular Channels', shape: 'wide', cols: 4 },
 ]
 
 const FILTER_CHIPS = ['All', 'Audiobooks', 'Podcasts', 'Music', 'YouTube']
@@ -995,7 +995,7 @@ export default function ListenDiscover() {
                 cols={rail.cols}
                 shape={rail.shape}
                 items={items}
-                emptyLabel="Recommendations coming soon."
+                emptyLabel="Nothing popular here yet."
               />
             )
           })}

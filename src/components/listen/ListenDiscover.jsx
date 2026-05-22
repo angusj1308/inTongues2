@@ -231,7 +231,7 @@ function buildRailItems(railKey, recommendations, navigate) {
   return []
 }
 
-function Rail({ title, cols, shape, items, emptyLabel }) {
+function Rail({ title, shape, items, emptyLabel }) {
   return (
     <section className="listen-shelf">
       <header className="listen-shelf-header">
@@ -240,12 +240,12 @@ function Rail({ title, cols, shape, items, emptyLabel }) {
       {items.length === 0 ? (
         <p className="listen-shelf-empty">{emptyLabel}</p>
       ) : (
-        <div className={`listen-shelf-grid listen-shelf-grid--cols-${cols}`}>
+        <div className={`listen-rail-scroll listen-rail-scroll--${shape}`}>
           {items.map((item) => (
             <button
               key={item.id}
               type="button"
-              className={`listen-shelf-card listen-shelf-card--${shape}`}
+              className={`listen-shelf-card listen-shelf-card--${shape} listen-rail-card listen-rail-card--${shape}`}
               onClick={item.onClick}
               aria-label={item.title}
             >
@@ -415,10 +415,10 @@ export default function ListenDiscover() {
     let cancelled = false
     ;(async () => {
       const [audiobooks, podcasts, music, youtube] = await Promise.all([
-        listPopularSharedAudiobooks({ language: activeLanguage, max: 12 }),
-        listPopularMedia({ kind: MEDIA_KIND.PODCAST_SHOW, language: activeLanguage, max: 12 }),
-        listPopularMedia({ kind: MEDIA_KIND.MUSIC_ARTIST, language: activeLanguage, max: 12 }),
-        listPopularMedia({ kind: MEDIA_KIND.YOUTUBE_CHANNEL, language: activeLanguage, max: 12 }),
+        listPopularSharedAudiobooks({ language: activeLanguage, max: 10 }),
+        listPopularMedia({ kind: MEDIA_KIND.PODCAST_SHOW, language: activeLanguage, max: 10 }),
+        listPopularMedia({ kind: MEDIA_KIND.MUSIC_ARTIST, language: activeLanguage, max: 10 }),
+        listPopularMedia({ kind: MEDIA_KIND.YOUTUBE_CHANNEL, language: activeLanguage, max: 10 }),
       ])
       if (cancelled) return
       setRecommendations({ audiobooks, podcasts, music, youtube })
@@ -992,7 +992,6 @@ export default function ListenDiscover() {
               <Rail
                 key={rail.key}
                 title={rail.title}
-                cols={rail.cols}
                 shape={rail.shape}
                 items={items}
                 emptyLabel="Nothing popular here yet."

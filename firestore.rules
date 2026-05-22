@@ -53,7 +53,7 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null
         && request.resource.data.popularityCount == 1
-        && request.resource.data.kind in ['podcast-show', 'music-artist', 'youtube-channel']
+        && request.resource.data.kind in ['podcast-show', 'music-artist', 'youtube-channel', 'youtube-playlist']
         && request.resource.data.externalId is string
         && request.resource.data.language is string;
       allow update: if request.auth != null

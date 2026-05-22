@@ -23,6 +23,11 @@ import {
   unfollowChannel,
 } from '../../services/youtubeChannels'
 import {
+  subscribeSavedPlaylists,
+  savePlaylist,
+  unsavePlaylist,
+} from '../../services/youtubePlaylists'
+import {
   resolveSupportedLanguageLabel,
   toLanguageCode,
 } from '../../constants/languages'
@@ -287,6 +292,8 @@ export default function ListenDiscover() {
   const [sessionImported, setSessionImported] = useState(() => new Set())
   const [followedChannels, setFollowedChannels] = useState([])
   const [pendingFollow, setPendingFollow] = useState(() => new Set())
+  const [savedPlaylists, setSavedPlaylists] = useState([])
+  const [pendingPlaylistSave, setPendingPlaylistSave] = useState(() => new Set())
   const [dubModal, setDubModal] = useState(null)
   const [dubPending, setDubPending] = useState(false)
   const [recommendations, setRecommendations] = useState({
@@ -351,6 +358,50 @@ export default function ListenDiscover() {
     }
     return subscribeFollowedChannels(user.uid, setFollowedChannels)
   }, [user?.uid])
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setSavedPlaylists([])
+      return undefined
+    }
+    return subscribeSavedPlaylists(user.uid, setSavedPlaylists)
+  }, [user?.uid])
+
+  const savedPlaylistIds = useMemo(() => {
+    const set = new Set()
+    savedPlaylists.forEach((p) => {
+      if (p.playlistId) set.add(p.playlistId)
+    })
+    return set
+  }, [savedPlaylists])
+
+  const handlePlaylistSave = useCallback(async (p) => {
+    if (!user?.uid || !p?.playlistId) return
+    const playlistId = p.playlistId
+    setPendingPlaylistSave((prev) => new Set(prev).add(playlistId))
+    try {
+      if (savedPlaylistIds.has(playlistId)) {
+        await unsavePlaylist(user.uid, playlistId)
+      } else {
+        await savePlaylist(user.uid, {
+          id: playlistId,
+          title: p.title || '',
+          channelTitle: p.channelTitle || '',
+          channelId: p.channelId || '',
+          coverUrl: p.thumbnailUrl || '',
+          videoCount: p.videoCount,
+        }, activeLanguage)
+      }
+    } catch (err) {
+      console.error('Playlist save toggle failed', err)
+    } finally {
+      setPendingPlaylistSave((prev) => {
+        const next = new Set(prev)
+        next.delete(playlistId)
+        return next
+      })
+    }
+  }, [user?.uid, savedPlaylistIds, activeLanguage])
 
   // Load popularity-ranked recommendations for each Discover rail. Fires
   // on language change and on mount. Empty arrays are fine — the Rail
@@ -781,6 +832,30 @@ export default function ListenDiscover() {
         })
         return
       }
+      if (v.kind === 'playlist') {
+        const isSaved = savedPlaylistIds.has(v.playlistId)
+        const isPending = pendingPlaylistSave.has(v.playlistId)
+        const countLabel = Number.isFinite(v.videoCount)
+          ? (v.videoCount === 1 ? '1 video' : `${v.videoCount} videos`)
+          : ''
+        rows.push({
+          id: `yt-pl-${v.playlistId}`,
+          medium: 'YouTube',
+          coverUrl: v.thumbnailUrl || '',
+          title: v.title || 'Untitled playlist',
+          subtitle: [v.channelTitle || '', countLabel].filter(Boolean).join(' · ') || 'Playlist',
+          shape: 'square',
+          onClick: () => v.playlistId && navigate(`/youtube/playlist/${v.playlistId}`),
+          action: {
+            variant: 'icon',
+            done: isSaved,
+            disabled: isPending,
+            ariaLabel: isSaved ? `Remove ${v.title} from your library` : `Add ${v.title} to your library`,
+            onClick: () => handlePlaylistSave(v),
+          },
+        })
+        return
+      }
       const alreadyImported = importedVideoIds.has(v.videoId) || sessionImported.has(v.videoId)
       const isPending = pendingImports.has(v.videoId)
       rows.push({
@@ -816,6 +891,9 @@ export default function ListenDiscover() {
     pendingEpisodeSave,
     handleVideoAdd,
     handleChannelFollow,
+    handlePlaylistSave,
+    savedPlaylistIds,
+    pendingPlaylistSave,
     handleShowFollow,
     handleEpisodeSave,
     isFollowedArtist,

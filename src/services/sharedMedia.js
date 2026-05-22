@@ -44,6 +44,7 @@ export const MEDIA_KIND = {
   PODCAST_SHOW: 'podcast-show',
   MUSIC_ARTIST: 'music-artist',
   YOUTUBE_CHANNEL: 'youtube-channel',
+  YOUTUBE_PLAYLIST: 'youtube-playlist',
 }
 
 const KIND_VALUES = new Set(Object.values(MEDIA_KIND))

@@ -9,7 +9,6 @@ import {
   deleteDoc,
 } from 'firebase/firestore'
 import db from '../firebase'
-import { recordMediaInteraction, MEDIA_KIND } from './sharedMedia'
 
 // Firestore layout:
 //   users/{uid}/youtubePlaylistSaves/{playlistId}
@@ -17,6 +16,12 @@ import { recordMediaInteraction, MEDIA_KIND } from './sharedMedia'
 // Playlists are SAVED (like a Spotify album / podcast episode), not
 // followed — YouTube has no follow-playlist concept. Mirrors the
 // followedChannels schema otherwise.
+//
+// Playlists are a search + library surface only; they intentionally
+// do NOT feed the cross-user popularity counters (sharedMedia.js).
+// Recommendations live at the parent-entity level only —
+// channel / show / artist / book — so saving a playlist is a private
+// library action that doesn't influence anyone else's Discover rails.
 
 const savesCol = (uid) => collection(db, 'users', uid, 'youtubePlaylistSaves')
 
@@ -46,16 +51,6 @@ export const savePlaylist = async (uid, playlist, language = '') => {
     ...(resolvedLanguage ? { language: resolvedLanguage } : {}),
     savedAt: serverTimestamp(),
   })
-  if (resolvedLanguage) {
-    recordMediaInteraction({
-      kind: MEDIA_KIND.YOUTUBE_PLAYLIST,
-      externalId: playlist.id,
-      language: resolvedLanguage,
-      title: playlist.title || '',
-      subtitle: playlist.channelTitle || '',
-      coverUrl: playlist.coverUrl || '',
-    })
-  }
 }
 
 export const unsavePlaylist = async (uid, playlistId) => {

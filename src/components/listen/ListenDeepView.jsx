@@ -9,6 +9,7 @@ import { unfollowArtist, unsaveAlbum, unsaveTrack, removeTrackFromSavedAlbum } f
 import { prewarmMusicPlayback } from '../../services/musicKit'
 import { deleteYoutubeVideo, fetchYoutubeVideosMeta } from '../../services/youtube'
 import { unfollowChannel } from '../../services/youtubeChannels'
+import { unsavePlaylist } from '../../services/youtubePlaylists'
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 import useListenLibraryData from './useListenLibraryData'
 
@@ -23,7 +24,7 @@ const TABS = {
   audiobooks: ['All', 'In progress', 'Finished', 'Authors', 'Collections'],
   podcasts: ['Episodes', 'Shows'],
   music: ['Tracks', 'Albums', 'Artists', 'Playlists'],
-  youtube: ['Videos', 'Channels'],
+  youtube: ['Videos', 'Channels', 'Playlists'],
 }
 
 const stripArticles = (s) =>
@@ -533,6 +534,26 @@ function buildRows({ medium, activeTab, data, navigate, uid }) {
         shape: 'square',
         onClick: () => c.channelId && navigate(`/youtube/channel/${c.channelId}`),
         onRemove: uid ? () => unfollowChannel(uid, c.channelId).catch((err) => console.warn('unfollowChannel', err)) : undefined,
+      }))
+    }
+    if (activeTab === 'Playlists') {
+      return sortByTitle((data.savedPlaylists || []).map((p) => ({
+        id: p.id || p.playlistId,
+        playlistId: p.playlistId || p.id,
+        title: p.title || 'Untitled playlist',
+        channelTitle: p.channelTitle || '',
+        videoCount: p.videoCount,
+        coverUrl: p.coverUrl || '',
+      }))).map((p) => ({
+        id: p.id,
+        thumb: p.coverUrl,
+        title: p.title,
+        subtitle: [p.channelTitle, Number.isFinite(p.videoCount)
+          ? (p.videoCount === 1 ? '1 video' : `${p.videoCount} videos`)
+          : ''].filter(Boolean).join(' · ') || 'Playlist',
+        shape: 'square',
+        onClick: () => p.playlistId && navigate(`/youtube/playlist/${p.playlistId}`),
+        onRemove: uid ? () => unsavePlaylist(uid, p.playlistId).catch((err) => console.warn('unsavePlaylist', err)) : undefined,
       }))
     }
     return []

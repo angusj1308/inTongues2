@@ -242,13 +242,16 @@ function Rail({ title, cols, shape, items, emptyLabel }) {
               type="button"
               className={`listen-shelf-card listen-shelf-card--${shape}`}
               onClick={item.onClick}
+              aria-label={item.title}
             >
               <div className={`listen-shelf-cover listen-shelf-cover--${shape}`}>
                 {item.coverUrl ? <img src={item.coverUrl} alt="" /> : <span className="listen-shelf-cover-fallback">{item.title}</span>}
-              </div>
-              <div className="listen-shelf-meta">
-                <p className="listen-shelf-title">{item.title}</p>
-                {item.subtitle && <p className="listen-shelf-sub">{item.subtitle}</p>}
+                <div className="listen-shelf-hover">
+                  <div className="listen-shelf-hover-title">{item.title}</div>
+                  {item.subtitle && (
+                    <div className="listen-shelf-hover-meta">{item.subtitle}</div>
+                  )}
+                </div>
               </div>
             </button>
           ))}

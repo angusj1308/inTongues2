@@ -28,15 +28,7 @@ import ProgressChart from '../components/home/ProgressChart'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
-import { loadDueCards, seedAuthoredDeck } from '../services/vocab'
-import {
-  LEARN_TO_READ_SPANISH_DECK_ID,
-  LEARN_TO_READ_SPANISH_DECK_LABEL,
-  LEARN_TO_READ_SPANISH_SHELF_LABEL,
-  LEARN_TO_READ_SPANISH_LANGUAGE,
-  SPANISH_ALPHABET_LAUNCH_DIALECT,
-  getSpanishAlphabetCards,
-} from '../data/learnToReadSpanish'
+import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
@@ -859,18 +851,6 @@ const Dashboard = () => {
     const loadCounts = async () => {
       setCountsLoading(true)
       try {
-        if (activeLanguage === LEARN_TO_READ_SPANISH_LANGUAGE) {
-          await seedAuthoredDeck(
-            user.uid,
-            LEARN_TO_READ_SPANISH_LANGUAGE,
-            LEARN_TO_READ_SPANISH_DECK_ID,
-            'alphabet-grapheme',
-            getSpanishAlphabetCards(SPANISH_ALPHABET_LAUNCH_DIALECT).map((card) => ({
-              ...card,
-              dialect: SPANISH_ALPHABET_LAUNCH_DIALECT,
-            })),
-          )
-        }
         const allCards = await loadDueCards(user.uid, activeLanguage)
         const counts = {
           all: allCards.length,
@@ -2617,46 +2597,6 @@ const Dashboard = () => {
                 </p>
               ) : (
                 <>
-                  {/* Learn to Read Spanish — Spanish-only, sits above Pinned */}
-                  {activeLanguage === LEARN_TO_READ_SPANISH_LANGUAGE && (
-                    <div className="section">
-                      <div className="section-header">
-                        <h3>{LEARN_TO_READ_SPANISH_SHELF_LABEL}</h3>
-                      </div>
-                      <div className="listen-shelf">
-                        {(() => {
-                          const count = contentCounts[LEARN_TO_READ_SPANISH_DECK_ID] || 0
-                          const isDisabled = countsLoading || count === 0
-                          return (
-                            <div
-                              key={LEARN_TO_READ_SPANISH_DECK_ID}
-                              className={`preview-card listen-card review-deck-card${isDisabled ? ' is-disabled' : ''}`}
-                              onClick={() => {
-                                if (isDisabled) return
-                                startReviewSession({
-                                  type: 'content',
-                                  contentId: LEARN_TO_READ_SPANISH_DECK_ID,
-                                  label: LEARN_TO_READ_SPANISH_DECK_LABEL,
-                                })
-                              }}
-                              role="button"
-                              tabIndex={isDisabled ? -1 : 0}
-                            >
-                              <div className="review-deck-card-inner">
-                                <div className="review-deck-card-content">
-                                  <div className="review-deck-card-title">{LEARN_TO_READ_SPANISH_DECK_LABEL}</div>
-                                  <div className="review-deck-card-meta ui-text">
-                                    {countsLoading ? 'Loading...' : `${count} due`}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })()}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Pinned - at top */}
                   <div className="section">
                     <div className="section-header">

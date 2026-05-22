@@ -102,7 +102,7 @@ const useMusicSubscriptions = () => {
     if (!user?.uid || !artist?.id) return
     setPendingFollow((prev) => withEntry(prev, artist.id, 'follow'))
     try {
-      await followArtist(user.uid, artist)
+      await followArtist(user.uid, artist, language)
     } catch (err) {
       console.error('followArtist failed', err)
       setPendingFollow((prev) => withoutEntry(prev, artist.id))
@@ -135,7 +135,7 @@ const useMusicSubscriptions = () => {
           const full = await fetchAlbum(album.id, { language })
           if (full) albumWithTracks = { ...album, tracks: full.tracks || [] }
         }
-        await saveAlbum(user.uid, albumWithTracks)
+        await saveAlbum(user.uid, albumWithTracks, language)
       } catch (err) {
         console.error('saveAlbum failed', err)
         setPendingAlbum((prev) => withoutEntry(prev, album.id))
@@ -156,7 +156,7 @@ const useMusicSubscriptions = () => {
     if (save) {
       setPendingTrack((prev) => withEntry(prev, track.id, 'save'))
       try {
-        await saveTrack(user.uid, track)
+        await saveTrack(user.uid, track, language)
       } catch (err) {
         console.error('saveTrack failed', err)
         setPendingTrack((prev) => withoutEntry(prev, track.id))

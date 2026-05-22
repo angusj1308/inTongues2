@@ -17,7 +17,7 @@ import {
   followChannel,
   unfollowChannel,
 } from '../services/youtubeChannels'
-import { toLanguageCode } from '../constants/languages'
+import { resolveSupportedLanguageLabel, toLanguageCode } from '../constants/languages'
 
 const PlusIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -97,7 +97,12 @@ const YoutubeChannelPage = () => {
   const [dubPending, setDubPending] = useState(false)
   const [actionError, setActionError] = useState('')
 
-  const libraryData = useListenLibraryData(user?.uid)
+  const activeLanguage = useMemo(
+    () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
+    [profile?.lastUsedLanguage],
+  )
+
+  const libraryData = useListenLibraryData(user?.uid, activeLanguage)
   const importedByVideoId = useMemo(() => {
     const m = new Map()
     ;(libraryData.youtubeVideos || []).forEach((v) => {
@@ -181,7 +186,7 @@ const YoutubeChannelPage = () => {
         title: channel.title,
         description: channel.description,
         coverUrl: channel.coverUrl,
-      })
+      }, activeLanguage)
     } catch (err) {
       console.error('Follow failed', err)
     } finally {

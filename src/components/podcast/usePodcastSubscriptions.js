@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import useAuth from '../../context/AuthContext'
+import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import {
   followShow,
   unfollowShow,
@@ -13,7 +14,11 @@ import {
 // Single hook every podcast surface uses. Provides live data + optimistic
 // follow/unfollow that reconciles with Firestore.
 const usePodcastSubscriptions = () => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const activeLanguage = useMemo(
+    () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
+    [profile?.lastUsedLanguage],
+  )
   const [followedShows, setFollowedShows] = useState([])
   const [pins, setPins] = useState([])
   const [episodeStates, setEpisodeStates] = useState([])
@@ -69,7 +74,7 @@ const usePodcastSubscriptions = () => {
       return next
     })
     try {
-      await followShow(user.uid, show)
+      await followShow(user.uid, show, activeLanguage)
     } catch (err) {
       console.error('follow failed', err)
       setPendingFollow((prev) => {

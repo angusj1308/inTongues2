@@ -78,14 +78,14 @@ export const subscribePlaylists = (uid, callback) => {
   )
 }
 
-export const followShow = async (uid, show) => {
+export const followShow = async (uid, show, language = '') => {
   if (!uid || !show?.id) return
   await setDoc(doc(followsCol(uid), show.id), {
     showId: show.id,
     title: show.title || '',
     host: show.host || '',
     coverUrl: show.coverUrl || '',
-    language: show.language || '',
+    language: language || show.language || '',
     category: show.category || '',
     followedAt: serverTimestamp(),
   })
@@ -100,7 +100,7 @@ export const unfollowShow = async (uid, showId) => {
 // podcastEpisodeStates collection the player updates on play, so the
 // episode shows up under /listen/library/podcasts → Episodes whether the
 // user has played it or just added it.
-export const saveEpisode = async (uid, episode) => {
+export const saveEpisode = async (uid, episode, language = '') => {
   if (!uid || !episode?.id) return
   await setDoc(
     doc(episodeStatesCol(uid), String(episode.id)),
@@ -111,6 +111,7 @@ export const saveEpisode = async (uid, episode) => {
       showId: episode.showId ? String(episode.showId) : '',
       coverUrl: episode.coverUrl || '',
       durationMs: Number(episode.durationMs) || 0,
+      ...(language || episode.language ? { language: language || episode.language } : {}),
       ...(episode.publishedAt ? { publishedAt: episode.publishedAt } : {}),
       savedAt: serverTimestamp(),
     },

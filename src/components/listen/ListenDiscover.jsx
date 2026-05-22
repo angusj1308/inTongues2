@@ -241,7 +241,16 @@ export default function ListenDiscover() {
   const [dubPending, setDubPending] = useState(false)
   const requestId = useRef(0)
 
-  const libraryData = useListenLibraryData(user?.uid)
+  const activeLanguage = useMemo(
+    () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
+    [profile?.lastUsedLanguage],
+  )
+  const targetLangCode = useMemo(
+    () => toLanguageCode(profile?.lastUsedLanguage) || '',
+    [profile?.lastUsedLanguage],
+  )
+
+  const libraryData = useListenLibraryData(user?.uid, activeLanguage)
   const importedVideoIds = useMemo(() => {
     const set = new Set()
     ;(libraryData.youtubeVideos || []).forEach((v) => {
@@ -286,15 +295,6 @@ export default function ListenDiscover() {
     }
     return subscribeFollowedChannels(user.uid, setFollowedChannels)
   }, [user?.uid])
-
-  const activeLanguage = useMemo(
-    () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
-    [profile?.lastUsedLanguage],
-  )
-  const targetLangCode = useMemo(
-    () => toLanguageCode(profile?.lastUsedLanguage) || '',
-    [profile?.lastUsedLanguage],
-  )
 
   const hasQuery = query.trim().length > 0
 
@@ -424,7 +424,7 @@ export default function ListenDiscover() {
           title: c.title || '',
           description: c.description || '',
           coverUrl: c.thumbnailUrl || '',
-        })
+        }, activeLanguage)
       }
     } catch (err) {
       console.error('Channel follow toggle failed', err)
@@ -451,7 +451,7 @@ export default function ListenDiscover() {
           coverUrl: p.coverArtUrl || p.coverUrl || p.image || '',
           language: p.language || '',
           category: p.primaryGenre || p.category || '',
-        })
+        }, activeLanguage)
       }
     } catch (err) {
       console.error('Show follow toggle failed', err)
@@ -513,7 +513,7 @@ export default function ListenDiscover() {
       const normSrc = showLang ? toLanguageCode(showLang) : ''
       if (!normSrc || !target || normSrc === target) {
         // Same language (or unknown) → silent save with the metadata we have.
-        await saveEpisode(user.uid, baseMeta)
+        await saveEpisode(user.uid, baseMeta, activeLanguage)
       } else {
         // Cross-language → open dub modal with credit estimate. Pre-fill
         // audioUrl from RSS so the modal's Continue path can fire the dub.

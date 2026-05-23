@@ -35,10 +35,10 @@ import useListenLibraryData from './useListenLibraryData'
 import DubConfirmModal from './DubConfirmModal'
 
 const RAILS = [
-  { key: 'audiobooks', title: 'Popular Audiobooks', shape: 'portrait', cols: 6 },
   { key: 'podcasts', title: 'Popular Podcasts', shape: 'square', cols: 6 },
-  { key: 'music', title: 'Popular Artists', shape: 'square', cols: 6 },
   { key: 'youtube', title: 'Popular YouTube Channels', shape: 'wide', cols: 4 },
+  { key: 'music', title: 'Popular Artists', shape: 'square', cols: 6 },
+  { key: 'audiobooks', title: 'Popular Audiobooks', shape: 'portrait', cols: 6 },
 ]
 
 const FILTER_CHIPS = ['Audiobooks', 'Podcasts', 'Music', 'YouTube']

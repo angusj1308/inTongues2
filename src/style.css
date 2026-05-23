@@ -28642,8 +28642,14 @@ body:has(.cinema-page) {
 }
 
 .discover-search-input {
-  flex: 1 1 auto;
-  min-width: 0;
+  /* Input shrinks to its text content so the chips can hug its right
+     edge and drift further right as the user types. Chrome 123+,
+     Safari 17.4+, Firefox 124+ support field-sizing; older browsers
+     fall back to the min-width below. */
+  flex: 0 1 auto;
+  field-sizing: content;
+  min-width: 6rem;
+  max-width: 100%;
   background: transparent;
   border: none;
   padding: 1rem 0;

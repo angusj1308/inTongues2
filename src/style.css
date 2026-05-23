@@ -362,6 +362,48 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Hide the scrollbar track (rail) so only the thumb is visible.
+   Firefox: scrollbar-color sets thumb + track; transparent track
+   hides the rail. Chrome/Safari: webkit pseudo-elements. */
+* {
+  scrollbar-color: rgba(28, 26, 23, 0.35) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(28, 26, 23, 0.35);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(28, 26, 23, 0.55);
+  background-clip: padding-box;
+}
+
+[data-theme='dark'] * {
+  scrollbar-color: rgba(251, 250, 248, 0.35) transparent;
+}
+
+[data-theme='dark'] *::-webkit-scrollbar-thumb {
+  background: rgba(251, 250, 248, 0.35);
+  background-clip: padding-box;
+}
+
+[data-theme='dark'] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(251, 250, 248, 0.55);
+  background-clip: padding-box;
+}
+
 body {
   margin: 0;
   min-height: 100vh;

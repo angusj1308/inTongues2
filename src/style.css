@@ -28705,7 +28705,7 @@ body:has(.cinema-page) {
      fall back to the min-width below. */
   flex: 0 1 auto;
   field-sizing: content;
-  min-width: 3rem;
+  min-width: 1ch;
   max-width: 100%;
   background: transparent;
   border: none;

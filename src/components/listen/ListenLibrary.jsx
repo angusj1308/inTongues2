@@ -103,7 +103,7 @@ function ShelfCard({ shape, coverUrl, title, subtitle, trailing, onClick, ariaLa
   return (
     <button
       type="button"
-      className={`listen-shelf-card listen-shelf-card--${shape}${disabled ? ' is-disabled' : ''}`}
+      className={`listen-shelf-card listen-shelf-card--${shape} listen-rail-card listen-rail-card--${shape}${disabled ? ' is-disabled' : ''}`}
       onClick={disabled ? undefined : onClick}
       aria-label={ariaLabel || title}
       disabled={disabled}
@@ -175,7 +175,7 @@ export default function ListenLibrary() {
   // -- Audiobooks shelf: books (unchanged) ----------------------------------
   const audiobookCards = useMemo(
     () => data.audiobooks
-      .slice(0, 5)
+      .slice(0, 10)
       .map((b) => ({
         id: b.id,
         title: b.storyTitle || b.title || 'Untitled',
@@ -212,7 +212,7 @@ export default function ListenLibrary() {
         const bt = b.followedAt?.toMillis?.() || 0
         return bt - at
       })
-      .slice(0, 5)
+      .slice(0, 10)
       .map((s) => {
         const showId = s.showId || s.id
         const count = episodeCountByShow[showId] || 0
@@ -233,7 +233,7 @@ export default function ListenLibrary() {
   // derived channels (grouped from imported videos, fallback for users
   // who haven't followed anyone yet). Cap at 4 total tiles so the row
   // stays one neat line.
-  const YOUTUBE_SHELF_LIMIT = 4
+  const YOUTUBE_SHELF_LIMIT = 10
   const channelCards = useMemo(() => {
     const playlistCards = (data.savedPlaylists || [])
       .slice()
@@ -304,7 +304,7 @@ export default function ListenLibrary() {
   // Albums → followed artists → saved tracks, all visible together in the
   // shelf row (capped at 5 total tiles). Playlists slot in between artists
   // and tracks once a playlist data source exists.
-  const MUSIC_SHELF_LIMIT = 5
+  const MUSIC_SHELF_LIMIT = 10
   const musicShelf = useMemo(() => {
     const albumCards = [...data.savedAlbums]
       .sort((a, b) => (b.savedAt?.toMillis?.() || 0) - (a.savedAt?.toMillis?.() || 0))
@@ -411,7 +411,7 @@ export default function ListenLibrary() {
             {isMusicEmpty ? (
               <MusicColdStart onBrowse={() => navigate('/listen/discover')} />
             ) : (
-              <div className={`listen-shelf-grid listen-shelf-grid--cols-${shelf.cols}`}>
+              <div className={`listen-rail-scroll listen-rail-scroll--${shelf.cover}`}>
                 {cards.map((card) => (
                   <ShelfCard
                     key={card.id}

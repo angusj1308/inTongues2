@@ -959,14 +959,6 @@ export default function ListenDiscover() {
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
         </span>
-        <input
-          type="search"
-          className="discover-search-input"
-          placeholder="Search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search across audiobooks, podcasts, music, and videos"
-        />
         {hasQuery && (
           <div className="discover-search-chips" role="tablist">
             {(activeFilter ? [activeFilter] : FILTER_CHIPS).map((chip) => {
@@ -987,6 +979,14 @@ export default function ListenDiscover() {
             })}
           </div>
         )}
+        <input
+          type="search"
+          className="discover-search-input"
+          placeholder="Search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search across audiobooks, podcasts, music, and videos"
+        />
       </form>
 
       {!hasQuery && (

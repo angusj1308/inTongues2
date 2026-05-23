@@ -355,6 +355,13 @@
   box-sizing: border-box;
 }
 
+/* Always reserve room for the vertical scrollbar so pages don't shift
+   horizontally when content grows past one viewport height (and the
+   browser adds the scrollbar). Chrome 94+, Safari 16+, Firefox 97+. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   min-height: 100vh;

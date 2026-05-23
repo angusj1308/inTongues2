@@ -183,40 +183,27 @@ const GenerateStoryPanel = ({
     }
 
     // ── Single-call short story generation (GPT-5.4-pro) ──
-    let storyResult = null
-    try {
-      storyResult = await generateShortStory({
-        genre,
-        timePlaceSetting: description.trim(),
-        language: activeLanguage,
-        level: LEVELS[levelIndex],
-      })
-    } catch (genError) {
-      setError(genError?.message || 'Unable to generate short story.')
-      setIsSubmitting(false)
-      return
-    }
-
-    // Save the completed story — prose is already generated, ready to read
+    // Create a placeholder doc immediately so the tile appears in the library,
+    // then fire the generation in the background.
     const selectedLevel = LEVELS[levelIndex]
+    const genreLabel = GENRES.find((g) => g.id === genre)?.label || genre
+
     try {
       const storiesRef = collection(db, 'users', user.uid, 'stories')
-      const genreLabel = GENRES.find((g) => g.id === genre)?.label || genre
-
       const storyDocRef = await addDoc(storiesRef, {
-        title: storyResult.storyTitle || `${genreLabel} Short Story`,
-        storyTitle: storyResult.storyTitle || '',
-        author: storyResult.authorName,
+        title: `${genreLabel} Short Story`,
+        storyTitle: '',
+        author: '',
         language: activeLanguage,
         level: selectedLevel,
         genre: genreLabel,
         description: description.trim(),
         concept: '',
         isFlat: true,
-        adaptedTextBlob: storyResult.storyText,
-        lastPhaseCompleted: 2,
+        adaptedTextBlob: '',
+        lastPhaseCompleted: 0,
         totalPhases: 2,
-        status: 'ready',
+        status: 'generating',
         createdAt: serverTimestamp(),
         generateAudio,
         voiceGender: generateAudio ? voiceGender : null,
@@ -228,82 +215,93 @@ const GenerateStoryPanel = ({
         coverStatus: 'pending',
       })
 
-      // Mirror the new story to the cross-user shared catalogue so it
-      // can surface in discover and contribute to popularity counts. The
-      // per-user story doc remains the source of truth for playback (it
-      // has the adapted text + audio); the shared doc is metadata-only.
-      // Fire-and-forget — never block the user on this. If it fails the
-      // story still works, the catalogue entry just gets skipped.
-      try {
-        const sharedId = await createSharedAudiobookCatalogEntry(
-          buildCatalogPayload({
-            kind: 'generated',
-            sourceType: 'generated',
-            sourceId: storyDocRef.id,
-            title: storyResult.storyTitle || `${genreLabel} Short Story`,
-            author: storyResult.authorName || '',
-            language: activeLanguage,
-            level: selectedLevel,
-            genre: genreLabel,
-            description: description.trim(),
-            isFlat: true,
-            createdByUid: user.uid,
-          }),
-        )
-        if (sharedId) {
-          setDoc(
-            doc(db, 'users', user.uid, 'stories', storyDocRef.id),
-            { sharedAudiobookId: sharedId },
-            { merge: true },
-          ).catch((linkErr) => console.warn('sharedAudiobookId link failed', linkErr?.message || linkErr))
-        }
-      } catch (catalogErr) {
-        console.warn('Shared catalogue write failed', catalogErr?.message || catalogErr)
-      }
+      // Navigate to library immediately — tile shows "Generating..." spinner
+      if (onClose) onClose()
+      setIsSubmitting(false)
+      navigate('/read/library')
 
-      // Trigger audio generation if requested
-      if (generateAudio) {
-        try {
-          await fetch('http://localhost:4000/api/generate-audio-book', {
+      // Background: generate the story, then update the doc
+      const uid = user.uid
+      const storyId = storyDocRef.id
+      const storyDocPath = doc(db, 'users', uid, 'stories', storyId)
+      const capturedGenre = genre
+      const capturedDescription = description.trim()
+      const capturedLanguage = activeLanguage
+      const capturedGenerateAudio = generateAudio
+
+      generateShortStory({
+        genre: capturedGenre,
+        timePlaceSetting: capturedDescription,
+        language: capturedLanguage,
+        level: selectedLevel,
+      })
+        .then(async (storyResult) => {
+          await setDoc(storyDocPath, {
+            title: storyResult.storyTitle || `${genreLabel} Short Story`,
+            storyTitle: storyResult.storyTitle || '',
+            author: storyResult.authorName || '',
+            adaptedTextBlob: storyResult.storyText,
+            lastPhaseCompleted: 2,
+            status: 'ready',
+          }, { merge: true })
+
+          // Shared catalogue
+          try {
+            const sharedId = await createSharedAudiobookCatalogEntry(
+              buildCatalogPayload({
+                kind: 'generated',
+                sourceType: 'generated',
+                sourceId: storyId,
+                title: storyResult.storyTitle || `${genreLabel} Short Story`,
+                author: storyResult.authorName || '',
+                language: capturedLanguage,
+                level: selectedLevel,
+                genre: genreLabel,
+                description: capturedDescription,
+                isFlat: true,
+                createdByUid: uid,
+              }),
+            )
+            if (sharedId) {
+              setDoc(storyDocPath, { sharedAudiobookId: sharedId }, { merge: true })
+                .catch((linkErr) => console.warn('sharedAudiobookId link failed', linkErr?.message || linkErr))
+            }
+          } catch (catalogErr) {
+            console.warn('Shared catalogue write failed', catalogErr?.message || catalogErr)
+          }
+
+          // Trigger audio
+          if (capturedGenerateAudio) {
+            fetch('http://localhost:4000/api/generate-audio-book', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uid, storyId }),
+            }).catch((err) => console.error('Audio trigger failed:', err))
+          }
+
+          // Trigger synopsis
+          fetch('http://localhost:4000/api/generate-synopsis', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid: user.uid, storyId: storyDocRef.id }),
-          })
-        } catch (audioErr) {
-          console.error('Audio trigger failed:', audioErr)
-        }
-      }
+            body: JSON.stringify({ uid, storyId }),
+          }).catch((err) => console.error('Synopsis trigger failed:', err))
 
-      // Trigger synopsis generation (fire-and-forget). The cover endpoint
-      // self-heals if the synopsis isn't on the doc yet, so this firing is
-      // about making the synopsis available to other consumers (hover
-      // previews, search, recommendations) as soon as possible.
-      try {
-        fetch('http://localhost:4000/api/generate-synopsis', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: user.uid, storyId: storyDocRef.id }),
-        }).catch((synErr) => console.error('Synopsis trigger failed:', synErr))
-      } catch (synErr) {
-        console.error('Synopsis trigger failed:', synErr)
-      }
-
-      // Trigger cover generation (fire-and-forget)
-      try {
-        fetch('http://localhost:4000/api/generate-cover', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: user.uid, storyId: storyDocRef.id }),
-        }).catch((coverErr) => console.error('Cover trigger failed:', coverErr))
-      } catch (coverErr) {
-        console.error('Cover trigger failed:', coverErr)
-      }
-
-      if (onClose) onClose()
-      navigate('/dashboard', { state: { initialTab: 'read' } })
+          // Trigger cover
+          fetch('http://localhost:4000/api/generate-cover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid, storyId }),
+          }).catch((err) => console.error('Cover trigger failed:', err))
+        })
+        .catch(async (genError) => {
+          console.error('Short story generation failed:', genError)
+          await setDoc(storyDocPath, {
+            status: 'failed',
+            adaptationError: genError?.message || 'Story generation failed',
+          }, { merge: true })
+        })
     } catch (submissionError) {
       setError(submissionError?.message || 'Unable to save story.')
-    } finally {
       setIsSubmitting(false)
     }
   }

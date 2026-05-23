@@ -222,36 +222,24 @@ export default function GenerateInlineForm({ activeLanguage }) {
       return
     }
 
-    let storyResult = null
-    try {
-      storyResult = await generateShortStory({
-        genre: genreId,
-        timePlaceSetting: setting.trim(),
-        language: activeLanguage,
-        level,
-      })
-    } catch (genError) {
-      setError(genError?.message || 'Unable to generate short story.')
-      setIsSubmitting(false)
-      return
-    }
-
+    // Create a placeholder doc immediately so the tile appears in the library,
+    // then fire the generation in the background.
     try {
       const storiesRef = collection(db, 'users', user.uid, 'stories')
       const storyDocRef = await addDoc(storiesRef, {
-        title: storyResult.storyTitle || `${genreLabelText} Short Story`,
-        storyTitle: storyResult.storyTitle || '',
-        author: storyResult.authorName,
+        title: `${genreLabelText} Short Story`,
+        storyTitle: '',
+        author: '',
         language: activeLanguage,
         level,
         genre: genreLabelText,
         description: setting.trim(),
         concept: '',
         isFlat: true,
-        adaptedTextBlob: storyResult.storyText,
-        lastPhaseCompleted: 2,
+        adaptedTextBlob: '',
+        lastPhaseCompleted: 0,
         totalPhases: 2,
-        status: 'ready',
+        status: 'generating',
         createdAt: serverTimestamp(),
         generateAudio,
         voiceGender,
@@ -263,70 +251,93 @@ export default function GenerateInlineForm({ activeLanguage }) {
         coverStatus: 'pending',
       })
 
-      // Mirror to shared catalogue (see GenerateStoryPanel for rationale).
-      try {
-        const sharedId = await createSharedAudiobookCatalogEntry(
-          buildCatalogPayload({
-            kind: 'generated',
-            sourceType: 'generated',
-            sourceId: storyDocRef.id,
-            title: storyResult.storyTitle || `${genreLabelText} Short Story`,
-            author: storyResult.authorName || '',
-            language: activeLanguage,
-            level,
-            genre: genreLabelText,
-            description: setting.trim(),
-            isFlat: true,
-            createdByUid: user.uid,
-          }),
-        )
-        if (sharedId) {
-          setDoc(
-            doc(db, 'users', user.uid, 'stories', storyDocRef.id),
-            { sharedAudiobookId: sharedId },
-            { merge: true },
-          ).catch((linkErr) => console.warn('sharedAudiobookId link failed', linkErr?.message || linkErr))
-        }
-      } catch (catalogErr) {
-        console.warn('Shared catalogue write failed', catalogErr?.message || catalogErr)
-      }
+      // Navigate to library immediately — tile shows "Generating..." spinner
+      setIsSubmitting(false)
+      navigate('/read/library')
 
-      if (generateAudio) {
-        try {
-          await fetch('http://localhost:4000/api/generate-audio-book', {
+      // Background: generate the story, then update the doc
+      const uid = user.uid
+      const storyId = storyDocRef.id
+      const storyDocPath = doc(db, 'users', uid, 'stories', storyId)
+      const capturedGenreId = genreId
+      const capturedSetting = setting.trim()
+      const capturedLanguage = activeLanguage
+      const capturedLevel = level
+      const capturedGenerateAudio = generateAudio
+
+      generateShortStory({
+        genre: capturedGenreId,
+        timePlaceSetting: capturedSetting,
+        language: capturedLanguage,
+        level: capturedLevel,
+      })
+        .then(async (storyResult) => {
+          await setDoc(storyDocPath, {
+            title: storyResult.storyTitle || `${genreLabelText} Short Story`,
+            storyTitle: storyResult.storyTitle || '',
+            author: storyResult.authorName || '',
+            adaptedTextBlob: storyResult.storyText,
+            lastPhaseCompleted: 2,
+            status: 'ready',
+          }, { merge: true })
+
+          // Shared catalogue
+          try {
+            const sharedId = await createSharedAudiobookCatalogEntry(
+              buildCatalogPayload({
+                kind: 'generated',
+                sourceType: 'generated',
+                sourceId: storyId,
+                title: storyResult.storyTitle || `${genreLabelText} Short Story`,
+                author: storyResult.authorName || '',
+                language: capturedLanguage,
+                level: capturedLevel,
+                genre: genreLabelText,
+                description: capturedSetting,
+                isFlat: true,
+                createdByUid: uid,
+              }),
+            )
+            if (sharedId) {
+              setDoc(storyDocPath, { sharedAudiobookId: sharedId }, { merge: true })
+                .catch((linkErr) => console.warn('sharedAudiobookId link failed', linkErr?.message || linkErr))
+            }
+          } catch (catalogErr) {
+            console.warn('Shared catalogue write failed', catalogErr?.message || catalogErr)
+          }
+
+          // Trigger audio
+          if (capturedGenerateAudio) {
+            fetch('http://localhost:4000/api/generate-audio-book', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uid, storyId }),
+            }).catch((err) => console.error('Audio trigger failed:', err))
+          }
+
+          // Trigger synopsis
+          fetch('http://localhost:4000/api/generate-synopsis', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid: user.uid, storyId: storyDocRef.id }),
-          })
-        } catch (audioErr) {
-          console.error('Audio trigger failed:', audioErr)
-        }
-      }
+            body: JSON.stringify({ uid, storyId }),
+          }).catch((err) => console.error('Synopsis trigger failed:', err))
 
-      try {
-        fetch('http://localhost:4000/api/generate-synopsis', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: user.uid, storyId: storyDocRef.id }),
-        }).catch((synErr) => console.error('Synopsis trigger failed:', synErr))
-      } catch (synErr) {
-        console.error('Synopsis trigger failed:', synErr)
-      }
-
-      try {
-        fetch('http://localhost:4000/api/generate-cover', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: user.uid, storyId: storyDocRef.id }),
-        }).catch((coverErr) => console.error('Cover trigger failed:', coverErr))
-      } catch (coverErr) {
-        console.error('Cover trigger failed:', coverErr)
-      }
-
-      navigate('/dashboard', { state: { initialTab: 'read' } })
+          // Trigger cover
+          fetch('http://localhost:4000/api/generate-cover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid, storyId }),
+          }).catch((err) => console.error('Cover trigger failed:', err))
+        })
+        .catch(async (genError) => {
+          console.error('Short story generation failed:', genError)
+          await setDoc(storyDocPath, {
+            status: 'failed',
+            adaptationError: genError?.message || 'Story generation failed',
+          }, { merge: true })
+        })
     } catch (submissionError) {
       setError(submissionError?.message || 'Unable to save story.')
-    } finally {
       setIsSubmitting(false)
     }
   }

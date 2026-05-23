@@ -28617,7 +28617,7 @@ body:has(.cinema-page) {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.3rem;
   border: 3px solid rgba(28, 26, 23, 0.2);
   border-radius: 4px;
   padding: 0 1rem 0 3rem;
@@ -28648,7 +28648,7 @@ body:has(.cinema-page) {
      fall back to the min-width below. */
   flex: 0 1 auto;
   field-sizing: content;
-  min-width: 6rem;
+  min-width: 3rem;
   max-width: 100%;
   background: transparent;
   border: none;

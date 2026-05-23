@@ -28618,7 +28618,7 @@ body:has(.cinema-page) {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  width: 33.333%;
+  width: 50%;
   min-width: 280px;
   margin: 0 auto;
   border: 3px solid rgba(28, 26, 23, 0.2);

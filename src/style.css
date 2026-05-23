@@ -28615,7 +28615,18 @@ body:has(.cinema-page) {
 
 .discover-search {
   position: relative;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 3px solid rgba(28, 26, 23, 0.2);
+  border-radius: 4px;
+  padding: 0 1rem 0 3rem;
+  background: transparent;
+  transition: border-color 140ms ease;
+}
+
+.discover-search:focus-within {
+  border-color: rgba(28, 26, 23, 0.4);
 }
 
 .discover-search-icon {
@@ -28631,11 +28642,11 @@ body:has(.cinema-page) {
 }
 
 .discover-search-input {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   background: transparent;
-  border: 3px solid rgba(28, 26, 23, 0.2);
-  border-radius: 4px;
-  padding: 1rem 1.25rem 1rem 3rem;
+  border: none;
+  padding: 1rem 0;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1rem;
   font-weight: 400;
@@ -28653,15 +28664,25 @@ body:has(.cinema-page) {
 }
 
 .discover-search-input:focus {
-  border-color: rgba(28, 26, 23, 0.4);
+  border: none;
   box-shadow: none;
 }
 
-[data-theme='dark'] .discover-search-input {
+/* Chips live inside the search bar to the right of the input, the
+   Spotify pattern. When inactive all four kinds show; clicking one
+   collapses the row to that single active chip with an × badge. */
+.discover-search-chips {
+  display: flex;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+[data-theme='dark'] .discover-search {
   border-color: rgba(251, 250, 248, 0.2);
 }
 
-[data-theme='dark'] .discover-search-input:focus {
+[data-theme='dark'] .discover-search:focus-within {
   border-color: rgba(251, 250, 248, 0.4);
 }
 

@@ -28642,8 +28642,14 @@ body:has(.cinema-page) {
 }
 
 .discover-search-input {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 0 1 auto;
+  min-width: 8rem;
+  max-width: 100%;
+  /* field-sizing lets the input shrink to its text content so the
+     chips can sit right next to what the user is typing rather than
+     pinned to the far right edge. Supported in Chrome 123+, Safari
+     17.4+, Firefox 124+ — older browsers fall back to the min-width. */
+  field-sizing: content;
   background: transparent;
   border: none;
   padding: 1rem 0;

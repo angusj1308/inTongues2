@@ -41,7 +41,7 @@ const RAILS = [
   { key: 'youtube', title: 'Popular YouTube Channels', shape: 'wide', cols: 4 },
 ]
 
-const FILTER_CHIPS = ['All', 'Audiobooks', 'Podcasts', 'Music', 'YouTube']
+const FILTER_CHIPS = ['Audiobooks', 'Podcasts', 'Music', 'YouTube']
 
 const formatDuration = (ms) => {
   if (!ms) return ''
@@ -279,7 +279,7 @@ export default function ListenDiscover() {
     isSavedTrack,
   } = useMusicSubscriptions()
   const [query, setQuery] = useState('')
-  const [activeFilter, setActiveFilter] = useState('All')
+  const [activeFilter, setActiveFilter] = useState('')
   const [results, setResults] = useState({
     podcasts: [],
     music: { artists: [], albums: [], tracks: [] },
@@ -467,7 +467,7 @@ export default function ListenDiscover() {
   useEffect(() => {
     if (!hasQuery) {
       setResults({ podcasts: [], music: { artists: [], albums: [], tracks: [] }, youtube: [], creditsPerMinute: 0 })
-      setActiveFilter('All')
+      setActiveFilter('')
       return undefined
     }
     const handle = setTimeout(() => {
@@ -906,7 +906,7 @@ export default function ListenDiscover() {
   ])
 
   const visibleRows = useMemo(() => {
-    if (activeFilter === 'All') return resultRows
+    if (!activeFilter) return resultRows
     return resultRows.filter((r) => r.medium === activeFilter)
   }, [resultRows, activeFilter])
 
@@ -969,20 +969,26 @@ export default function ListenDiscover() {
         />
       </form>
 
-      <div className="listen-filter-chips" role="tablist">
-        {FILTER_CHIPS.map((chip) => (
-          <button
-            key={chip}
-            type="button"
-            role="tab"
-            aria-selected={activeFilter === chip}
-            className={`listen-filter-chip${activeFilter === chip ? ' is-active' : ''}`}
-            onClick={() => setActiveFilter(chip)}
-          >
-            {chip}
-          </button>
-        ))}
-      </div>
+      {hasQuery && (
+        <div className="listen-filter-chips" role="tablist">
+          {(activeFilter ? [activeFilter] : FILTER_CHIPS).map((chip) => {
+            const isActive = activeFilter === chip
+            return (
+              <button
+                key={chip}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                className={`listen-filter-chip${isActive ? ' is-active' : ''}`}
+                onClick={() => setActiveFilter(isActive ? '' : chip)}
+              >
+                {chip}
+                {isActive && <span className="listen-filter-chip-x" aria-hidden="true">×</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {!hasQuery && (
         <div className="listen-discover-rails">

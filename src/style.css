@@ -31143,6 +31143,15 @@ body:has(.cinema-page) {
   background: var(--text-primary, #1C1A17);
   color: var(--bg, #FBFAF8);
   border-color: var(--text-primary, #1C1A17);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.listen-filter-chip-x {
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.85;
 }
 
 [data-theme='dark'] .listen-filter-chip {

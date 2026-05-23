@@ -28622,7 +28622,12 @@ body:has(.cinema-page) {
   border-radius: 4px;
   padding: 0 1rem 0 3rem;
   background: transparent;
+  cursor: text;
   transition: border-color 140ms ease;
+}
+
+.discover-search button {
+  cursor: pointer;
 }
 
 .discover-search:focus-within {

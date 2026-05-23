@@ -303,6 +303,7 @@ export default function ListenDiscover() {
     youtube: [],
   })
   const requestId = useRef(0)
+  const searchInputRef = useRef(null)
 
   const activeLanguage = useMemo(
     () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
@@ -952,6 +953,14 @@ export default function ListenDiscover() {
         className="discover-search"
         role="search"
         onSubmit={handleSubmit}
+        onClick={(e) => {
+          // Clicking anywhere in the bar (icon, padding, empty space)
+          // focuses the input. Skip when the click landed on a chip
+          // button so chip toggling still works normally.
+          if (e.target.closest('button')) return
+          if (e.target === searchInputRef.current) return
+          searchInputRef.current?.focus()
+        }}
       >
         <span className="discover-search-icon" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -960,6 +969,7 @@ export default function ListenDiscover() {
           </svg>
         </span>
         <input
+          ref={searchInputRef}
           type="search"
           className="discover-search-input"
           placeholder="Search"

@@ -967,28 +967,27 @@ export default function ListenDiscover() {
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search across audiobooks, podcasts, music, and videos"
         />
+        {hasQuery && (
+          <div className="discover-search-chips" role="tablist">
+            {(activeFilter ? [activeFilter] : FILTER_CHIPS).map((chip) => {
+              const isActive = activeFilter === chip
+              return (
+                <button
+                  key={chip}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  className={`listen-filter-chip${isActive ? ' is-active' : ''}`}
+                  onClick={() => setActiveFilter(isActive ? '' : chip)}
+                >
+                  {chip}
+                  {isActive && <span className="listen-filter-chip-x" aria-hidden="true">×</span>}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </form>
-
-      {hasQuery && (
-        <div className="listen-filter-chips" role="tablist">
-          {(activeFilter ? [activeFilter] : FILTER_CHIPS).map((chip) => {
-            const isActive = activeFilter === chip
-            return (
-              <button
-                key={chip}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                className={`listen-filter-chip${isActive ? ' is-active' : ''}`}
-                onClick={() => setActiveFilter(isActive ? '' : chip)}
-              >
-                {chip}
-                {isActive && <span className="listen-filter-chip-x" aria-hidden="true">×</span>}
-              </button>
-            )
-          })}
-        </div>
-      )}
 
       {!hasQuery && (
         <div className="listen-discover-rails">

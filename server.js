@@ -11868,30 +11868,10 @@ app.post('/api/generate-cover', async (req, res) => {
     console.log(imagePrompt)
     console.log('───────────────────────────────────────────────────────')
     console.log('Step 3: Generating image…')
-    const paintingBuffer = await generateCoverImage(imagePrompt)
-    console.log(`Image generated: ${paintingBuffer.length.toLocaleString()} bytes`)
+    const imageBuffer = await generateCoverImage(imagePrompt)
+    console.log(`Image generated: ${imageBuffer.length.toLocaleString()} bytes`)
 
-    console.log('Step 4: Compositing inTongues wordmark…')
-    const fontPath = await ensureWordmarkFont()
-    const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const tempPainting = path.join(os.tmpdir(), `cover-painting-${tempId}.png`)
-    const tempComposed = path.join(os.tmpdir(), `cover-wordmark-${tempId}.png`)
-    let imageBuffer
-    try {
-      await fs.writeFile(tempPainting, paintingBuffer)
-      const wordmarkInfo = await runWordmarkCompositor(tempPainting, fontPath, tempComposed)
-      console.log(
-        `  luminance=${wordmarkInfo.luminance}  threshold=${wordmarkInfo.threshold}  ` +
-        `color=${wordmarkInfo.color}  font_size=${wordmarkInfo.font_size}px  ` +
-        `sample_ok=${wordmarkInfo.sample_ok}  canvas=${wordmarkInfo.canvas?.join('x')}`
-      )
-      imageBuffer = await fs.readFile(tempComposed)
-    } finally {
-      await fs.unlink(tempPainting).catch(() => {})
-      await fs.unlink(tempComposed).catch(() => {})
-    }
-
-    console.log('Step 5: Uploading to Firebase Storage…')
+    console.log('Step 4: Uploading to Firebase Storage…')
     const baseUrl = await uploadCoverToStorage(imageBuffer, 'image/png', uid, storyId)
     if (!baseUrl) throw new Error('Failed to upload cover to Firebase Storage')
 

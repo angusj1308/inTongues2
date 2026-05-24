@@ -308,7 +308,7 @@ const BookGrid = ({
                   <div className="book-tile-failed-overlay">
                     <span className="book-tile-failed-icon">!</span>
                     <span className="book-tile-failed-text">
-                      {book.adaptationError ? 'Adaptation failed' : 'Import failed'}
+                      {book.adaptationError ? (book.lastPhaseCompleted === 0 ? 'Generation failed' : 'Adaptation failed') : 'Import failed'}
                     </span>
                   </div>
                 )}

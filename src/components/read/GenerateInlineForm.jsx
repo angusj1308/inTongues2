@@ -7,20 +7,10 @@ import {
   buildCatalogPayload,
   createSharedAudiobookCatalogEntry,
 } from '../../services/sharedAudiobooks'
-import {
-  generateShortStory,
-  generateNovelConcept,
-  generateChapterSummaries,
-} from '../../services/generator'
-import { GENRES, SHORT_STORY_GENRES, NOVEL_GENRES } from '../../services/Authors'
+import { generateShortStory } from '../../services/generator'
+import { GENRES, SHORT_STORY_GENRES } from '../../services/Authors'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
-
-const LENGTHS = [
-  { id: 'short', label: 'Short Story', sub: '5–15 pages' },
-  { id: 'novella', label: 'Novella', sub: '50–100 pages' },
-  { id: 'novel', label: 'Novel', sub: '250–330 pages' },
-]
 
 const AUDIO_OPTIONS = [
   { id: 'audio', label: 'Audio' },
@@ -32,10 +22,7 @@ const VOICE_OPTIONS = [
   { id: 'male', label: 'Male' },
 ]
 
-const STEP_ORDER = ['level', 'length', 'genre', 'setting', 'audio', 'voice', 'confirm']
-
-const baseCost = (lengthId) =>
-  lengthId === 'short' ? 1 : lengthId === 'novella' ? 5 : 15
+const STEP_ORDER = ['level', 'genre', 'setting', 'audio', 'voice', 'confirm']
 
 export default function GenerateInlineForm({ activeLanguage }) {
   const navigate = useNavigate()
@@ -48,7 +35,6 @@ export default function GenerateInlineForm({ activeLanguage }) {
 
   const [step, setStep] = useState('level')
   const [level, setLevel] = useState(initialLevel)
-  const [lengthId, setLengthId] = useState(null)
   const [genreId, setGenreId] = useState(null)
   const [setting, setSetting] = useState('')
   const [audio, setAudio] = useState(null) // 'audio' | 'text'
@@ -76,28 +62,16 @@ export default function GenerateInlineForm({ activeLanguage }) {
     }
   }, [step])
 
-  const genrePool =
-    lengthId === 'short' || !lengthId ? SHORT_STORY_GENRES : NOVEL_GENRES
   const genreLabel = useMemo(
     () => GENRES.find((g) => g.id === genreId)?.label || '',
     [genreId],
   )
-  const lengthLabel = useMemo(
-    () => LENGTHS.find((l) => l.id === lengthId)?.label || '',
-    [lengthId],
-  )
-  const credits =
-    (lengthId ? baseCost(lengthId) : 0) + (audio === 'audio' ? 2 : 0)
 
   const advance = (next) => setStep(next)
 
   const resetFrom = (target) => {
     const idx = STEP_ORDER.indexOf(target)
     if (idx < 0) return
-    if (idx <= STEP_ORDER.indexOf('length')) {
-      setLengthId(null)
-      setGenreId(null)
-    }
     if (idx <= STEP_ORDER.indexOf('genre')) setGenreId(null)
     if (idx <= STEP_ORDER.indexOf('setting')) setSetting('')
     if (idx <= STEP_ORDER.indexOf('audio')) setAudio(null)
@@ -107,15 +81,6 @@ export default function GenerateInlineForm({ activeLanguage }) {
 
   const handleLevelPick = (value) => {
     setLevel(value)
-    advance('length')
-  }
-
-  const handleLengthPick = (value) => {
-    setLengthId(value)
-    const pool = value === 'short' ? SHORT_STORY_GENRES : NOVEL_GENRES
-    if (genreId && !pool.some((g) => g.id === genreId)) {
-      setGenreId(null)
-    }
     advance('genre')
   }
 
@@ -142,85 +107,13 @@ export default function GenerateInlineForm({ activeLanguage }) {
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (!activeLanguage || !user || isSubmitting) return
-    if (!level || !lengthId || !genreId) return
+    if (!level || !genreId) return
     setError('')
     setIsSubmitting(true)
 
     const generateAudio = audio === 'audio'
     const voiceGender = generateAudio ? voice : null
-    const isNovelPipeline = lengthId === 'novella' || lengthId === 'novel'
     const genreLabelText = GENRES.find((g) => g.id === genreId)?.label || genreId
-
-    if (isNovelPipeline) {
-      const novelFormat = lengthId
-      let novelConcept = null
-      let novelAuthor = null
-      let novelTitle = null
-      try {
-        const conceptResult = await generateNovelConcept({
-          genre: genreId,
-          format: novelFormat,
-          timePlaceSetting: setting.trim(),
-        })
-        novelConcept = conceptResult.concept
-        novelAuthor = conceptResult.authorName
-        novelTitle = conceptResult.title
-      } catch (conceptError) {
-        setError(conceptError?.message || 'Unable to generate novel concept.')
-        setIsSubmitting(false)
-        return
-      }
-
-      let chapterSummaries = null
-      try {
-        const summariesResult = await generateChapterSummaries({
-          authorName: novelAuthor,
-          format: novelFormat,
-          language: activeLanguage,
-          concept: novelConcept,
-        })
-        chapterSummaries = summariesResult.chapterSummaries
-      } catch (summariesError) {
-        setError(summariesError?.message || 'Unable to generate chapter summaries.')
-        setIsSubmitting(false)
-        return
-      }
-
-      const chapterHeaderMatches =
-        chapterSummaries.match(
-          /^(?:#{1,3}\s*)?(?:\*{0,2})?\s*(?:Chapter|Cap[ií]tulo|Chapitre|Kapitel)\s+\d+\s*[:\-–—.]/gim,
-        ) || []
-      const numberedMatches =
-        chapterSummaries.match(/^(?:#{1,3}\s*)?(?:\*{0,2})?\s*\d+\.\s+\S/gim) || []
-      const parsedTotalChapters =
-        chapterHeaderMatches.length || numberedMatches.length
-
-      try {
-        const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
-        await addDoc(generatedBooksRef, {
-          status: 'outline_complete',
-          title: novelTitle || `${genreLabelText} ${novelFormat}`,
-          author: novelAuthor,
-          genre: genreLabelText,
-          concept: novelConcept,
-          chapterSummaries,
-          totalChapters: parsedTotalChapters,
-          chaptersGenerated: 0,
-          level,
-          lengthPreset: lengthId,
-          language: activeLanguage,
-          generateAudio,
-          styleKey: null,
-          description: setting.trim(),
-          createdAt: serverTimestamp(),
-        })
-        navigate('/dashboard', { state: { initialTab: 'read' } })
-      } catch (storeError) {
-        setError(storeError?.message || 'Unable to save novel.')
-        setIsSubmitting(false)
-      }
-      return
-    }
 
     // Create a placeholder doc immediately so the tile appears in the library,
     // then fire the generation in the background.
@@ -347,9 +240,6 @@ export default function GenerateInlineForm({ activeLanguage }) {
   if (level && completed > STEP_ORDER.indexOf('level')) {
     breadcrumbs.push({ key: 'level', label: level })
   }
-  if (lengthId && completed > STEP_ORDER.indexOf('length')) {
-    breadcrumbs.push({ key: 'length', label: lengthLabel })
-  }
   if (genreId && completed > STEP_ORDER.indexOf('genre')) {
     breadcrumbs.push({ key: 'genre', label: genreLabel })
   }
@@ -385,32 +275,12 @@ export default function GenerateInlineForm({ activeLanguage }) {
         </>
       )
     }
-    if (step === 'length') {
-      return (
-        <>
-          <h3 className="genq-heading">Select story length</h3>
-          <div className="genq-options genq-options--stack">
-            {LENGTHS.map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                className="genq-option genq-option--stacked"
-                onClick={() => handleLengthPick(opt.id)}
-              >
-                <span className="genq-option-label">{opt.label}</span>
-                <span className="genq-option-sub">{opt.sub}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      )
-    }
     if (step === 'genre') {
       return (
         <>
           <h3 className="genq-heading">Which genre?</h3>
           <div className="genq-options genq-options--grid">
-            {genrePool.map((g) => (
+            {SHORT_STORY_GENRES.map((g) => (
               <button
                 key={g.id}
                 type="button"
@@ -500,7 +370,7 @@ export default function GenerateInlineForm({ activeLanguage }) {
           <h3 className="genq-heading">Ready to generate?</h3>
           <p className="genq-summary">
             A <span className="genq-summary-key">{genreLabel.toLowerCase()}</span>{' '}
-            <span className="genq-summary-key">{lengthLabel.toLowerCase()}</span> for{' '}
+            short story for{' '}
             <span className="genq-summary-key">{level?.toLowerCase()}</span> level, set in{' '}
             <span className="genq-summary-key">{setting.trim()}</span>
             {audio === 'audio' && voice && (
@@ -513,10 +383,6 @@ export default function GenerateInlineForm({ activeLanguage }) {
           </p>
           <div className="genq-spacer" />
           <div className="genq-action-row">
-            <div className="genq-cost">
-              <span className="genq-cost-label">Cost</span>
-              <span className="genq-cost-value">{credits} credits</span>
-            </div>
             <button
               type="button"
               className="genq-generate"

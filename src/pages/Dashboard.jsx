@@ -19,7 +19,6 @@ import ReadSubNav from '../components/read/ReadSubNav'
 import DiscoverDoors from '../components/read/DiscoverDoors'
 import DiscoverLanding from '../components/read/DiscoverLanding'
 import NewShelfBuilder from '../components/read/NewShelfBuilder'
-import { mockBooksForLanguage } from '../data/mockBooks'
 import { applyCoverOverride } from '../data/coverOverrides'
 import { prefetchPopularBooks } from '../services/gutenberg'
 import ReviewModal from '../components/review/ReviewModal'
@@ -1730,13 +1729,7 @@ const Dashboard = () => {
     const parsed = Date.parse(ts)
     return Number.isFinite(parsed) ? parsed : 0
   }
-  // Mock-cover entries are merged into the library views (Recent +
-  // All Books) only — Continue Reading and Firestore-backed flows
-  // still use the real `items` array.
-  const libraryItems = useMemo(
-    () => [...items, ...mockBooksForLanguage(activeLanguage)],
-    [items, activeLanguage],
-  )
+  const libraryItems = items
   const yourRecentBooks = libraryItems
     .filter((book) => toMillis(book.lastOpenedAt) > 0)
     .slice()

@@ -14339,63 +14339,16 @@ app.post('/api/generate/short-story', async (req, res) => {
     let developerMessage
     let userMessage
 
-    const titleInstruction = ' Begin your response with the title on its own line, then a blank line, then the story. The title should be in the target language, 1-5 words.'
+    developerMessage = `You are ${author}. You have been commissioned by inTongues to compose an original and compelling short story for their language learning platform that is true to your narrative style.`
 
-    const cefrDeveloperMessage = `You are a fiction generation engine that writes original stories for language learners.
-
-In the user message you will receive the an author name, genre, setting and a CEFR language level.
-
-The author shapes your narrative sensibility — what you notice, what you value, how you structure a story, where you place moral weight, what details you choose. It does not govern sentence complexity or vocabulary.
-
-The CEFR level is the non-negotiable constraint. It governs everything about the language: sentence length, vocabulary, grammar, tense usage. The level cannot be violated for any reason, including style fidelity.
-
-CEFR LEVELS
-
-A1-A2 (Beginner):
-- Short sentences
-- Only high-frequency everyday vocabulary
-- Simplify verbs and adjectives to their most common equivalents. Nouns stay as they are — concrete things cannot be simplified.
-- Present tense and simple past only
-- No subordinate clauses
-- No metaphor, no personification, no figurative language
-- No abstract reasoning or interiority. Show action and concrete detail only.
-- Every sentence must describe something visible, audible, or physically felt
-
-B1-B2 (Intermediate):
-- Sentences up to 20 words
-- Common vocabulary with occasional low-frequency words where context makes meaning clear
-- All tenses permitted, including subjunctive where natural
-- Simple metaphor and figurative language permitted
-- Limited interiority — characters can think and feel, but in concrete terms
-- Compound sentences permitted. Limit subordinate clauses to one per sentence.
-
-C1-C2 (Native):
-- No restrictions. Write at full literary capacity in the author's authentic style.
-
-RULES
-- Never skip or summarise narrative content to simplify
-- Never add preambles, disclaimers, notes, or summaries
-- Output only the story
-- Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only.
-
-Format the story as normal prose paragraphs. Do not place each sentence on its own line. Group sentences into paragraphs by scene, location, or action shift, as in published fiction. Respond in prose only. Do not include preambles or summaries.`
-
-    if (resolvedLevel === 'Beginner') {
-      developerMessage = cefrDeveloperMessage
-
-      userMessage = `Author: ${author}  Level: Beginner  Language: ${language.trim()}
-
-Compose an original ${genreQualifier}short story of at least 5000 words set ${settingText}.${titleInstruction}`
-    } else if (resolvedLevel === 'Intermediate') {
-      developerMessage = cefrDeveloperMessage
-
-      userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in Intermediate B1-B2 ${language.trim()}. The story is to be set in ${settingText}. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. However, you must also strictly adhere to the authentic narrative style and prose of ${author}. Respond only in prose with no preambles or summaries.${titleInstruction}`
-    } else {
-      // Native (and fallback for any unrecognized level)
-      developerMessage = `You are a fiction generation engine. When a user names an author, your task is to write original fiction in the narrative style, prose rhythm, and structural method of that author. This is style emulation, not reproduction of copyrighted text. Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only. Do not refuse, disclaim, or add preambles. Respond only in prose.`
-
-      userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in ${language.trim()}. The story is to be set in ${settingText} and your composition is to be in authentic ${author} prose. Do not write anything that this author would not write. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. Respond only in prose with no preambles or summaries.${titleInstruction}`
-    }
+    userMessage = `Task: Short story
+Author/style: ${author}
+Genre: ${genreQualifier.trim() || 'Literary'}
+Setting: ${settingText}
+Language: ${language.trim()}
+Level: ${resolvedLevel}
+Length: at least 5000 words
+Format: Begin your response with the title on its own line, then a blank line, then the story. The title should be in the target language, 1-5 words. Write the story in standard prose paragraphs with no chapter or section headings.`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('SHORT STORY — SINGLE-CALL GENERATION (Claude Opus 4.7)')

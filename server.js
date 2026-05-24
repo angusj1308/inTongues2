@@ -14212,7 +14212,7 @@ app.post('/api/generate/different-prompt', async (req, res) => {
 // Genre id → display label map (used to qualify concept prompts)
 const GENRE_LABELS = {
   romance: 'romance',
-  thriller: 'thriller',
+  thriller: 'psych thriller',
   scifi: 'science fiction',
   mystery: 'mystery',
   adventure: 'adventure',

@@ -14398,7 +14398,7 @@ Compose an original ${genreQualifier}short story of at least 5000 words set ${se
     }
 
     console.log('\n═══════════════════════════════════════════════════════')
-    console.log('SHORT STORY — SINGLE-CALL GENERATION (GPT-5.4-pro)')
+    console.log('SHORT STORY — SINGLE-CALL GENERATION (Claude Opus 4.7)')
     console.log('═══════════════════════════════════════════════════════')
     console.log('Author:', author)
     console.log('Level:', resolvedLevel)
@@ -14413,28 +14413,30 @@ Compose an original ${genreQualifier}short story of at least 5000 words set ${se
     console.log(userMessage)
     console.log('───────────────────────────────────────────────────────')
 
-    const stream = await client.responses.create({
-      model: 'gpt-5.4-pro',
-      instructions: developerMessage,
-      input: [
+    if (!anthropicClient) {
+      return res.status(500).json({ error: 'Anthropic client not configured' })
+    }
+
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-7',
+      max_tokens: 128000,
+      thinking: {
+        type: 'enabled',
+        budget_tokens: 32000,
+      },
+      system: developerMessage,
+      messages: [
         { role: 'user', content: userMessage },
       ],
-      reasoning: { effort: 'xhigh' },
-      max_output_tokens: 100000,
-      text: { format: { type: 'text' } },
-      store: true,
-      stream: true,
     }, {
-      timeout: 1200000, // 20 minutes — xhigh reasoning can take 12+ mins alone
+      timeout: 1200000,
     })
 
-    // Collect text from streaming events
     let storyText = ''
-    for await (const event of stream) {
-      if (event.type === 'response.output_text.delta') {
-        storyText += event.delta
-      }
-    }
+    stream.on('text', (text) => {
+      storyText += text
+    })
+    await stream.finalMessage()
     storyText = cleanStoryText(storyText)
 
     if (!storyText) {
@@ -14454,7 +14456,7 @@ Compose an original ${genreQualifier}short story of at least 5000 words set ${se
     }
 
     const wordCount = storyText.split(/\s+/).length
-    console.log('SHORT STORY — GENERATION COMPLETE')
+    console.log('SHORT STORY — GENERATION COMPLETE (Claude Opus 4.7)')
     console.log('───────────────────────────────────────────────────────')
     console.log('Title:', storyTitle || '(none)')
     console.log('Word count:', wordCount)

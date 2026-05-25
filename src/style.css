@@ -4187,7 +4187,7 @@ textarea {
 }
 
 .reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--reader-bg, #1C1A17);
 }
 
 .reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-thumb {
@@ -4352,8 +4352,14 @@ textarea {
   line-height: 1.75;
 }
 
-/* Lock window scroll when reader is active — scroll container owns scrolling */
-html.reader-active,
+/* Lock window scroll when reader is active — scroll container owns scrolling.
+   Disable scrollbar-gutter so the reserved gutter space doesn't leak a
+   different background colour to the right of the reader. */
+html.reader-active {
+  overflow: hidden;
+  height: 100%;
+  scrollbar-gutter: auto;
+}
 html.reader-active body {
   overflow: hidden;
   height: 100%;

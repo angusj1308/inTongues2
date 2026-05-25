@@ -101,7 +101,7 @@ const GenerateStoryPanel = ({
       const storyDocRef = await addDoc(storiesRef, {
         title: `${genreLabel} Short Story`,
         storyTitle: '',
-        author: '',
+        author: 'inTongues',
         language: activeLanguage,
         level: selectedLevel,
         genre: genreLabel,
@@ -147,7 +147,7 @@ const GenerateStoryPanel = ({
           await setDoc(storyDocPath, {
             title: storyResult.storyTitle || `${genreLabel} Short Story`,
             storyTitle: storyResult.storyTitle || '',
-            author: storyResult.authorName || '',
+            author: 'inTongues',
             adaptedTextBlob: storyResult.storyText,
             lastPhaseCompleted: 2,
             status: 'ready',
@@ -161,7 +161,7 @@ const GenerateStoryPanel = ({
                 sourceType: 'generated',
                 sourceId: storyId,
                 title: storyResult.storyTitle || `${genreLabel} Short Story`,
-                author: storyResult.authorName || '',
+                author: 'inTongues',
                 language: capturedLanguage,
                 level: selectedLevel,
                 genre: genreLabel,

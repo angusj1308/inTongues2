@@ -16,21 +16,22 @@ const PencilIcon = () => (
   </svg>
 )
 
-const getTypeLabel = (item) => {
+const getKindLabel = (item) => {
+  if (item.kind === 'practice') return 'Practice'
+  if (item.kind === 'free') return 'Free Write'
+  const match = TEXT_TYPES.find((t) => t.id === item.type)
+  return match?.label || 'Writing'
+}
+
+const getMetaLabel = (item) => {
   if (item.kind === 'practice') {
     const total = item.sentences?.length || 0
     const completed = item.completedCount || 0
-    if (total === 0) return 'Practice'
+    if (total === 0) return ''
     return `${completed}/${total} sentences`
   }
-  if (item.kind === 'free') {
-    const count = item.wordCount || 0
-    return count ? `${count} words` : 'Free Write'
-  }
-  const match = TEXT_TYPES.find((t) => t.id === item.type)
-  const label = match?.label || 'Writing'
   const count = item.wordCount || 0
-  return count ? `${label} · ${count} words` : label
+  return count ? `${count} words` : ''
 }
 
 const toDate = (ts) => {
@@ -53,8 +54,8 @@ const formatDate = (item) => {
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
   if (days === 0) return 'Today'
   if (days === 1) return 'Yesterday'
-  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'short' })
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 const WritingHub = ({ activeLanguage }) => {
@@ -228,7 +229,8 @@ const WritingHub = ({ activeLanguage }) => {
               <li key={`${item.kind}-${item.id}`} className="notebook-row" onClick={() => handleOpen(item)}>
                 <span className="notebook-date">{formatDate(item)}</span>
                 <span className="notebook-title">{item.title || 'Untitled'}</span>
-                <span className="notebook-type">{getTypeLabel(item)}</span>
+                <span className="notebook-kind">{getKindLabel(item)}</span>
+                <span className="notebook-meta">{getMetaLabel(item)}</span>
                 <span className="notebook-edit" aria-label="Edit">
                   <PencilIcon />
                 </span>

@@ -14254,14 +14254,25 @@ body:has(.cinema-page) {
   color: #FBFAF8;
 }
 
-.notebook-type {
+.notebook-kind {
   font-size: 0.8125rem;
   color: #78716c;
   flex-shrink: 0;
   white-space: nowrap;
 }
 
-[data-theme='dark'] .notebook-type {
+[data-theme='dark'] .notebook-kind {
+  color: #a8a29e;
+}
+
+.notebook-meta {
+  font-size: 0.8125rem;
+  color: #78716c;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .notebook-meta {
   color: #a8a29e;
 }
 

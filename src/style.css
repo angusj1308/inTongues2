@@ -815,6 +815,7 @@ textarea {
 
 .reader-word--highlighted {
   background-color: var(--hlt-color);
+  color: var(--reader-text, #1A1A1A);
 }
 
 /* Dark mode: highlighter pastels won't read on dark page bg, so the colour

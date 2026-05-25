@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -7,7 +7,8 @@ import {
 } from '../../services/writing'
 import { subscribeToPracticeLessons } from '../../services/practice'
 import { subscribeToFreeWritingLessons } from '../../services/freewriting'
-import NewWritingModal from './NewWritingModal'
+import PracticeInlineForm from './PracticeInlineForm'
+import FreeWriteInlineForm from './FreeWriteInlineForm'
 
 const PencilIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -68,7 +69,20 @@ const WritingHub = ({ activeLanguage }) => {
   const [practiceLoading, setPracticeLoading] = useState(true)
   const [freeWritingLoading, setFreeWritingLoading] = useState(true)
   const [error, setError] = useState('')
-  const [modalMode, setModalMode] = useState(null)
+  const [expandedDoor, setExpandedDoor] = useState(null)
+  const expandedCardRef = useRef(null)
+
+  useEffect(() => {
+    if (!expandedDoor) return
+    const handleClickOutside = (event) => {
+      const card = expandedCardRef.current
+      if (card && !card.contains(event.target)) {
+        setExpandedDoor(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [expandedDoor])
 
   useEffect(() => {
     if (!user || !activeLanguage) {
@@ -164,16 +178,6 @@ const WritingHub = ({ activeLanguage }) => {
     else navigate(`/write/${item.id}`)
   }
 
-  const handleCreated = (item, type, options = {}) => {
-    setModalMode(null)
-    if (options.stayOnDashboard) return
-    if (type === 'free') {
-      navigate(`/freewrite/${item.id}`)
-    } else {
-      navigate(`/practice/${item.id}`)
-    }
-  }
-
   if (!activeLanguage) {
     return (
       <div className="writing-hub">
@@ -207,17 +211,29 @@ const WritingHub = ({ activeLanguage }) => {
       </nav>
 
       <div className="discover-doors discover-doors--landing">
-        <button className="discover-door discover-door--landing" onClick={() => setModalMode('practice')}>
-          <h2 className="discover-door-label">Practice</h2>
-          <span className="discover-door-rule" aria-hidden="true" />
-          <p className="discover-door-description">Provide text in your native language and practice expressing yourself in your target language.</p>
-        </button>
+        {expandedDoor === 'practice' ? (
+          <div ref={expandedCardRef} className="discover-door discover-door--landing is-expanded">
+            <PracticeInlineForm activeLanguage={activeLanguage} />
+          </div>
+        ) : (
+          <button className="discover-door discover-door--landing" onClick={() => setExpandedDoor('practice')}>
+            <h2 className="discover-door-label">Practice</h2>
+            <span className="discover-door-rule" aria-hidden="true" />
+            <p className="discover-door-description">Provide text in your native language and practice expressing yourself in your target language.</p>
+          </button>
+        )}
 
-        <button className="discover-door discover-door--landing" onClick={() => setModalMode('free')}>
-          <h2 className="discover-door-label">Free Write</h2>
-          <span className="discover-door-rule" aria-hidden="true" />
-          <p className="discover-door-description">Write freely and receive feedback on your grammar, vocabulary and fluency.</p>
-        </button>
+        {expandedDoor === 'free' ? (
+          <div ref={expandedCardRef} className="discover-door discover-door--landing is-expanded">
+            <FreeWriteInlineForm activeLanguage={activeLanguage} />
+          </div>
+        ) : (
+          <button className="discover-door discover-door--landing" onClick={() => setExpandedDoor('free')}>
+            <h2 className="discover-door-label">Free Write</h2>
+            <span className="discover-door-rule" aria-hidden="true" />
+            <p className="discover-door-description">Write freely and receive feedback on your grammar, vocabulary and fluency.</p>
+          </button>
+        )}
       </div>
 
       <section className="notebook-section">
@@ -239,15 +255,6 @@ const WritingHub = ({ activeLanguage }) => {
           </ul>
         )}
       </section>
-
-      {modalMode && (
-        <NewWritingModal
-          activeLanguage={activeLanguage}
-          initialMode={modalMode}
-          onClose={() => setModalMode(null)}
-          onCreated={handleCreated}
-        />
-      )}
     </div>
   )
 }

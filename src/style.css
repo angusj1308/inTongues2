@@ -28945,6 +28945,21 @@ body:has(.cinema-page) {
   max-width: 100%;
 }
 
+.compose-landing .discover-door--landing.is-expanded {
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 28px;
+  cursor: default;
+  border: none;
+  background: transparent;
+}
+
+.compose-landing .discover-door--landing.is-expanded:hover {
+  background: transparent;
+  transform: none;
+}
+
 .discover-hairline {
   height: 0.5px;
   background: var(--text-primary, #1C1A17);

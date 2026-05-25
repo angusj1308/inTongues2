@@ -4353,13 +4353,16 @@ textarea {
 }
 
 /* Lock window scroll when reader is active — scroll container owns scrolling.
-   Also paint html+body with the reader bg so no browser chrome (scrollbar
-   gutter, overscroll area) leaks a different colour. */
-html.reader-active,
+   Disable scrollbar-gutter so the reserved gutter space doesn't leak a
+   different background colour to the right of the reader. */
+html.reader-active {
+  overflow: hidden;
+  height: 100%;
+  scrollbar-gutter: auto;
+}
 html.reader-active body {
   overflow: hidden;
   height: 100%;
-  background: var(--reader-bg, #1C1A17);
 }
 
 .reader-themed {

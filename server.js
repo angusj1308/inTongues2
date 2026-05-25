@@ -11795,12 +11795,55 @@ async function loadCoverBriefs() {
   return JSON.parse(raw)
 }
 
-function buildCoverPrompt({ genre, title, synopsis, artistBrief }) {
+// ── Cover art director ──
+// Reads the full story and outputs a single composition description for
+// the cover image. The art method (HOW) is kept separate — the art
+// director only decides the WHAT.
+const COVER_ART_DIRECTOR_PROMPT_PATH = path.join(process.cwd(), 'config', 'cover-art-director-prompt.txt')
+
+async function loadArtDirectorPrompt() {
+  return (await fs.readFile(COVER_ART_DIRECTOR_PROMPT_PATH, 'utf8')).trim()
+}
+
+async function generateArtworkDescription({ storyText, genre }) {
+  if (!anthropicClient) throw new Error('Anthropic client not configured')
+
+  const systemPrompt = await loadArtDirectorPrompt()
+
+  console.log('───────────────────────────────────────────────────────')
+  console.log('ART DIRECTOR — Claude Opus 4.7')
+  console.log('───────────────────────────────────────────────────────')
+  console.log('SYSTEM PROMPT:')
+  console.log(systemPrompt)
+  console.log('───────────────────────────────────────────────────────')
+  console.log(`USER MESSAGE: [${genre}] + story (${storyText.length} chars)`)
+  console.log('───────────────────────────────────────────────────────')
+
+  const response = await anthropicClient.messages.create({
+    model: 'claude-opus-4-7',
+    max_tokens: 1024,
+    system: systemPrompt,
+    messages: [
+      { role: 'user', content: `Genre: ${genre}\n\n${storyText}` },
+    ],
+  })
+
+  const artwork = (response.content.find((b) => b.type === 'text')?.text || '').trim()
+  if (!artwork) throw new Error('Art director returned empty composition description')
+
+  console.log('ART DIRECTOR OUTPUT:')
+  console.log(artwork)
+  console.log('───────────────────────────────────────────────────────')
+
+  return artwork
+}
+
+function buildCoverPrompt({ genre, title, artwork, artistBrief }) {
   return `Task: (${genre}) book cover
 Title: (${title})
 Title font: Bold DM Serif Display, Left aligned, Title case
 Background: #F4EFE5
-Synopsis: (${synopsis})
+Artwork: (${artwork})
 Artist brief: (${artistBrief})
 Constraint: No text other than the title.`
 }
@@ -11833,28 +11876,15 @@ app.post('/api/generate-cover', async (req, res) => {
     console.log(`uid: ${uid}    force: ${Boolean(force)}`)
     console.log('═══════════════════════════════════════════════════════')
 
-    // Synopsis: read from doc, generate inline if missing. The cover prompt
-    // is built from the synopsis — without it we cannot proceed.
-    let synopsis = data.synopsis
-    if (!synopsis) {
-      const storyText = data.adaptedTextBlob || ''
-      if (!storyText.trim()) {
-        return res.status(400).json({ error: 'Story has no text' })
-      }
-      console.log('Step 1: Synopsis missing on doc — generating inline.')
-      synopsis = await generateBookSynopsis(storyText)
-      await storyRef.update({ synopsis })
-    } else {
-      console.log('Step 1: Synopsis already on doc — reusing.')
-      console.log('───────────────────────────────────────────────────────')
-      console.log('SYNOPSIS (reused):')
-      console.log(synopsis)
-      console.log('───────────────────────────────────────────────────────')
+    const storyText = data.adaptedTextBlob || ''
+    if (!storyText.trim()) {
+      return res.status(400).json({ error: 'Story has no text' })
     }
 
     const title = data.storyTitle || data.title || 'Untitled'
     const genre = data.genre || ''
 
+    // Step 1: Resolve art method from genre→brief table
     const coverBriefs = await loadCoverBriefs()
     const artistBrief = coverBriefs[genre]
     if (!artistBrief) {
@@ -11864,12 +11894,17 @@ app.post('/api/generate-cover', async (req, res) => {
       return res.status(400).json({ error: msg })
     }
 
-    console.log(`Step 2: Book metadata`)
+    console.log(`Step 1: Book metadata`)
     console.log(`  title:    ${title}`)
     console.log(`  genre:    ${genre}`)
     console.log(`  brief:    ${artistBrief}`)
 
-    const imagePrompt = buildCoverPrompt({ genre, title, synopsis, artistBrief })
+    // Step 2: Art director — reads full story, outputs composition description
+    console.log('Step 2: Art director composing artwork description…')
+    const artwork = await generateArtworkDescription({ storyText, genre })
+    await storyRef.update({ coverArtwork: artwork })
+
+    const imagePrompt = buildCoverPrompt({ genre, title, artwork, artistBrief })
     console.log('───────────────────────────────────────────────────────')
     console.log('COVER PROMPT — gpt-image-2, 1024x1536')
     console.log('───────────────────────────────────────────────────────')

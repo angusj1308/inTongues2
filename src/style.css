@@ -4187,7 +4187,7 @@ textarea {
 }
 
 .reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--reader-bg, #1C1A17);
 }
 
 .reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-thumb {

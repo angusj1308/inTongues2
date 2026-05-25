@@ -14186,10 +14186,18 @@ body:has(.cinema-page) {
 
 .writing-empty-state {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  text-align: center;
   min-height: 400px;
   padding: 48px 24px;
+}
+
+.writing-empty-link {
+  color: var(--text-color);
+  text-decoration: underline;
+  font-weight: 500;
 }
 
 .writing-empty-content {

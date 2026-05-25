@@ -1,59 +1,43 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import {
   TEXT_TYPES,
-  groupPiecesByType,
   subscribeToWritingPieces,
 } from '../../services/writing'
-import { subscribeToPracticeLessons, deletePracticeLesson } from '../../services/practice'
-import { subscribeToFreeWritingLessons, deleteFreeWritingLesson } from '../../services/freewriting'
+import { subscribeToPracticeLessons } from '../../services/practice'
+import { subscribeToFreeWritingLessons } from '../../services/freewriting'
 import NewWritingModal from './NewWritingModal'
-import WritingPieceCard from './WritingPieceCard'
-import PracticeLessonCard from './PracticeLessonCard'
-import FreeWritingCard from './FreeWritingCard'
 
-const WritingShelf = ({ title, pieces, onPieceClick }) => {
-  if (!pieces?.length) return null
+const PencilIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+  </svg>
+)
 
-  return (
-    <section className="read-section read-slab">
-      <div className="read-section-header">
-        <h3>{title}</h3>
-      </div>
-      <div className="writing-grid">
-        {pieces.map((piece) => (
-          <WritingPieceCard
-            key={piece.id}
-            piece={piece}
-            onClick={() => onPieceClick(piece)}
-          />
-        ))}
-      </div>
-    </section>
-  )
+const getTypeLabel = (item) => {
+  if (item.kind === 'free') return 'Free Write'
+  if (item.kind === 'practice') return 'Practice'
+  const match = TEXT_TYPES.find((t) => t.id === item.type)
+  return match?.label || 'Writing'
 }
 
-const PracticeShelf = ({ lessons, onLessonClick, onLessonDelete }) => {
-  if (!lessons?.length) return null
+const getWordInfo = (item) => {
+  if (item.kind === 'practice') {
+    const total = item.sentences?.length || 0
+    return total ? `${total} sentences` : ''
+  }
+  const count = item.wordCount || 0
+  return count ? `${count} words` : ''
+}
 
-  return (
-    <section className="read-section read-slab">
-      <div className="read-section-header">
-        <h3>Translation Practice</h3>
-      </div>
-      <div className="writing-grid">
-        {lessons.map((lesson) => (
-          <PracticeLessonCard
-            key={lesson.id}
-            lesson={lesson}
-            onClick={() => onLessonClick(lesson)}
-            onDelete={onLessonDelete}
-          />
-        ))}
-      </div>
-    </section>
-  )
+const getTimestamp = (item) => {
+  const ts = item.createdAt
+  if (!ts) return 0
+  if (typeof ts.toDate === 'function') return ts.toDate().getTime()
+  if (ts instanceof Date) return ts.getTime()
+  return 0
 }
 
 const WritingHub = ({ activeLanguage }) => {
@@ -145,47 +129,26 @@ const WritingHub = ({ activeLanguage }) => {
     return unsubscribe
   }, [activeLanguage, user])
 
-  const handleOpenPiece = (piece) => {
-    if (piece.id?.startsWith('placeholder')) return
-    if (!piece?.id) return
-    navigate(`/write/${piece.id}`)
-  }
+  const allItems = useMemo(() => {
+    const tagged = [
+      ...pieces.map((p) => ({ ...p, kind: 'piece' })),
+      ...practiceLessons.map((l) => ({ ...l, kind: 'practice' })),
+      ...freeWritingLessons.map((l) => ({ ...l, kind: 'free' })),
+    ]
+    tagged.sort((a, b) => getTimestamp(b) - getTimestamp(a))
+    return tagged
+  }, [pieces, practiceLessons, freeWritingLessons])
 
-  const handleOpenLesson = (lesson) => {
-    if (lesson.id?.startsWith('placeholder')) return
-    if (!lesson?.id) return
-    navigate(`/practice/${lesson.id}`)
-  }
-
-  const handleOpenFreeWriting = (lesson) => {
-    if (lesson.id?.startsWith('placeholder')) return
-    if (!lesson?.id) return
-    navigate(`/freewrite/${lesson.id}`)
-  }
-
-  const handleDeleteLesson = async (lessonId) => {
-    if (!user || !lessonId || lessonId.startsWith('placeholder')) return
-    try {
-      await deletePracticeLesson(user.uid, lessonId)
-    } catch (err) {
-      console.error('Failed to delete lesson:', err)
-    }
-  }
-
-  const handleDeleteFreeWriting = async (lessonId) => {
-    if (!user || !lessonId || lessonId.startsWith('placeholder')) return
-    try {
-      await deleteFreeWritingLesson(user.uid, lessonId)
-    } catch (err) {
-      console.error('Failed to delete free writing:', err)
-    }
+  const handleOpen = (item) => {
+    if (!item?.id) return
+    if (item.kind === 'free') navigate(`/freewrite/${item.id}`)
+    else if (item.kind === 'practice') navigate(`/practice/${item.id}`)
+    else navigate(`/write/${item.id}`)
   }
 
   const handleCreated = (item, type, options = {}) => {
     setModalMode(null)
-    if (options.stayOnDashboard) {
-      return
-    }
+    if (options.stayOnDashboard) return
     if (type === 'free') {
       navigate(`/freewrite/${item.id}`)
     } else {
@@ -219,11 +182,6 @@ const WritingHub = ({ activeLanguage }) => {
     )
   }
 
-  const hasPieces = pieces.length > 0
-  const hasLessons = practiceLessons.length > 0
-  const hasFreeWriting = freeWritingLessons.length > 0
-  const groupedPieces = groupPiecesByType(pieces)
-
   return (
     <div className="writing-hub compose-landing">
       <div className="discover-doors discover-doors--landing">
@@ -240,44 +198,26 @@ const WritingHub = ({ activeLanguage }) => {
         </button>
       </div>
 
-      {hasFreeWriting && (
-        <section className="read-section read-slab">
-          <div className="read-section-header">
-            <h3>Free Writing</h3>
-          </div>
-          <div className="writing-grid">
-            {freeWritingLessons.map((lesson) => (
-              <FreeWritingCard
-                key={lesson.id}
-                lesson={lesson}
-                onClick={() => handleOpenFreeWriting(lesson)}
-                onDelete={handleDeleteFreeWriting}
-              />
+      <section className="notebook-section">
+        <h3 className="notebook-heading">Notebook</h3>
+
+        {allItems.length === 0 ? (
+          <p className="muted small notebook-empty">Your work will appear here once you start writing.</p>
+        ) : (
+          <ul className="notebook-list">
+            {allItems.map((item) => (
+              <li key={`${item.kind}-${item.id}`} className="notebook-row" onClick={() => handleOpen(item)}>
+                <span className="notebook-type">{getTypeLabel(item)}</span>
+                <span className="notebook-title">{item.title || 'Untitled'}</span>
+                <span className="notebook-meta">{getWordInfo(item)}</span>
+                <span className="notebook-edit" aria-label="Edit">
+                  <PencilIcon />
+                </span>
+              </li>
             ))}
-          </div>
-        </section>
-      )}
-
-      {hasLessons && (
-        <PracticeShelf
-          lessons={practiceLessons}
-          onLessonClick={handleOpenLesson}
-          onLessonDelete={handleDeleteLesson}
-        />
-      )}
-
-      {hasPieces && (
-        <>
-          {TEXT_TYPES.map((type) => (
-            <WritingShelf
-              key={type.id}
-              title={type.label + 's'}
-              pieces={groupedPieces[type.id]}
-              onPieceClick={handleOpenPiece}
-            />
-          ))}
-        </>
-      )}
+          </ul>
+        )}
+      </section>
 
       {modalMode && (
         <NewWritingModal

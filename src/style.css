@@ -14190,20 +14190,117 @@ body:has(.cinema-page) {
   padding: 0;
 }
 
-.writing-empty-state {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  min-height: 400px;
-  padding: 48px 24px;
+.notebook-section {
+  padding: 0 1.5rem 2rem;
 }
 
-.writing-empty-link {
-  color: var(--text-color);
-  text-decoration: underline;
+.notebook-heading {
+  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  margin: 0 0 1rem;
+  color: var(--text-primary, #1C1A17);
+}
+
+[data-theme='dark'] .notebook-heading {
+  color: #FBFAF8;
+}
+
+.notebook-empty {
+  padding: 2rem 0;
+}
+
+.notebook-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notebook-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(28, 26, 23, 0.08);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.notebook-row:first-child {
+  border-top: 1px solid rgba(28, 26, 23, 0.08);
+}
+
+.notebook-row:hover {
+  background: rgba(28, 26, 23, 0.03);
+}
+
+[data-theme='dark'] .notebook-row {
+  border-bottom-color: rgba(251, 250, 248, 0.08);
+}
+
+[data-theme='dark'] .notebook-row:first-child {
+  border-top-color: rgba(251, 250, 248, 0.08);
+}
+
+[data-theme='dark'] .notebook-row:hover {
+  background: rgba(251, 250, 248, 0.04);
+}
+
+.notebook-type {
+  font-family: 'Source Sans 3', 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #78716c;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .notebook-type {
+  color: #a8a29e;
+}
+
+.notebook-title {
+  flex: 1;
+  font-size: 0.9375rem;
   font-weight: 500;
+  color: var(--text-primary, #1C1A17);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .notebook-title {
+  color: #FBFAF8;
+}
+
+.notebook-meta {
+  font-size: 0.8125rem;
+  color: #78716c;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .notebook-meta {
+  color: #a8a29e;
+}
+
+.notebook-edit {
+  flex-shrink: 0;
+  color: #78716c;
+  display: flex;
+  align-items: center;
+  opacity: 0.5;
+  transition: opacity 150ms ease;
+}
+
+.notebook-row:hover .notebook-edit {
+  opacity: 1;
+}
+
+[data-theme='dark'] .notebook-edit {
+  color: #a8a29e;
 }
 
 .writing-empty-content {

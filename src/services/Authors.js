@@ -214,7 +214,7 @@ export function rollNovelAuthor(genre) {
 // Genre metadata — master list with display labels
 const ALL_GENRES = [
   { id: 'romance', label: 'Romance' },
-  { id: 'thriller', label: 'Thriller' },
+  { id: 'thriller', label: 'Psychological Thriller' },
   { id: 'scifi', label: 'Science Fiction' },
   { id: 'mystery', label: 'Mystery' },
   { id: 'adventure', label: 'Adventure' },

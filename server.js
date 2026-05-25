@@ -11784,24 +11784,25 @@ app.post('/api/generate-synopsis', async (req, res) => {
   }
 })
 
-// Build the cover-generation prompt as a JSON-shaped string. The image
-// model receives the JSON literal as plain text — image models accept
-// structured-looking prompts and the explicit field labelling helps
-// the painter role land.
-function buildCoverPrompt({ painter, title, language, synopsis }) {
-  const promptObject = {
-    role: `${painter.name} - ${painter.description}`,
-    task: 'Design a portrait (2:3) book cover for the novel below in your idiom',
-    book: {
-      title,
-      language,
-      synopsis,
-    },
-    constraints: {
-      render_only_text: 'the title',
-    },
-  }
-  return JSON.stringify(promptObject, null, 2)
+// ── Genre → cover artist brief lookup ──
+// Single source of truth for cover visual identity. Each genre maps to
+// a short artist brief string that gets interpolated into the image prompt.
+// Kept in version-controlled JSON so briefs can be edited without a redeploy.
+const GENRE_COVER_BRIEFS_PATH = path.join(process.cwd(), 'config', 'genre-cover-briefs.json')
+
+async function loadCoverBriefs() {
+  const raw = await fs.readFile(GENRE_COVER_BRIEFS_PATH, 'utf8')
+  return JSON.parse(raw)
+}
+
+function buildCoverPrompt({ genre, title, synopsis, artistBrief }) {
+  return `Task: (${genre}) book cover
+Title: (${title})
+Title font: Bold DM Serif Display, Left aligned, Title case
+Background: #F4EFE5
+Synopsis: (${synopsis})
+Artist brief: (${artistBrief})
+Constraint: No text other than the title.`
 }
 
 app.post('/api/generate-cover', async (req, res) => {
@@ -11852,16 +11853,23 @@ app.post('/api/generate-cover', async (req, res) => {
     }
 
     const title = data.storyTitle || data.title || 'Untitled'
-    const language = data.language || ''
-    const genre = data.genre || 'Literary'
-    const painter = await getPainterForGenre(genre)
+    const genre = data.genre || ''
+
+    const coverBriefs = await loadCoverBriefs()
+    const artistBrief = coverBriefs[genre]
+    if (!artistBrief) {
+      const msg = `No cover artist brief configured for genre "${genre}". Add it to config/genre-cover-briefs.json before generating.`
+      console.error(msg)
+      await storyRef.update({ coverStatus: 'error', coverError: msg })
+      return res.status(400).json({ error: msg })
+    }
+
     console.log(`Step 2: Book metadata`)
     console.log(`  title:    ${title}`)
-    console.log(`  language: ${language}`)
     console.log(`  genre:    ${genre}`)
-    console.log(`  painter:  ${painter.name}`)
+    console.log(`  brief:    ${artistBrief}`)
 
-    const imagePrompt = buildCoverPrompt({ painter, title, language, synopsis })
+    const imagePrompt = buildCoverPrompt({ genre, title, synopsis, artistBrief })
     console.log('───────────────────────────────────────────────────────')
     console.log('COVER PROMPT — gpt-image-2, 1024x1536')
     console.log('───────────────────────────────────────────────────────')
@@ -11883,10 +11891,10 @@ app.post('/api/generate-cover', async (req, res) => {
       coverUrl,
       coverImageUrl: coverUrl,
       coverStatus: 'ready',
-      painterUsed: painter.name,
+      coverArtistBrief: artistBrief,
     })
     console.log('───────────────────────────────────────────────────────')
-    console.log(`COVER READY  painter: ${painter.name}`)
+    console.log(`COVER READY  brief: ${artistBrief}`)
     console.log(`URL: ${coverUrl}`)
     console.log('═══════════════════════════════════════════════════════\n')
 
@@ -11897,7 +11905,7 @@ app.post('/api/generate-cover', async (req, res) => {
       console.error('Square cover generation failed (post-portrait):', err)
     })
 
-    return res.json({ success: true, coverUrl, painterUsed: painter.name })
+    return res.json({ success: true, coverUrl, artistBrief })
   } catch (err) {
     console.error('Cover generation failed:', err)
     if (storyRef) {
@@ -14192,7 +14200,7 @@ app.post('/api/generate/different-prompt', async (req, res) => {
 // Genre id → display label map (used to qualify concept prompts)
 const GENRE_LABELS = {
   romance: 'romance',
-  thriller: 'psych thriller',
+  thriller: 'psychological thriller',
   scifi: 'science fiction',
   mystery: 'mystery',
   adventure: 'adventure',

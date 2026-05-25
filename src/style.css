@@ -14188,18 +14188,6 @@ body:has(.cinema-page) {
   padding: 0 1.5rem 2rem;
 }
 
-.notebook-heading {
-  font-family: 'DM Serif Display', 'EB Garamond', Georgia, serif;
-  font-size: 1.5rem;
-  font-weight: 400;
-  margin: 0 0 1rem;
-  color: var(--text-primary, #1C1A17);
-}
-
-[data-theme='dark'] .notebook-heading {
-  color: #FBFAF8;
-}
-
 .notebook-empty {
   padding: 2rem 0;
 }

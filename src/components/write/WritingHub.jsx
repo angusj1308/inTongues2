@@ -184,7 +184,9 @@ const WritingHub = ({ activeLanguage }) => {
 
   return (
     <div className="writing-hub compose-landing">
-      <h3 className="notebook-heading">Notebook</h3>
+      <nav className="read-sub-nav" aria-label="Write sections">
+        <span className="read-sub-nav-item is-active">Notebook</span>
+      </nav>
 
       <div className="discover-doors discover-doors--landing">
         <button className="discover-door discover-door--landing" onClick={() => setModalMode('practice')}>

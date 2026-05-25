@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -7,7 +7,8 @@ import {
 } from '../../services/writing'
 import { subscribeToPracticeLessons } from '../../services/practice'
 import { subscribeToFreeWritingLessons } from '../../services/freewriting'
-import NewWritingModal from './NewWritingModal'
+import PracticeInlineForm from './PracticeInlineForm'
+import FreeWriteInlineForm from './FreeWriteInlineForm'
 
 const PencilIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -16,21 +17,22 @@ const PencilIcon = () => (
   </svg>
 )
 
-const getTypeLabel = (item) => {
+const getKindLabel = (item) => {
+  if (item.kind === 'practice') return 'Practice'
+  if (item.kind === 'free') return 'Free Write'
+  const match = TEXT_TYPES.find((t) => t.id === item.type)
+  return match?.label || 'Writing'
+}
+
+const getMetaLabel = (item) => {
   if (item.kind === 'practice') {
     const total = item.sentences?.length || 0
     const completed = item.completedCount || 0
-    if (total === 0) return 'Practice'
+    if (total === 0) return ''
     return `${completed}/${total} sentences`
   }
-  if (item.kind === 'free') {
-    const count = item.wordCount || 0
-    return count ? `${count} words` : 'Free Write'
-  }
-  const match = TEXT_TYPES.find((t) => t.id === item.type)
-  const label = match?.label || 'Writing'
   const count = item.wordCount || 0
-  return count ? `${label} · ${count} words` : label
+  return count ? `${count} words` : ''
 }
 
 const toDate = (ts) => {
@@ -53,8 +55,8 @@ const formatDate = (item) => {
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
   if (days === 0) return 'Today'
   if (days === 1) return 'Yesterday'
-  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'short' })
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 const WritingHub = ({ activeLanguage }) => {
@@ -67,7 +69,20 @@ const WritingHub = ({ activeLanguage }) => {
   const [practiceLoading, setPracticeLoading] = useState(true)
   const [freeWritingLoading, setFreeWritingLoading] = useState(true)
   const [error, setError] = useState('')
-  const [modalMode, setModalMode] = useState(null)
+  const [expandedDoor, setExpandedDoor] = useState(null)
+  const expandedCardRef = useRef(null)
+
+  useEffect(() => {
+    if (!expandedDoor) return
+    const handleClickOutside = (event) => {
+      const card = expandedCardRef.current
+      if (card && !card.contains(event.target)) {
+        setExpandedDoor(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [expandedDoor])
 
   useEffect(() => {
     if (!user || !activeLanguage) {
@@ -163,16 +178,6 @@ const WritingHub = ({ activeLanguage }) => {
     else navigate(`/write/${item.id}`)
   }
 
-  const handleCreated = (item, type, options = {}) => {
-    setModalMode(null)
-    if (options.stayOnDashboard) return
-    if (type === 'free') {
-      navigate(`/freewrite/${item.id}`)
-    } else {
-      navigate(`/practice/${item.id}`)
-    }
-  }
-
   if (!activeLanguage) {
     return (
       <div className="writing-hub">
@@ -206,17 +211,29 @@ const WritingHub = ({ activeLanguage }) => {
       </nav>
 
       <div className="discover-doors discover-doors--landing">
-        <button className="discover-door discover-door--landing" onClick={() => setModalMode('practice')}>
-          <h2 className="discover-door-label">Practice</h2>
-          <span className="discover-door-rule" aria-hidden="true" />
-          <p className="discover-door-description">Provide text in your native language and practice expressing yourself in your target language.</p>
-        </button>
+        {expandedDoor === 'practice' ? (
+          <div ref={expandedCardRef} className="discover-door discover-door--landing is-expanded">
+            <PracticeInlineForm activeLanguage={activeLanguage} />
+          </div>
+        ) : (
+          <button className="discover-door discover-door--landing" onClick={() => setExpandedDoor('practice')}>
+            <h2 className="discover-door-label">Practice</h2>
+            <span className="discover-door-rule" aria-hidden="true" />
+            <p className="discover-door-description">Provide text in your native language and practice expressing yourself in your target language.</p>
+          </button>
+        )}
 
-        <button className="discover-door discover-door--landing" onClick={() => setModalMode('free')}>
-          <h2 className="discover-door-label">Free Write</h2>
-          <span className="discover-door-rule" aria-hidden="true" />
-          <p className="discover-door-description">Write freely and receive feedback on your grammar, vocabulary and fluency.</p>
-        </button>
+        {expandedDoor === 'free' ? (
+          <div ref={expandedCardRef} className="discover-door discover-door--landing is-expanded">
+            <FreeWriteInlineForm activeLanguage={activeLanguage} />
+          </div>
+        ) : (
+          <button className="discover-door discover-door--landing" onClick={() => setExpandedDoor('free')}>
+            <h2 className="discover-door-label">Free Write</h2>
+            <span className="discover-door-rule" aria-hidden="true" />
+            <p className="discover-door-description">Write freely and receive feedback on your grammar, vocabulary and fluency.</p>
+          </button>
+        )}
       </div>
 
       <section className="notebook-section">
@@ -228,7 +245,8 @@ const WritingHub = ({ activeLanguage }) => {
               <li key={`${item.kind}-${item.id}`} className="notebook-row" onClick={() => handleOpen(item)}>
                 <span className="notebook-date">{formatDate(item)}</span>
                 <span className="notebook-title">{item.title || 'Untitled'}</span>
-                <span className="notebook-type">{getTypeLabel(item)}</span>
+                <span className="notebook-kind">{getKindLabel(item)}</span>
+                <span className="notebook-meta">{getMetaLabel(item)}</span>
                 <span className="notebook-edit" aria-label="Edit">
                   <PencilIcon />
                 </span>
@@ -237,15 +255,6 @@ const WritingHub = ({ activeLanguage }) => {
           </ul>
         )}
       </section>
-
-      {modalMode && (
-        <NewWritingModal
-          activeLanguage={activeLanguage}
-          initialMode={modalMode}
-          onClose={() => setModalMode(null)}
-          onCreated={handleCreated}
-        />
-      )}
     </div>
   )
 }

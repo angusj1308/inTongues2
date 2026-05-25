@@ -14260,14 +14260,25 @@ body:has(.cinema-page) {
   color: #FBFAF8;
 }
 
-.notebook-type {
+.notebook-kind {
   font-size: 0.8125rem;
   color: #78716c;
   flex-shrink: 0;
   white-space: nowrap;
 }
 
-[data-theme='dark'] .notebook-type {
+[data-theme='dark'] .notebook-kind {
+  color: #a8a29e;
+}
+
+.notebook-meta {
+  font-size: 0.8125rem;
+  color: #78716c;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .notebook-meta {
   color: #a8a29e;
 }
 
@@ -28938,6 +28949,21 @@ body:has(.cinema-page) {
 .compose-landing .discover-door--landing .discover-door-description {
   font-size: 1rem;
   max-width: 100%;
+}
+
+.compose-landing .discover-door--landing.is-expanded {
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 28px;
+  cursor: default;
+  border: none;
+  background: transparent;
+}
+
+.compose-landing .discover-door--landing.is-expanded:hover {
+  background: transparent;
+  transform: none;
 }
 
 .discover-hairline {

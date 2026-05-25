@@ -246,6 +246,7 @@ const WritingHub = ({ activeLanguage }) => {
                 <span className="notebook-date">{formatDate(item)}</span>
                 <span className="notebook-title">{item.title || 'Untitled'}</span>
                 <span className="notebook-kind">{getKindLabel(item)}</span>
+                <span className="notebook-spacer" />
                 <span className="notebook-meta">{getMetaLabel(item)}</span>
                 <span className="notebook-edit" aria-label="Edit">
                   <PencilIcon />

@@ -14202,10 +14202,14 @@ body:has(.cinema-page) {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.75rem 0;
+  padding: 1.5rem 0;
   border-bottom: 1px solid rgba(28, 26, 23, 0.08);
   cursor: pointer;
   transition: background 150ms ease;
+}
+
+.notebook-spacer {
+  flex: 1;
 }
 
 .notebook-row:first-child {
@@ -14241,7 +14245,6 @@ body:has(.cinema-page) {
 }
 
 .notebook-title {
-  flex: 1;
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-primary, #1C1A17);

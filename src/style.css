@@ -14228,18 +14228,15 @@ body:has(.cinema-page) {
   background: rgba(251, 250, 248, 0.04);
 }
 
-.notebook-type {
-  font-family: 'Source Sans 3', 'DM Sans', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.notebook-date {
+  font-size: 0.8125rem;
   color: #78716c;
-  min-width: 80px;
+  min-width: 70px;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
-[data-theme='dark'] .notebook-type {
+[data-theme='dark'] .notebook-date {
   color: #a8a29e;
 }
 
@@ -14257,14 +14254,14 @@ body:has(.cinema-page) {
   color: #FBFAF8;
 }
 
-.notebook-meta {
+.notebook-type {
   font-size: 0.8125rem;
   color: #78716c;
   flex-shrink: 0;
   white-space: nowrap;
 }
 
-[data-theme='dark'] .notebook-meta {
+[data-theme='dark'] .notebook-type {
   color: #a8a29e;
 }
 

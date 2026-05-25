@@ -17,27 +17,44 @@ const PencilIcon = () => (
 )
 
 const getTypeLabel = (item) => {
-  if (item.kind === 'free') return 'Free Write'
-  if (item.kind === 'practice') return 'Practice'
-  const match = TEXT_TYPES.find((t) => t.id === item.type)
-  return match?.label || 'Writing'
-}
-
-const getWordInfo = (item) => {
   if (item.kind === 'practice') {
     const total = item.sentences?.length || 0
-    return total ? `${total} sentences` : ''
+    const completed = item.completedCount || 0
+    if (total === 0) return 'Practice'
+    return `${completed}/${total} sentences`
   }
+  if (item.kind === 'free') {
+    const count = item.wordCount || 0
+    return count ? `${count} words` : 'Free Write'
+  }
+  const match = TEXT_TYPES.find((t) => t.id === item.type)
+  const label = match?.label || 'Writing'
   const count = item.wordCount || 0
-  return count ? `${count} words` : ''
+  return count ? `${label} · ${count} words` : label
+}
+
+const toDate = (ts) => {
+  if (!ts) return null
+  if (typeof ts.toDate === 'function') return ts.toDate()
+  if (ts instanceof Date) return ts
+  return null
 }
 
 const getTimestamp = (item) => {
-  const ts = item.createdAt
-  if (!ts) return 0
-  if (typeof ts.toDate === 'function') return ts.toDate().getTime()
-  if (ts instanceof Date) return ts.getTime()
-  return 0
+  const d = toDate(item.createdAt)
+  return d ? d.getTime() : 0
+}
+
+const formatDate = (item) => {
+  const d = toDate(item.createdAt)
+  if (!d) return ''
+  const now = new Date()
+  const diff = now - d
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'short' })
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
 const WritingHub = ({ activeLanguage }) => {
@@ -209,9 +226,9 @@ const WritingHub = ({ activeLanguage }) => {
           <ul className="notebook-list">
             {allItems.map((item) => (
               <li key={`${item.kind}-${item.id}`} className="notebook-row" onClick={() => handleOpen(item)}>
+                <span className="notebook-date">{formatDate(item)}</span>
                 <span className="notebook-title">{item.title || 'Untitled'}</span>
                 <span className="notebook-type">{getTypeLabel(item)}</span>
-                <span className="notebook-meta">{getWordInfo(item)}</span>
                 <span className="notebook-edit" aria-label="Edit">
                   <PencilIcon />
                 </span>

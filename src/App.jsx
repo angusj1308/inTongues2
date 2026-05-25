@@ -321,22 +321,6 @@ const App = () => {
         }
       />
       <Route
-        path="/write/notebook"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/write/compose"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/write/:id"
         element={
           <ProtectedRoute>

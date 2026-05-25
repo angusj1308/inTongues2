@@ -9,7 +9,6 @@ import ListenLibrary from '../components/listen/ListenLibrary'
 import ListenDeepView from '../components/listen/ListenDeepView'
 import ListenDiscover from '../components/listen/ListenDiscover'
 import WritingHub from '../components/write/WritingHub'
-import WriteSubNav from '../components/write/WriteSubNav'
 import TutorHome from '../components/tutor/TutorHome'
 // GATED: import SpeakHub from '../components/speak/SpeakHub'
 import DevelopmentGate from '../components/DevelopmentGate'
@@ -442,7 +441,6 @@ const Dashboard = () => {
   const params = useParams()
   const isReadRoute = location.pathname.startsWith('/read')
   const isListenRoute = location.pathname.startsWith('/listen/')
-  const isWriteRoute = location.pathname.startsWith('/write/')
   const readSegments = isReadRoute
     ? location.pathname.split('/').filter(Boolean) // ['read', 'discover', 'generate']
     : []
@@ -459,13 +457,6 @@ const Dashboard = () => {
   const listenMedium = listenSubPage === 'library' && LISTEN_MEDIUMS.includes(listenSegments[2])
     ? listenSegments[2]
     : null
-  const writeSegments = isWriteRoute
-    ? location.pathname.split('/').filter(Boolean)
-    : []
-  const WRITE_SUB_PAGES = ['notebook', 'compose']
-  const writeSubPage = isWriteRoute && WRITE_SUB_PAGES.includes(writeSegments[1])
-    ? writeSegments[1]
-    : 'notebook'
   const readSubPage = isReadRoute && READ_SUB_PAGES.includes(readSegments[1])
     ? readSegments[1]
     : 'library'
@@ -488,7 +479,6 @@ const Dashboard = () => {
   const getInitialTab = () => {
     if (isReadRoute) return 'read'
     if (isListenRoute) return 'listen'
-    if (isWriteRoute) return 'write'
     const initialTab = location.state?.initialTab
     return initialTab && DASHBOARD_TABS.includes(initialTab) ? initialTab : 'read'
   }
@@ -1049,8 +1039,7 @@ const Dashboard = () => {
     const sameTab = tab === activeTab
     const stickyRead = tab === 'read' && isReadRoute
     const stickyListen = tab === 'listen' && isListenRoute
-    const stickyWrite = tab === 'write' && isWriteRoute
-    if (sameTab && !stickyRead && !stickyListen && !stickyWrite) return
+    if (sameTab && !stickyRead && !stickyListen) return
 
     const currentIndex = DASHBOARD_TABS.indexOf(activeTab)
     const nextIndex = DASHBOARD_TABS.indexOf(tab)
@@ -1073,13 +1062,7 @@ const Dashboard = () => {
       return
     }
 
-    if (tab === 'write') {
-      navigate('/write/notebook')
-      setActiveTab('write')
-      return
-    }
-
-    if (isReadRoute || isListenRoute || isWriteRoute) {
+    if (isReadRoute || isListenRoute) {
       navigate('/dashboard', { state: { initialTab: tab } })
       setActiveTab(tab)
       return
@@ -1091,16 +1074,6 @@ const Dashboard = () => {
   useEffect(() => {
     if (isReadRoute && activeTab !== 'read') setActiveTab('read')
   }, [isReadRoute, activeTab])
-
-  useEffect(() => {
-    if (isWriteRoute && activeTab !== 'write') setActiveTab('write')
-  }, [isWriteRoute, activeTab])
-
-  useEffect(() => {
-    if (activeTab === 'write' && !isWriteRoute) {
-      navigate('/write/notebook', { replace: true })
-    }
-  }, [activeTab, isWriteRoute, navigate])
 
   // If we land on the Read tab without a /read/* URL (e.g. returning
   // from the reader with initialTab='read' in location state), redirect
@@ -2621,14 +2594,7 @@ const Dashboard = () => {
               )}
           */}
           {activeTab === 'speak' && <DevelopmentGate feature="Speaking" />}
-          {activeTab === 'write' && (
-            <div className="home-content">
-              <WriteSubNav />
-              <div className="read-sub-page">
-                <WritingHub activeLanguage={activeLanguage} subPage={writeSubPage} />
-              </div>
-            </div>
-          )}
+          {activeTab === 'write' && <WritingHub activeLanguage={activeLanguage} />}
 
           {/* HIDDEN: Tutor tab removed from nav — restore with 'tutor' in DASHBOARD_TABS
           {activeTab === 'tutor' && (

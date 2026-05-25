@@ -28822,6 +28822,42 @@ body:has(.cinema-page) {
   max-width: 100%;
 }
 
+.compose-landing .discover-doors--landing {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3.5rem 0 2.5rem;
+  gap: 2rem;
+}
+
+.compose-landing .discover-door--landing {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 1.25rem;
+  padding: 30% 2rem 2.5rem;
+  transition: background 200ms ease, transform 200ms ease;
+}
+
+.compose-landing .discover-door--landing:hover {
+  background: rgba(28, 26, 23, 0.03);
+  transform: translateY(-2px);
+}
+
+[data-theme='dark'] .compose-landing .discover-door--landing:hover {
+  background: rgba(251, 250, 248, 0.04);
+}
+
+.compose-landing .discover-door--landing .discover-door-label {
+  font-size: 4.5rem;
+  line-height: 1;
+}
+
+.compose-landing .discover-door--landing .discover-door-description {
+  font-size: 1rem;
+  max-width: 100%;
+}
+
 .discover-hairline {
   height: 0.5px;
   background: var(--text-primary, #1C1A17);

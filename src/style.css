@@ -796,7 +796,7 @@ textarea {
 }
 
 .reader-word {
-  color: inherit;
+  color: var(--reader-text, #1A1A1A);
 }
 
 .reader-word--clickable {

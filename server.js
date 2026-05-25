@@ -14323,9 +14323,7 @@ app.post('/api/generate/short-story', async (req, res) => {
     const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
     const author = authorName.trim()
     const rawLevel = (level || 'Native').trim()
-    const resolvedLevel = rawLevel === 'Beginner'
-      ? 'Beginner (appropriate for someone who is reading their very first book in the language, or is just learning how to read)'
-      : rawLevel
+    const resolvedLevel = rawLevel === 'Beginner' ? 'A2 upper beginner' : rawLevel
 
     let developerMessage
     let userMessage

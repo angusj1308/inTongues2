@@ -122,7 +122,7 @@ export default function GenerateInlineForm({ activeLanguage }) {
       const storyDocRef = await addDoc(storiesRef, {
         title: `${genreLabelText} Short Story`,
         storyTitle: '',
-        author: '',
+        author: 'inTongues',
         language: activeLanguage,
         level,
         genre: genreLabelText,
@@ -168,7 +168,7 @@ export default function GenerateInlineForm({ activeLanguage }) {
           await setDoc(storyDocPath, {
             title: storyResult.storyTitle || `${genreLabelText} Short Story`,
             storyTitle: storyResult.storyTitle || '',
-            author: storyResult.authorName || '',
+            author: 'inTongues',
             adaptedTextBlob: storyResult.storyText,
             lastPhaseCompleted: 2,
             status: 'ready',
@@ -182,7 +182,7 @@ export default function GenerateInlineForm({ activeLanguage }) {
                 sourceType: 'generated',
                 sourceId: storyId,
                 title: storyResult.storyTitle || `${genreLabelText} Short Story`,
-                author: storyResult.authorName || '',
+                author: 'inTongues',
                 language: capturedLanguage,
                 level: capturedLevel,
                 genre: genreLabelText,

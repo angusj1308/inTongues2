@@ -8,6 +8,7 @@ import { incrementSharedAudiobookPopularity } from '../../services/sharedAudiobo
 import { getYouTubeThumbnailFromVideo } from '../../utils/youtube'
 import useListenLibraryData, { pickContinueListening } from './useListenLibraryData'
 import MusicKitConnect from '../music/MusicKitConnect'
+import useMusicKit from '../../hooks/useMusicKit'
 
 const SHELVES = [
   { key: 'podcasts', title: 'Podcasts', cover: 'square', cols: 6 },
@@ -140,10 +141,29 @@ function AllMineTile({ shape, label, onClick }) {
   )
 }
 
-function MusicColdStart({ onBrowse }) {
+function MusicColdStart({ onBrowse, isAuthorized }) {
+  if (isAuthorized) {
+    return (
+      <div className="listen-shelf-coldstart">
+        <p className="listen-shelf-coldstart-headline">Your library is empty.</p>
+        <p className="listen-shelf-coldstart-sub">
+          Head to Discover to find music in your target language.
+        </p>
+        <div className="listen-shelf-coldstart-actions">
+          <button
+            type="button"
+            className="listen-shelf-coldstart-cta"
+            onClick={onBrowse}
+          >
+            Browse music in Discover →
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="listen-shelf-coldstart">
-      <p className="listen-shelf-coldstart-headline">No music yet.</p>
       <p className="listen-shelf-coldstart-sub">
         Connect your Apple Music to import your library, or browse to follow an artist.
       </p>
@@ -164,6 +184,7 @@ function MusicColdStart({ onBrowse }) {
 export default function ListenLibrary() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
+  const { isAuthorized: musicAuthorized } = useMusicKit()
   const activeLanguage = useMemo(
     () => resolveSupportedLanguageLabel(profile?.lastUsedLanguage, ''),
     [profile?.lastUsedLanguage],
@@ -409,7 +430,7 @@ export default function ListenLibrary() {
               )}
             </header>
             {isMusicEmpty ? (
-              <MusicColdStart onBrowse={() => navigate('/listen/discover')} />
+              <MusicColdStart onBrowse={() => navigate('/listen/discover')} isAuthorized={musicAuthorized} />
             ) : (
               <div className={`listen-rail-scroll listen-rail-scroll--${shelf.cover}`}>
                 {cards.map((card) => (

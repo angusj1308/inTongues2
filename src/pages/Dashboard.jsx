@@ -2103,7 +2103,12 @@ const Dashboard = () => {
                     {libraryLoading ? (
                       <p className="reading-card-empty">Loading your books...</p>
                     ) : !yourRecentBooks?.length ? (
-                      <p className="reading-card-empty">Your recent books will appear here</p>
+                      <div className="reading-card-empty">
+                        <p>Your library is empty.</p>
+                        <button className="listen-shelf-coldstart-cta" onClick={() => navigate('/read/discover')}>
+                          Browse Discover to find your first book →
+                        </button>
+                      </div>
                     ) : (
                       <div className="reading-shelf-scroll">
                         {yourRecentBooks.map((book) => {
@@ -2330,7 +2335,12 @@ const Dashboard = () => {
                     {libraryLoading ? (
                       <p className="reading-card-empty">Loading...</p>
                     ) : !allBooks?.length ? (
-                      <p className="reading-card-empty">No books in your library yet</p>
+                      <div className="reading-card-empty">
+                        <p>Your library is empty.</p>
+                        <button className="listen-shelf-coldstart-cta" onClick={() => navigate('/read/discover')}>
+                          Browse Discover to find your first book →
+                        </button>
+                      </div>
                     ) : (
                       <div className="reading-shelf-scroll">
                         {allBooks.map((book) => {

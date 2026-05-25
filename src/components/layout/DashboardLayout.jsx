@@ -12,8 +12,7 @@ import flagRussian from '../../assets/russian.png'
 
 export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
 
-// GATED: Tabs with output features under development — remove entries to un-gate
-const GATED_TABS = new Set(['speak', 'write'])
+const GATED_TABS = new Set(['speak'])
 
 // Flag images for the header language picker. Map by language label
 // to the bundled PNG; languages without a registered flag fall back

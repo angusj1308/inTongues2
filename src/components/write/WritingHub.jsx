@@ -13,24 +13,6 @@ import WritingPieceCard from './WritingPieceCard'
 import PracticeLessonCard from './PracticeLessonCard'
 import FreeWritingCard from './FreeWritingCard'
 
-const PenIcon = () => (
-  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-  </svg>
-)
-
-const TranslateIcon = () => (
-  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M5 8l6 6" />
-    <path d="M4 14l6-6 2-3" />
-    <path d="M2 5h12" />
-    <path d="M7 2v3" />
-    <path d="M22 22l-5-10-5 10" />
-    <path d="M14 18h6" />
-  </svg>
-)
-
 const WritingShelf = ({ title, pieces, onPieceClick }) => {
   if (!pieces?.length) return null
 
@@ -246,25 +228,17 @@ const WritingHub = ({ activeLanguage, subPage }) => {
   if (subPage === 'compose') {
     return (
       <div className="writing-hub">
-        <div className="writing-cta-row">
-          <button className="writing-cta-card" onClick={() => setModalMode('free')}>
-            <div className="writing-cta-icon">
-              <PenIcon />
-            </div>
-            <div className="writing-cta-content">
-              <h3>Free Writing</h3>
-              <p>Write journals, essays, stories</p>
-            </div>
+        <div className="discover-doors discover-doors--landing" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+          <button className="discover-door discover-door--landing" onClick={() => setModalMode('free')}>
+            <h2 className="discover-door-label">Free Write</h2>
+            <span className="discover-door-rule" aria-hidden="true" />
+            <p className="discover-door-description">Write freely and receive feedback on your grammar, vocabulary and fluency.</p>
           </button>
 
-          <button className="writing-cta-card" onClick={() => setModalMode('practice')}>
-            <div className="writing-cta-icon">
-              <TranslateIcon />
-            </div>
-            <div className="writing-cta-content">
-              <h3>Practice Mode</h3>
-              <p>Translate from your native language</p>
-            </div>
+          <button className="discover-door discover-door--landing" onClick={() => setModalMode('practice')}>
+            <h2 className="discover-door-label">Practice</h2>
+            <span className="discover-door-rule" aria-hidden="true" />
+            <p className="discover-door-description">Provide text in your native language and practice expressing yourself in your target language.</p>
           </button>
         </div>
 

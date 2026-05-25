@@ -184,7 +184,7 @@ const WritingHub = ({ activeLanguage }) => {
 
   return (
     <div className="writing-hub compose-landing">
-      <nav className="read-sub-nav" aria-label="Write sections">
+      <nav className="read-sub-nav" aria-label="Write sections" style={{ display: 'flex', justifyContent: 'center' }}>
         <span className="read-sub-nav-item is-active">Notebook</span>
       </nav>
 

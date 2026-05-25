@@ -184,6 +184,8 @@ const WritingHub = ({ activeLanguage }) => {
 
   return (
     <div className="writing-hub compose-landing">
+      <h3 className="notebook-heading">Notebook</h3>
+
       <div className="discover-doors discover-doors--landing">
         <button className="discover-door discover-door--landing" onClick={() => setModalMode('practice')}>
           <h2 className="discover-door-label">Practice</h2>
@@ -199,16 +201,14 @@ const WritingHub = ({ activeLanguage }) => {
       </div>
 
       <section className="notebook-section">
-        <h3 className="notebook-heading">Notebook</h3>
-
         {allItems.length === 0 ? (
           <p className="muted small notebook-empty">Your work will appear here once you start writing.</p>
         ) : (
           <ul className="notebook-list">
             {allItems.map((item) => (
               <li key={`${item.kind}-${item.id}`} className="notebook-row" onClick={() => handleOpen(item)}>
-                <span className="notebook-type">{getTypeLabel(item)}</span>
                 <span className="notebook-title">{item.title || 'Untitled'}</span>
+                <span className="notebook-type">{getTypeLabel(item)}</span>
                 <span className="notebook-meta">{getWordInfo(item)}</span>
                 <span className="notebook-edit" aria-label="Edit">
                   <PencilIcon />

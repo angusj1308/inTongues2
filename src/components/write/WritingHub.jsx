@@ -227,18 +227,18 @@ const WritingHub = ({ activeLanguage, subPage }) => {
 
   if (subPage === 'compose') {
     return (
-      <div className="writing-hub">
-        <div className="discover-doors discover-doors--landing" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-          <button className="discover-door discover-door--landing" onClick={() => setModalMode('free')}>
-            <h2 className="discover-door-label">Free Write</h2>
-            <span className="discover-door-rule" aria-hidden="true" />
-            <p className="discover-door-description">Write freely and receive feedback on your grammar, vocabulary and fluency.</p>
-          </button>
-
+      <div className="writing-hub compose-landing">
+        <div className="discover-doors discover-doors--landing">
           <button className="discover-door discover-door--landing" onClick={() => setModalMode('practice')}>
             <h2 className="discover-door-label">Practice</h2>
             <span className="discover-door-rule" aria-hidden="true" />
             <p className="discover-door-description">Provide text in your native language and practice expressing yourself in your target language.</p>
+          </button>
+
+          <button className="discover-door discover-door--landing" onClick={() => setModalMode('free')}>
+            <h2 className="discover-door-label">Free Write</h2>
+            <span className="discover-door-rule" aria-hidden="true" />
+            <p className="discover-door-description">Write freely and receive feedback on your grammar, vocabulary and fluency.</p>
           </button>
         </div>
 

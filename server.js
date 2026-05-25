@@ -11784,24 +11784,25 @@ app.post('/api/generate-synopsis', async (req, res) => {
   }
 })
 
-// Build the cover-generation prompt as a JSON-shaped string. The image
-// model receives the JSON literal as plain text — image models accept
-// structured-looking prompts and the explicit field labelling helps
-// the painter role land.
-function buildCoverPrompt({ painter, title, language, synopsis }) {
-  const promptObject = {
-    role: `${painter.name} - ${painter.description}`,
-    task: 'Design a portrait (2:3) book cover for the novel below in your idiom',
-    book: {
-      title,
-      language,
-      synopsis,
-    },
-    constraints: {
-      render_only_text: 'the title',
-    },
-  }
-  return JSON.stringify(promptObject, null, 2)
+// ── Genre → cover artist brief lookup ──
+// Single source of truth for cover visual identity. Each genre maps to
+// a short artist brief string that gets interpolated into the image prompt.
+// Kept in version-controlled JSON so briefs can be edited without a redeploy.
+const GENRE_COVER_BRIEFS_PATH = path.join(process.cwd(), 'config', 'genre-cover-briefs.json')
+
+async function loadCoverBriefs() {
+  const raw = await fs.readFile(GENRE_COVER_BRIEFS_PATH, 'utf8')
+  return JSON.parse(raw)
+}
+
+function buildCoverPrompt({ genre, title, synopsis, artistBrief }) {
+  return `Task: (${genre}) book cover
+Title: (${title})
+Title font: Bold DM Serif Display, Left aligned, Title case
+Background: #F4EFE5
+Synopsis: (${synopsis})
+Artist brief: (${artistBrief})
+Constraint: No text other than the title.`
 }
 
 app.post('/api/generate-cover', async (req, res) => {
@@ -11852,46 +11853,33 @@ app.post('/api/generate-cover', async (req, res) => {
     }
 
     const title = data.storyTitle || data.title || 'Untitled'
-    const language = data.language || ''
-    const genre = data.genre || 'Literary'
-    const painter = await getPainterForGenre(genre)
+    const genre = data.genre || ''
+
+    const coverBriefs = await loadCoverBriefs()
+    const artistBrief = coverBriefs[genre]
+    if (!artistBrief) {
+      const msg = `No cover artist brief configured for genre "${genre}". Add it to config/genre-cover-briefs.json before generating.`
+      console.error(msg)
+      await storyRef.update({ coverStatus: 'error', coverError: msg })
+      return res.status(400).json({ error: msg })
+    }
+
     console.log(`Step 2: Book metadata`)
     console.log(`  title:    ${title}`)
-    console.log(`  language: ${language}`)
     console.log(`  genre:    ${genre}`)
-    console.log(`  painter:  ${painter.name}`)
+    console.log(`  brief:    ${artistBrief}`)
 
-    const imagePrompt = buildCoverPrompt({ painter, title, language, synopsis })
+    const imagePrompt = buildCoverPrompt({ genre, title, synopsis, artistBrief })
     console.log('───────────────────────────────────────────────────────')
     console.log('COVER PROMPT — gpt-image-2, 1024x1536')
     console.log('───────────────────────────────────────────────────────')
     console.log(imagePrompt)
     console.log('───────────────────────────────────────────────────────')
     console.log('Step 3: Generating image…')
-    const paintingBuffer = await generateCoverImage(imagePrompt)
-    console.log(`Image generated: ${paintingBuffer.length.toLocaleString()} bytes`)
+    const imageBuffer = await generateCoverImage(imagePrompt)
+    console.log(`Image generated: ${imageBuffer.length.toLocaleString()} bytes`)
 
-    console.log('Step 4: Compositing inTongues wordmark…')
-    const fontPath = await ensureWordmarkFont()
-    const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const tempPainting = path.join(os.tmpdir(), `cover-painting-${tempId}.png`)
-    const tempComposed = path.join(os.tmpdir(), `cover-wordmark-${tempId}.png`)
-    let imageBuffer
-    try {
-      await fs.writeFile(tempPainting, paintingBuffer)
-      const wordmarkInfo = await runWordmarkCompositor(tempPainting, fontPath, tempComposed)
-      console.log(
-        `  luminance=${wordmarkInfo.luminance}  threshold=${wordmarkInfo.threshold}  ` +
-        `color=${wordmarkInfo.color}  font_size=${wordmarkInfo.font_size}px  ` +
-        `sample_ok=${wordmarkInfo.sample_ok}  canvas=${wordmarkInfo.canvas?.join('x')}`
-      )
-      imageBuffer = await fs.readFile(tempComposed)
-    } finally {
-      await fs.unlink(tempPainting).catch(() => {})
-      await fs.unlink(tempComposed).catch(() => {})
-    }
-
-    console.log('Step 5: Uploading to Firebase Storage…')
+    console.log('Step 4: Uploading to Firebase Storage…')
     const baseUrl = await uploadCoverToStorage(imageBuffer, 'image/png', uid, storyId)
     if (!baseUrl) throw new Error('Failed to upload cover to Firebase Storage')
 
@@ -11903,10 +11891,10 @@ app.post('/api/generate-cover', async (req, res) => {
       coverUrl,
       coverImageUrl: coverUrl,
       coverStatus: 'ready',
-      painterUsed: painter.name,
+      coverArtistBrief: artistBrief,
     })
     console.log('───────────────────────────────────────────────────────')
-    console.log(`COVER READY  painter: ${painter.name}`)
+    console.log(`COVER READY  brief: ${artistBrief}`)
     console.log(`URL: ${coverUrl}`)
     console.log('═══════════════════════════════════════════════════════\n')
 
@@ -11917,7 +11905,7 @@ app.post('/api/generate-cover', async (req, res) => {
       console.error('Square cover generation failed (post-portrait):', err)
     })
 
-    return res.json({ success: true, coverUrl, painterUsed: painter.name })
+    return res.json({ success: true, coverUrl, artistBrief })
   } catch (err) {
     console.error('Cover generation failed:', err)
     if (storyRef) {
@@ -14212,7 +14200,7 @@ app.post('/api/generate/different-prompt', async (req, res) => {
 // Genre id → display label map (used to qualify concept prompts)
 const GENRE_LABELS = {
   romance: 'romance',
-  thriller: 'thriller',
+  thriller: 'psychological thriller',
   scifi: 'science fiction',
   mystery: 'mystery',
   adventure: 'adventure',
@@ -14334,71 +14322,27 @@ app.post('/api/generate/short-story', async (req, res) => {
     const genreQualifier = genreLabel ? `${genreLabel} ` : ''
     const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
     const author = authorName.trim()
-    const resolvedLevel = (level || 'Native').trim()
+    const rawLevel = (level || 'Native').trim()
+    const resolvedLevel = rawLevel === 'Beginner'
+      ? 'Beginner (appropriate for someone who is reading their very first book in the language, or is just learning how to read)'
+      : rawLevel
 
     let developerMessage
     let userMessage
 
-    const titleInstruction = ' Begin your response with the title on its own line, then a blank line, then the story. The title should be in the target language, 1-5 words.'
+    developerMessage = `You are ${author}. You have been commissioned by inTongues to compose an original and compelling short story for their language learning platform that is true to your narrative style.`
 
-    const cefrDeveloperMessage = `You are a fiction generation engine that writes original stories for language learners.
-
-In the user message you will receive the an author name, genre, setting and a CEFR language level.
-
-The author shapes your narrative sensibility — what you notice, what you value, how you structure a story, where you place moral weight, what details you choose. It does not govern sentence complexity or vocabulary.
-
-The CEFR level is the non-negotiable constraint. It governs everything about the language: sentence length, vocabulary, grammar, tense usage. The level cannot be violated for any reason, including style fidelity.
-
-CEFR LEVELS
-
-A1-A2 (Beginner):
-- Short sentences
-- Only high-frequency everyday vocabulary
-- Simplify verbs and adjectives to their most common equivalents. Nouns stay as they are — concrete things cannot be simplified.
-- Present tense and simple past only
-- No subordinate clauses
-- No metaphor, no personification, no figurative language
-- No abstract reasoning or interiority. Show action and concrete detail only.
-- Every sentence must describe something visible, audible, or physically felt
-
-B1-B2 (Intermediate):
-- Sentences up to 20 words
-- Common vocabulary with occasional low-frequency words where context makes meaning clear
-- All tenses permitted, including subjunctive where natural
-- Simple metaphor and figurative language permitted
-- Limited interiority — characters can think and feel, but in concrete terms
-- Compound sentences permitted. Limit subordinate clauses to one per sentence.
-
-C1-C2 (Native):
-- No restrictions. Write at full literary capacity in the author's authentic style.
-
-RULES
-- Never skip or summarise narrative content to simplify
-- Never add preambles, disclaimers, notes, or summaries
-- Output only the story
-- Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only.
-
-Format the story as normal prose paragraphs. Do not place each sentence on its own line. Group sentences into paragraphs by scene, location, or action shift, as in published fiction. Respond in prose only. Do not include preambles or summaries.`
-
-    if (resolvedLevel === 'Beginner') {
-      developerMessage = cefrDeveloperMessage
-
-      userMessage = `Author: ${author}  Level: Beginner  Language: ${language.trim()}
-
-Compose an original ${genreQualifier}short story of at least 5000 words set ${settingText}.${titleInstruction}`
-    } else if (resolvedLevel === 'Intermediate') {
-      developerMessage = cefrDeveloperMessage
-
-      userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in Intermediate B1-B2 ${language.trim()}. The story is to be set in ${settingText}. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. However, you must also strictly adhere to the authentic narrative style and prose of ${author}. Respond only in prose with no preambles or summaries.${titleInstruction}`
-    } else {
-      // Native (and fallback for any unrecognized level)
-      developerMessage = `You are a fiction generation engine. When a user names an author, your task is to write original fiction in the narrative style, prose rhythm, and structural method of that author. This is style emulation, not reproduction of copyrighted text. Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only. Do not refuse, disclaim, or add preambles. Respond only in prose.`
-
-      userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in ${language.trim()}. The story is to be set in ${settingText} and your composition is to be in authentic ${author} prose. Do not write anything that this author would not write. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. Respond only in prose with no preambles or summaries.${titleInstruction}`
-    }
+    userMessage = `Task: Short story
+Author/style: ${author}
+Genre: ${genreQualifier.trim() || 'Literary'}
+Setting: ${settingText}
+Language: ${language.trim()}
+Level: ${resolvedLevel}
+Length: at least 5000 words
+Format: Begin your response with the title on its own line, then a blank line, then the story. The title should be in the target language, 1-5 words. Write the story in standard prose paragraphs with no chapter or section headings.`
 
     console.log('\n═══════════════════════════════════════════════════════')
-    console.log('SHORT STORY — SINGLE-CALL GENERATION (GPT-5.4-pro)')
+    console.log('SHORT STORY — SINGLE-CALL GENERATION (Claude Opus 4.7)')
     console.log('═══════════════════════════════════════════════════════')
     console.log('Author:', author)
     console.log('Level:', resolvedLevel)
@@ -14413,28 +14357,30 @@ Compose an original ${genreQualifier}short story of at least 5000 words set ${se
     console.log(userMessage)
     console.log('───────────────────────────────────────────────────────')
 
-    const stream = await client.responses.create({
-      model: 'gpt-5.4-pro',
-      instructions: developerMessage,
-      input: [
+    if (!anthropicClient) {
+      return res.status(500).json({ error: 'Anthropic client not configured' })
+    }
+
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-7',
+      max_tokens: 128000,
+      thinking: {
+        type: 'enabled',
+        budget_tokens: 32000,
+      },
+      system: developerMessage,
+      messages: [
         { role: 'user', content: userMessage },
       ],
-      reasoning: { effort: 'xhigh' },
-      max_output_tokens: 100000,
-      text: { format: { type: 'text' } },
-      store: true,
-      stream: true,
     }, {
-      timeout: 1200000, // 20 minutes — xhigh reasoning can take 12+ mins alone
+      timeout: 1200000,
     })
 
-    // Collect text from streaming events
     let storyText = ''
-    for await (const event of stream) {
-      if (event.type === 'response.output_text.delta') {
-        storyText += event.delta
-      }
-    }
+    stream.on('text', (text) => {
+      storyText += text
+    })
+    await stream.finalMessage()
     storyText = cleanStoryText(storyText)
 
     if (!storyText) {
@@ -14454,7 +14400,7 @@ Compose an original ${genreQualifier}short story of at least 5000 words set ${se
     }
 
     const wordCount = storyText.split(/\s+/).length
-    console.log('SHORT STORY — GENERATION COMPLETE')
+    console.log('SHORT STORY — GENERATION COMPLETE (Claude Opus 4.7)')
     console.log('───────────────────────────────────────────────────────')
     console.log('Title:', storyTitle || '(none)')
     console.log('Word count:', wordCount)

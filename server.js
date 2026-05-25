@@ -14365,8 +14365,10 @@ Format: Begin your response with the title on its own line, then a blank line, t
       model: 'claude-opus-4-7',
       max_tokens: 128000,
       thinking: {
-        type: 'enabled',
-        budget_tokens: 32000,
+        type: 'adaptive',
+      },
+      output_config: {
+        effort: 'max',
       },
       system: developerMessage,
       messages: [

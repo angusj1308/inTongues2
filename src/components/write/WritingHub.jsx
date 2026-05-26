@@ -9,6 +9,7 @@ import { subscribeToPracticeLessons } from '../../services/practice'
 import { subscribeToFreeWritingLessons } from '../../services/freewriting'
 import PracticeInlineForm from './PracticeInlineForm'
 import FreeWriteInlineForm from './FreeWriteInlineForm'
+import ChatInlineForm from './ChatInlineForm'
 
 const PencilIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -231,11 +232,17 @@ const WritingHub = ({ activeLanguage }) => {
           </button>
         )}
 
-        <button className="discover-door discover-door--landing" onClick={() => {}}>
-          <h2 className="discover-door-label">Chat</h2>
-          <span className="discover-door-rule" aria-hidden="true" />
-          <p className="discover-door-description">Have a written conversation and improve your fluency in real time.</p>
-        </button>
+        {expandedDoor === 'chat' ? (
+          <div ref={expandedCardRef} className="discover-door discover-door--landing is-expanded">
+            <ChatInlineForm activeLanguage={activeLanguage} />
+          </div>
+        ) : (
+          <button className="discover-door discover-door--landing" onClick={() => setExpandedDoor('chat')}>
+            <h2 className="discover-door-label">Chat</h2>
+            <span className="discover-door-rule" aria-hidden="true" />
+            <p className="discover-door-description">Have a written conversation and improve your fluency in real time.</p>
+          </button>
+        )}
       </div>
 
       <section className="notebook-section">

@@ -18,10 +18,10 @@ const PencilIcon = () => (
 )
 
 const getKindLabel = (item) => {
-  if (item.kind === 'practice') return 'Practice'
-  if (item.kind === 'free') return 'Free Write'
-  const match = TEXT_TYPES.find((t) => t.id === item.type)
-  return match?.label || 'Writing'
+  if (item.kind === 'practice') return 'Translation'
+  const typeId = item.textType || item.type
+  const match = TEXT_TYPES.find((t) => t.id === typeId)
+  return match?.label || typeId || 'Writing'
 }
 
 const getMetaLabel = (item) => {

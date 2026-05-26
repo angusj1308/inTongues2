@@ -142,6 +142,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
 
       {readySpeakingLessons.length > 0 && (
         <section className="notebook-section">
+          <h3 className="notebook-list-heading">Sessions</h3>
           <ul className="notebook-list">
             {readySpeakingLessons.map(lesson => {
               const sentenceCount = lesson.sentences?.length || 0

@@ -132,7 +132,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
         )}
 
         <button className="discover-door discover-door--landing" onClick={() => setExpandedDoor('voiceRecord')}>
-          <h2 className="discover-door-label">Free Record</h2>
+          <h2 className="discover-door-label">Record</h2>
           <span className="discover-door-rule" aria-hidden="true" />
           <p className="discover-door-description">
             Speak freely about any topic. Get feedback on grammar, vocabulary and expression.
@@ -141,81 +141,48 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
       </div>
 
       {readySpeakingLessons.length > 0 && (
-        <div className="speak-sessions-section">
-          <h3>Intensive Speaking Sessions</h3>
-          <div className="speak-sessions-grid">
+        <section className="notebook-section">
+          <ul className="notebook-list">
             {readySpeakingLessons.map(lesson => {
               const sentenceCount = lesson.sentences?.length || 0
-              const progress = sentenceCount > 0
-                ? Math.round((lesson.completedCount || 0) / sentenceCount * 100)
-                : 0
+              const completed = lesson.completedCount || 0
 
               return (
-                <div
+                <li
                   key={lesson.id}
-                  className="speak-session-card ready"
+                  className="notebook-row"
                   onClick={() => setActiveSpeakingSession(lesson)}
                 >
-                  <div className="speak-session-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <span className="notebook-title">{lesson.title}</span>
+                  <span className="notebook-kind">Practice</span>
+                  <span className="notebook-spacer" />
+                  <span className="notebook-meta">
+                    {sentenceCount > 0 ? `${completed}/${sentenceCount} sentences` : ''}
+                  </span>
+                  <span className="notebook-edit" aria-label="Continue">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <polygon points="5 3 19 12 5 21 5 3" />
                     </svg>
-                  </div>
-                  <div className="speak-session-info">
-                    <span className="speak-session-title">{lesson.title}</span>
-                    <span className="speak-session-status">
-                      {sentenceCount} segments · {progress}% complete
-                    </span>
-                  </div>
-                  <button
-                    className="speak-session-delete"
-                    onClick={(e) => handleDeleteLesson(lesson.id, e)}
-                    title="Delete lesson"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+                  </span>
+                </li>
               )
             })}
-          </div>
-        </div>
+          </ul>
+        </section>
       )}
 
       {importingLessons.length > 0 && (
-        <div className="speak-sessions-section">
-          <h3>Importing</h3>
-          <div className="speak-media-grid">
+        <section className="notebook-section">
+          <ul className="notebook-list">
             {importingLessons.map(lesson => (
-              <div
-                key={lesson.id}
-                className="speak-media-card is-preparing"
-              >
-                <div className="speak-media-card-icon">
-                  <div className="spinner-medium" />
-                </div>
-                <div className="speak-media-card-body">
-                  <div className="speak-media-card-title">{lesson.title}</div>
-                  <div className="speak-media-card-meta">
-                    <span className="speak-media-card-status preparing">
-                      Importing for Intensive Speaking...
-                    </span>
-                  </div>
-                </div>
-                <div className="speak-media-card-actions">
-                  <button
-                    className="speak-media-card-delete"
-                    onClick={(e) => handleDeleteLesson(lesson.id, e)}
-                    title="Cancel import"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+              <li key={lesson.id} className="notebook-row" style={{ opacity: 0.6 }}>
+                <span className="notebook-title">{lesson.title}</span>
+                <span className="notebook-spacer" />
+                <span className="notebook-meta">Importing...</span>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </section>
       )}
     </div>
   )

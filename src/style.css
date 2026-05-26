@@ -28925,7 +28925,7 @@ body:has(.cinema-page) {
 }
 
 .compose-landing .discover-doors--landing {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   max-width: 900px;
   margin: 0 auto;
   padding: 0 0 2.5rem;

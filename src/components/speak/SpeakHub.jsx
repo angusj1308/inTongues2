@@ -138,6 +138,14 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
             Speak freely about any topic. Get feedback on grammar, vocabulary and expression.
           </p>
         </button>
+
+        <button className="discover-door discover-door--landing" onClick={() => {}}>
+          <h2 className="discover-door-label">Converse</h2>
+          <span className="discover-door-rule" aria-hidden="true" />
+          <p className="discover-door-description">
+            Have a spoken conversation and build confidence speaking naturally.
+          </p>
+        </button>
       </div>
 
       {readySpeakingLessons.length > 0 && (

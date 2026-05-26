@@ -230,6 +230,12 @@ const WritingHub = ({ activeLanguage }) => {
             <p className="discover-door-description">Write freely and receive feedback on your grammar, vocabulary and fluency.</p>
           </button>
         )}
+
+        <button className="discover-door discover-door--landing" onClick={() => {}}>
+          <h2 className="discover-door-label">Chat</h2>
+          <span className="discover-door-rule" aria-hidden="true" />
+          <p className="discover-door-description">Have a written conversation and improve your fluency in real time.</p>
+        </button>
       </div>
 
       <section className="notebook-section">

@@ -14188,6 +14188,18 @@ body:has(.cinema-page) {
   padding: 0 1.5rem 2rem;
 }
 
+.notebook-list-heading {
+  font-family: var(--font-supporting);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary, #1C1A17);
+  margin: 0 0 0.5rem;
+}
+
+[data-theme='dark'] .notebook-list-heading {
+  color: #FBFAF8;
+}
+
 .notebook-empty {
   padding: 2rem 0;
 }

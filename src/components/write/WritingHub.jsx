@@ -206,10 +206,6 @@ const WritingHub = ({ activeLanguage }) => {
 
   return (
     <div className="writing-hub compose-landing">
-      <nav className="read-sub-nav" aria-label="Write sections" style={{ display: 'flex', justifyContent: 'center' }}>
-        <span className="read-sub-nav-item is-active">Notebook</span>
-      </nav>
-
       <div className="discover-doors discover-doors--landing">
         {expandedDoor === 'practice' ? (
           <div ref={expandedCardRef} className="discover-door discover-door--landing is-expanded">
@@ -237,6 +233,7 @@ const WritingHub = ({ activeLanguage }) => {
       </div>
 
       <section className="notebook-section">
+        <h3 className="notebook-list-heading">Notebook</h3>
         {allItems.length === 0 ? (
           <p className="muted small notebook-empty">Your work will appear here once you start writing.</p>
         ) : (

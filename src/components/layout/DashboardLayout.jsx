@@ -10,7 +10,7 @@ import flagSpanish from '../../assets/spanish.png'
 import flagItalian from '../../assets/italian.png'
 import flagRussian from '../../assets/russian.png'
 
-export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
+export const DASHBOARD_TABS = ['read', 'listen', 'write', 'speak', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
 
 const GATED_TABS = new Set([])
 

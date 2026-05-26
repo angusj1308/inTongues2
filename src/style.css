@@ -14190,7 +14190,7 @@ body:has(.cinema-page) {
 
 .notebook-list-heading {
   font-family: var(--font-supporting);
-  font-size: 0.9375rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary, #1C1A17);
   margin: 0 0 0.5rem;
@@ -21698,7 +21698,7 @@ body:has(.cinema-page) {
 
 /* Speak Hub */
 .speak-hub {
-  padding: 1.5rem;
+  padding: 0;
   max-width: 1200px;
   margin: 0 auto;
 }

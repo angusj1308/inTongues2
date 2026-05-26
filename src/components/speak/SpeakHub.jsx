@@ -123,7 +123,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
           </div>
         ) : (
           <button className="discover-door discover-door--landing" onClick={() => setExpandedDoor('speakingPractice')}>
-            <h2 className="discover-door-label">Intensive</h2>
+            <h2 className="discover-door-label">Practice</h2>
             <span className="discover-door-rule" aria-hidden="true" />
             <p className="discover-door-description">
               See {nativeLanguage} sentences and practice producing them in {activeLanguage}.
@@ -132,7 +132,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
         )}
 
         <button className="discover-door discover-door--landing" onClick={() => setExpandedDoor('voiceRecord')}>
-          <h2 className="discover-door-label">Free Speaking</h2>
+          <h2 className="discover-door-label">Free Record</h2>
           <span className="discover-door-rule" aria-hidden="true" />
           <p className="discover-door-description">
             Speak freely about any topic. Get feedback on grammar, vocabulary and expression.

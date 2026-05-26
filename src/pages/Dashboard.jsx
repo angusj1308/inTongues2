@@ -10,8 +10,7 @@ import ListenDeepView from '../components/listen/ListenDeepView'
 import ListenDiscover from '../components/listen/ListenDiscover'
 import WritingHub from '../components/write/WritingHub'
 import TutorHome from '../components/tutor/TutorHome'
-// GATED: import SpeakHub from '../components/speak/SpeakHub'
-import DevelopmentGate from '../components/DevelopmentGate'
+import SpeakHub from '../components/speak/SpeakHub'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import GutenbergSearchPanel from '../components/read/GutenbergSearchPanel'
@@ -2584,16 +2583,12 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* GATED: Speaking hub replaced with development gate for MVP launch.
-              To restore, uncomment the SpeakHub import above and swap back:
-              {activeTab === 'speak' && (
-                <SpeakHub
-                  activeLanguage={activeLanguage}
-                  nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')}
-                />
-              )}
-          */}
-          {activeTab === 'speak' && <DevelopmentGate feature="Speaking" />}
+          {activeTab === 'speak' && (
+            <SpeakHub
+              activeLanguage={activeLanguage}
+              nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')}
+            />
+          )}
           {activeTab === 'write' && <WritingHub activeLanguage={activeLanguage} />}
 
           {/* HIDDEN: Tutor tab removed from nav — restore with 'tutor' in DASHBOARD_TABS

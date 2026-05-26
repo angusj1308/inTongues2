@@ -35,7 +35,7 @@ export default function ChatInlineForm({ activeLanguage }) {
     if (persona) return
     const interval = setInterval(() => {
       setPlaceholderIndex((i) => (i + 1) % PLACEHOLDERS.length)
-    }, 3000)
+    }, 4000)
     return () => clearInterval(interval)
   }, [persona])
 

@@ -51,24 +51,27 @@ export default function ChatInlineForm({ activeLanguage }) {
       return (
         <>
           <h3 className="genq-heading">Who do you want to talk to?</h3>
-          <input
-            ref={inputRef}
-            type="text"
-            className="genq-line-input"
-            placeholder={PLACEHOLDERS[placeholderIndex]}
-            value={persona}
-            onChange={(e) => setPersona(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          />
-          <button
-            type="button"
-            className="genq-option"
-            style={{ marginTop: 12, width: '100%' }}
-            onClick={handleSubmit}
-            disabled={!persona.trim()}
-          >
-            <span className="genq-option-label">Start Chat</span>
-          </button>
+          <div className="genq-setting-form">
+            <textarea
+              ref={inputRef}
+              className="genq-textarea"
+              placeholder={PLACEHOLDERS[placeholderIndex]}
+              value={persona}
+              onChange={(e) => setPersona(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit()
+              }}
+              rows={3}
+            />
+            <button
+              type="button"
+              className="genq-continue-link"
+              onClick={handleSubmit}
+              disabled={!persona.trim()}
+            >
+              Continue <span aria-hidden="true">→</span>
+            </button>
+          </div>
         </>
       )
     }

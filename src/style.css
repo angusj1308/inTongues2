@@ -14611,9 +14611,8 @@ body:has(.cinema-page) {
 }
 
 .wchat-send:disabled {
-  opacity: 0;
+  opacity: 0.4;
   cursor: default;
-  pointer-events: none;
 }
 
 .wchat-send:hover:not(:disabled) {

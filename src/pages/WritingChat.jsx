@@ -37,14 +37,39 @@ const WritingChat = () => {
 
     const text = inputValue.trim()
     setInputValue('')
-    setMessages((prev) => [...prev, { id: Date.now(), role: 'user', content: text }])
+    const userMsg = { id: Date.now(), role: 'user', content: text }
+    setMessages((prev) => [...prev, userMsg])
     setSending(true)
 
-    // TODO: wire up API call
-    setTimeout(() => {
+    try {
+      const history = messages.map((m) => ({ role: m.role, content: m.content }))
+
+      const res = await fetch('/api/writing-chat/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          conversationHistory: history,
+          persona,
+          level,
+          language,
+          corrections: true,
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now() + 1, role: 'assistant', content: data.response },
+        ])
+      }
+    } catch (err) {
+      console.error('Chat error:', err)
+    } finally {
       setSending(false)
       inputRef.current?.focus()
-    }, 500)
+    }
   }
 
   const handleKeyDown = (e) => {

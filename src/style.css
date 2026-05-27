@@ -14572,10 +14572,10 @@ body:has(.cinema-page) {
   align-items: center;
   max-width: 720px;
   margin: 0 auto;
-  background: transparent;
+  background: #000000;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 28px;
-  padding: 4px 4px 4px 1rem;
+  padding: 3px 3px 3px 1rem;
   transition: border-color 150ms ease;
 }
 
@@ -14614,7 +14614,8 @@ body:has(.cinema-page) {
 }
 
 .wchat-send:disabled {
-  opacity: 0.3;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.2);
   cursor: default;
 }
 

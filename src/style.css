@@ -14618,16 +14618,6 @@ body:has(.cinema-page) {
 
 /* Desktop: sidebar pushes content */
 @media (min-width: 768px) {
-  .wchat-sidebar {
-    position: relative;
-    transform: translateX(0);
-    display: none;
-  }
-
-  .wchat-sidebar.is-open {
-    display: flex;
-  }
-
   .wchat-sidebar-overlay {
     display: none;
   }

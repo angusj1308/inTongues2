@@ -30,6 +30,7 @@ import TutorChat from './pages/TutorChat'
 import TutorPage from './pages/TutorPage'
 import PronunciationPractice from './pages/PronunciationPractice'
 import FreeSpeakingSession from './pages/FreeSpeakingSession'
+import WritingChat from './pages/WritingChat'
 import Settings from './pages/Settings'
 
 const LandingRedirect = () => {
@@ -317,6 +318,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <Review />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/write/chat"
+        element={
+          <ProtectedRoute>
+            <WritingChat />
           </ProtectedRoute>
         }
       />

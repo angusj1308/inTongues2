@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const PLACEHOLDERS = [
   'A friend to chat casually with',
@@ -13,6 +14,7 @@ const LEVELS = ['Beginner', 'Intermediate', 'Native']
 const STEP_ORDER = ['persona', 'level']
 
 export default function ChatInlineForm({ activeLanguage }) {
+  const navigate = useNavigate()
   const [step, setStep] = useState('persona')
   const [persona, setPersona] = useState('')
   const [level, setLevel] = useState(null)
@@ -53,7 +55,9 @@ export default function ChatInlineForm({ activeLanguage }) {
 
   const handleSelectLevel = (l) => {
     setLevel(l)
-    // TODO: create chat and navigate
+    navigate('/write/chat', {
+      state: { persona: persona.trim(), level: l, language: activeLanguage },
+    })
   }
 
   const breadcrumbs = []

@@ -14441,12 +14441,18 @@ body:has(.cinema-page) {
 
 .wchat-hover-shell {
   z-index: 110;
+  height: 120px;
+}
+
+.wchat-hover-shell .reader-hover-hitbox {
+  height: 120px;
 }
 
 .wchat-hover-header {
   backdrop-filter: blur(12px);
   background: rgba(251, 250, 248, 0.92);
   border-bottom: 1px solid rgba(28, 26, 23, 0.08);
+  padding: 3.5rem 0 3rem;
 }
 
 .wchat-hover-header .reader-header-button {
@@ -14508,6 +14514,63 @@ body:has(.cinema-page) {
 [data-theme='dark'] .wchat-sidebar-tab:hover {
   background: rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.6);
+}
+
+.wchat-feedback-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.wchat-toggle-track {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(28, 26, 23, 0.15);
+  cursor: pointer;
+  position: relative;
+  transition: background 200ms ease;
+  padding: 0;
+}
+
+.wchat-toggle-track.is-on {
+  background: rgba(28, 26, 23, 0.5);
+}
+
+.wchat-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 200ms ease;
+}
+
+.wchat-toggle-track.is-on .wchat-toggle-thumb {
+  left: 18px;
+}
+
+.wchat-toggle-label {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(28, 26, 23, 0.4);
+}
+
+[data-theme='dark'] .wchat-toggle-track {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme='dark'] .wchat-toggle-track.is-on {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme='dark'] .wchat-toggle-label {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* Main chat area */

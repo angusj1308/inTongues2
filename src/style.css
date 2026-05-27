@@ -14368,7 +14368,7 @@ body:has(.cinema-page) {
   color: rgba(255, 255, 255, 0.4);
   font-family: inherit;
   font-size: 0.9375rem;
-  font-weight: 400;
+  font-weight: 300;
   cursor: pointer;
   flex-shrink: 0;
   text-align: center;
@@ -14624,12 +14624,11 @@ body:has(.cinema-page) {
 }
 
 [data-theme='dark'] .wchat-sidebar-new {
-  color: #FBFAF8;
-  border-color: rgba(251, 250, 248, 0.15);
+  color: rgba(251, 250, 248, 0.4);
 }
 
 [data-theme='dark'] .wchat-sidebar-new:hover {
-  background: rgba(251, 250, 248, 0.04);
+  color: rgba(251, 250, 248, 0.8);
 }
 
 [data-theme='dark'] .wchat-sidebar-item:hover {

@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-const BackIcon = () => (
+const MenuIcon = () => (
   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M19 12H5M12 19l-7-7 7-7" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+)
+
+const PlusIcon = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 )
 
@@ -21,25 +30,50 @@ const WritingChat = () => {
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [sending, setSending] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [chats, setChats] = useState([])
+  const [activeChatId, setActiveChatId] = useState(null)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
   useEffect(() => {
-    inputRef.current?.focus()
+    if (!activeChatId && persona) {
+      const newChat = {
+        id: Date.now(),
+        persona,
+        level,
+        language,
+        title: persona.length > 30 ? persona.slice(0, 30) + '…' : persona,
+        messages: [],
+      }
+      setChats([newChat])
+      setActiveChatId(newChat.id)
+    }
   }, [])
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [activeChatId])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  const activeChat = chats.find((c) => c.id === activeChatId)
+
   const handleSend = async () => {
-    if (!inputValue.trim() || sending) return
+    if (!inputValue.trim() || sending || !activeChat) return
 
     const text = inputValue.trim()
     setInputValue('')
     const userMsg = { id: Date.now(), role: 'user', content: text }
-    setMessages((prev) => [...prev, userMsg])
+    const updatedMessages = [...messages, userMsg]
+    setMessages(updatedMessages)
     setSending(true)
+
+    setChats((prev) =>
+      prev.map((c) => (c.id === activeChatId ? { ...c, messages: updatedMessages } : c))
+    )
 
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }))
@@ -50,19 +84,21 @@ const WritingChat = () => {
         body: JSON.stringify({
           message: text,
           conversationHistory: history,
-          persona,
-          level,
-          language,
+          persona: activeChat.persona,
+          level: activeChat.level,
+          language: activeChat.language,
           corrections: true,
         }),
       })
 
       if (res.ok) {
         const data = await res.json()
-        setMessages((prev) => [
-          ...prev,
-          { id: Date.now() + 1, role: 'assistant', content: data.response },
-        ])
+        const assistantMsg = { id: Date.now() + 1, role: 'assistant', content: data.response }
+        const withResponse = [...updatedMessages, assistantMsg]
+        setMessages(withResponse)
+        setChats((prev) =>
+          prev.map((c) => (c.id === activeChatId ? { ...c, messages: withResponse } : c))
+        )
       }
     } catch (err) {
       console.error('Chat error:', err)
@@ -79,68 +115,117 @@ const WritingChat = () => {
     }
   }
 
+  const handleSelectChat = (chatId) => {
+    if (chatId === activeChatId) return
+    const chat = chats.find((c) => c.id === chatId)
+    if (chat) {
+      setActiveChatId(chatId)
+      setMessages(chat.messages)
+    }
+  }
+
+  const handleNewChat = () => {
+    navigate('/dashboard', { state: { initialTab: 'write' } })
+  }
+
   const handleBack = () => {
     navigate('/dashboard', { state: { initialTab: 'write' } })
   }
 
+  const chatLanguage = activeChat?.language || language || 'your target language'
+  const chatLevel = activeChat?.level || level
+  const chatPersona = activeChat?.persona || persona || 'Chat'
+
   return (
     <div className="wchat-page">
-      <header className="wchat-header">
-        <button className="wchat-back" onClick={handleBack}>
-          <BackIcon />
-        </button>
-        <div className="wchat-header-info">
-          <h1 className="wchat-header-title">{persona || 'Chat'}</h1>
-          {level && language && (
-            <span className="wchat-header-meta">{language} · {level}</span>
-          )}
-        </div>
-      </header>
-
-      <main className="wchat-messages">
-        {messages.length === 0 && (
-          <div className="wchat-empty">
-            <p className="muted">Start the conversation in {language || 'your target language'}.</p>
-          </div>
-        )}
-        {messages.map((msg) => (
-          <div key={msg.id} className={`wchat-bubble ${msg.role}`}>
-            <div className="wchat-bubble-content">{msg.content}</div>
-          </div>
-        ))}
-        {sending && (
-          <div className="wchat-bubble assistant">
-            <div className="wchat-bubble-content wchat-typing">
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </main>
-
-      <footer className="wchat-footer">
-        <div className="wchat-input-row">
-          <input
-            ref={inputRef}
-            type="text"
-            className="wchat-input"
-            placeholder={`Type in ${language || 'your target language'}...`}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={sending}
-          />
-          <button
-            className="wchat-send"
-            onClick={handleSend}
-            disabled={!inputValue.trim() || sending}
-          >
-            <SendIcon />
+      <aside className={`wchat-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
+        <div className="wchat-sidebar-header">
+          <button className="wchat-sidebar-new" onClick={handleNewChat}>
+            <PlusIcon />
+            New Chat
           </button>
         </div>
-      </footer>
+        <ul className="wchat-sidebar-list">
+          {chats.map((c) => (
+            <li
+              key={c.id}
+              className={`wchat-sidebar-item ${c.id === activeChatId ? 'is-active' : ''}`}
+              onClick={() => handleSelectChat(c.id)}
+            >
+              <span className="wchat-sidebar-item-title">{c.title}</span>
+              <span className="wchat-sidebar-item-meta">{c.language} · {c.level}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="wchat-sidebar-footer">
+          <button className="wchat-sidebar-back" onClick={handleBack}>
+            ← Back to Write
+          </button>
+        </div>
+      </aside>
+
+      {sidebarOpen && (
+        <div className="wchat-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <div className="wchat-main">
+        <header className="wchat-header">
+          <button className="wchat-toggle" onClick={() => setSidebarOpen((v) => !v)}>
+            <MenuIcon />
+          </button>
+          <div className="wchat-header-info">
+            <h1 className="wchat-header-title">{chatPersona}</h1>
+            {chatLevel && chatLanguage && (
+              <span className="wchat-header-meta">{chatLanguage} · {chatLevel}</span>
+            )}
+          </div>
+        </header>
+
+        <main className="wchat-messages">
+          {messages.length === 0 && (
+            <div className="wchat-empty">
+              <p className="muted">Start the conversation in {chatLanguage}.</p>
+            </div>
+          )}
+          {messages.map((msg) => (
+            <div key={msg.id} className={`wchat-bubble ${msg.role}`}>
+              <div className="wchat-bubble-content">{msg.content}</div>
+            </div>
+          ))}
+          {sending && (
+            <div className="wchat-bubble assistant">
+              <div className="wchat-bubble-content wchat-typing">
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </main>
+
+        <footer className="wchat-footer">
+          <div className="wchat-input-row">
+            <input
+              ref={inputRef}
+              type="text"
+              className="wchat-input"
+              placeholder={`Type in ${chatLanguage}...`}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={sending}
+            />
+            <button
+              className="wchat-send"
+              onClick={handleSend}
+              disabled={!inputValue.trim() || sending}
+            >
+              <SendIcon />
+            </button>
+          </div>
+        </footer>
+      </div>
     </div>
   )
 }

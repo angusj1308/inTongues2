@@ -256,21 +256,23 @@ const WritingChat = () => {
           )}
           {messages.map((msg) => (
             <div key={msg.id} className={`wchat-bubble ${msg.role}`}>
-              <div className="wchat-bubble-content">{msg.content}</div>
-              {msg.role === 'assistant' && msg.translation && (
-                <div className="wchat-translate-wrap">
-                  <button
-                    className={`wchat-translate-btn ${expandedTranslations.has(msg.id) ? 'is-on' : ''}`}
-                    onClick={() => toggleTranslation(msg.id)}
-                    aria-label="Translate"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>translate</span>
-                  </button>
-                  {expandedTranslations.has(msg.id) && (
-                    <div className="wchat-translation">{msg.translation}</div>
-                  )}
-                </div>
-              )}
+              <div className="wchat-bubble-content">
+                {msg.content}
+                {msg.role === 'assistant' && msg.translation && (
+                  <>
+                    <button
+                      className={`wchat-translate-btn ${expandedTranslations.has(msg.id) ? 'is-on' : ''}`}
+                      onClick={() => toggleTranslation(msg.id)}
+                      aria-label="Translate"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>translate</span>
+                    </button>
+                    {expandedTranslations.has(msg.id) && (
+                      <div className="wchat-translation">{msg.translation}</div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           ))}
           {sending && (

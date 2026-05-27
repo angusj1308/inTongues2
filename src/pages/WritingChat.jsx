@@ -149,15 +149,6 @@ const WritingChat = () => {
 
       <div className="wchat-body">
         <aside className={`wchat-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
-          <button
-            className="wchat-sidebar-tab"
-            onClick={() => setSidebarOpen((v) => !v)}
-            aria-label="Toggle sidebar"
-          >
-            <svg viewBox="0 0 8 24" width="8" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <line x1="4" y1="8" x2="4" y2="16" />
-            </svg>
-          </button>
           <div className="wchat-sidebar-header">
             <button className="wchat-sidebar-new" onClick={handleNewChat}>
               <PlusIcon />
@@ -177,6 +168,16 @@ const WritingChat = () => {
             ))}
           </ul>
         </aside>
+
+        <button
+          className={`wchat-sidebar-tab ${sidebarOpen ? 'is-open' : ''}`}
+          onClick={() => setSidebarOpen((v) => !v)}
+          aria-label="Toggle sidebar"
+        >
+          <svg viewBox="0 0 8 24" width="8" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="4" y1="8" x2="4" y2="16" />
+          </svg>
+        </button>
 
         {sidebarOpen && (
           <div className="wchat-sidebar-overlay" onClick={() => setSidebarOpen(false)} />

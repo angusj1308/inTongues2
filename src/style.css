@@ -14449,10 +14449,10 @@ body:has(.cinema-page) {
 
 .wchat-sidebar-tab {
   position: absolute;
-  right: -12px;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 1;
+  z-index: 101;
   width: 12px;
   height: 48px;
   background: rgba(255, 255, 255, 0.06);
@@ -14463,8 +14463,12 @@ body:has(.cinema-page) {
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.3);
-  transition: background 200ms ease, color 200ms ease, width 200ms ease;
+  transition: background 200ms ease, color 200ms ease, width 200ms ease, left 250ms ease;
   padding: 0;
+}
+
+.wchat-sidebar-tab.is-open {
+  left: 260px;
 }
 
 .wchat-sidebar-tab:hover {

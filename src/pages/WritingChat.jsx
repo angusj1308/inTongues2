@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
+import {
+  createWritingChat,
+  updateWritingChat,
+  subscribeToWritingChats,
+} from '../services/writingChat'
 
 const SendIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -29,6 +34,14 @@ const MoonIcon = () => (
   </svg>
 )
 
+const parseResponse = (raw) => {
+  const parts = raw.split('\n---\n')
+  if (parts.length >= 2) {
+    return { text: parts[0].trim(), translation: parts.slice(1).join('\n---\n').trim() }
+  }
+  return { text: raw.trim(), translation: null }
+}
+
 const formatRelativeTime = (timestamp) => {
   if (!timestamp) return ''
   const diff = Date.now() - timestamp
@@ -43,18 +56,10 @@ const formatRelativeTime = (timestamp) => {
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-const parseResponse = (raw) => {
-  const parts = raw.split('\n---\n')
-  if (parts.length >= 2) {
-    return { text: parts[0].trim(), translation: parts.slice(1).join('\n---\n').trim() }
-  }
-  return { text: raw.trim(), translation: null }
-}
-
 const WritingChat = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const { persona, level, language } = location.state || {}
   const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')
   const [messages, setMessages] = useState([])
@@ -62,11 +67,15 @@ const WritingChat = () => {
   const [sending, setSending] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [chats, setChats] = useState([])
-  const [activeChatId, setActiveChatId] = useState(null)
+  const [activeChatId, setActiveChatId] = useState(() => {
+    try { return localStorage.getItem('wchat-active') || null } catch { return null }
+  })
   const [expandedTranslations, setExpandedTranslations] = useState(new Set())
   const [corrections, setCorrections] = useState(true)
+  const [loaded, setLoaded] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const createdRef = useRef(false)
 
   const [darkMode, setDarkMode] = useState(() =>
     document.documentElement.getAttribute('data-theme') === 'dark'
@@ -77,20 +86,55 @@ const WritingChat = () => {
   }, [darkMode])
 
   useEffect(() => {
-    if (!activeChatId && persona) {
-      const newChat = {
-        id: Date.now(),
-        persona,
-        level,
-        language,
-        title: persona.length > 30 ? persona.slice(0, 30) + '…' : persona,
-        messages: [],
-        lastActivity: Date.now(),
+    if (!user?.uid) return
+    const unsubscribe = subscribeToWritingChats(
+      user.uid,
+      (nextChats) => {
+        setChats(nextChats)
+        setLoaded(true)
+      },
+      (err) => {
+        console.error('Chat subscription error:', err)
+        setLoaded(true)
       }
-      setChats([newChat])
-      setActiveChatId(newChat.id)
+    )
+    return unsubscribe
+  }, [user?.uid])
+
+  useEffect(() => {
+    if (!loaded || createdRef.current) return
+    if (persona && !activeChatId) {
+      createdRef.current = true
+      createWritingChat(user.uid, { persona, level, language }).then((newChat) => {
+        setActiveChatId(newChat.id)
+        setMessages([])
+      })
+    } else if (persona && chats.length > 0 && !chats.find((c) => c.id === activeChatId)) {
+      createdRef.current = true
+      createWritingChat(user.uid, { persona, level, language }).then((newChat) => {
+        setActiveChatId(newChat.id)
+        setMessages([])
+      })
     }
-  }, [])
+  }, [loaded, persona])
+
+  useEffect(() => {
+    if (activeChatId) {
+      try { localStorage.setItem('wchat-active', activeChatId) } catch {}
+    }
+  }, [activeChatId])
+
+  useEffect(() => {
+    if (loaded && activeChatId && chats.length > 0) {
+      const chat = chats.find((c) => c.id === activeChatId)
+      if (chat) {
+        setMessages(chat.messages || [])
+      } else if (chats.length > 0) {
+        setActiveChatId(chats[0].id)
+        setMessages(chats[0].messages || [])
+      }
+    }
+  }, [activeChatId, loaded])
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -112,7 +156,7 @@ const WritingChat = () => {
   }
 
   const handleSend = async () => {
-    if (!inputValue.trim() || sending || !activeChat) return
+    if (!inputValue.trim() || sending || !activeChat || !user?.uid) return
 
     const text = inputValue.trim()
     setInputValue('')
@@ -120,10 +164,6 @@ const WritingChat = () => {
     const updatedMessages = [...messages, userMsg]
     setMessages(updatedMessages)
     setSending(true)
-
-    setChats((prev) =>
-      prev.map((c) => (c.id === activeChatId ? { ...c, messages: updatedMessages, lastActivity: Date.now() } : c))
-    )
 
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }))
@@ -153,9 +193,9 @@ const WritingChat = () => {
         }
         const withResponse = [...updatedMessages, assistantMsg]
         setMessages(withResponse)
-        setChats((prev) =>
-          prev.map((c) => (c.id === activeChatId ? { ...c, messages: withResponse, lastActivity: Date.now() } : c))
-        )
+        await updateWritingChat(user.uid, activeChatId, { messages: withResponse })
+      } else {
+        await updateWritingChat(user.uid, activeChatId, { messages: updatedMessages })
       }
     } catch (err) {
       console.error('Chat error:', err)
@@ -177,7 +217,7 @@ const WritingChat = () => {
     const chat = chats.find((c) => c.id === chatId)
     if (chat) {
       setActiveChatId(chatId)
-      setMessages(chat.messages)
+      setMessages(chat.messages || [])
       setExpandedTranslations(new Set())
     }
   }

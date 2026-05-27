@@ -16589,9 +16589,9 @@ ${correctionsLine}`
       content: m.content,
     }))
 
-    const response = await anthropicClient.messages.create({
+    const stream = anthropicClient.messages.stream({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 64000,
+      max_tokens: 1024,
       system: systemPrompt,
       messages: [
         ...historyMessages,
@@ -16599,7 +16599,8 @@ ${correctionsLine}`
       ],
     })
 
-    const text = response?.content?.[0]?.type === 'text' ? response.content[0].text : ''
+    const finalMessage = await stream.finalMessage()
+    const text = finalMessage?.content?.[0]?.type === 'text' ? finalMessage.content[0].text : ''
 
     return res.json({ response: text || 'Sorry, I could not respond.' })
   } catch (error) {

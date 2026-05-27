@@ -173,12 +173,6 @@ const WritingChat = () => {
           <button className="wchat-toggle" onClick={() => setSidebarOpen((v) => !v)}>
             <MenuIcon />
           </button>
-          <div className="wchat-header-info">
-            <h1 className="wchat-header-title">{chatPersona}</h1>
-            {chatLevel && chatLanguage && (
-              <span className="wchat-header-meta">{chatLanguage} · {chatLevel}</span>
-            )}
-          </div>
         </header>
 
         <main className="wchat-messages">
@@ -205,7 +199,7 @@ const WritingChat = () => {
         </main>
 
         <footer className="wchat-footer">
-          <div className="wchat-input-row">
+          <div className="wchat-input-box">
             <input
               ref={inputRef}
               type="text"

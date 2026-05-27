@@ -199,18 +199,16 @@ const WritingChat = () => {
         </main>
 
         <footer className="wchat-footer">
-          <div className="wchat-input-box">
-            <input
-              ref={inputRef}
-              type="text"
-              className="wchat-input"
-              placeholder={`Type in ${chatLanguage}...`}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={sending}
-            />
-          </div>
+          <input
+            ref={inputRef}
+            type="text"
+            className="wchat-input"
+            placeholder={`Type in ${chatLanguage}...`}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={sending}
+          />
         </footer>
       </div>
     </div>

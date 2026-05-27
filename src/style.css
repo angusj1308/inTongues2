@@ -14567,34 +14567,27 @@ body:has(.cinema-page) {
   background: transparent;
 }
 
-.wchat-input-box {
-  display: flex;
-  align-items: center;
+.wchat-input {
+  display: block;
+  width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 28px;
-  padding: 3px 3px 3px 1rem;
-  transition: border-color 150ms ease;
-}
-
-.wchat-input-box:focus-within {
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.wchat-input {
-  flex: 1;
-  padding: 0.625rem 0;
+  padding: 0.75rem 1.25rem;
   font-family: inherit;
   font-size: 0.9375rem;
   color: #FBFAF8;
-  background: none;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  outline: none;
   -webkit-appearance: none;
   appearance: none;
-  border: 0;
-  outline: 0;
   box-shadow: none;
+  transition: border-color 150ms ease;
+}
+
+.wchat-input:focus {
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .wchat-input::placeholder {

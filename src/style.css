@@ -14455,10 +14455,10 @@ body:has(.cinema-page) {
 
 .wchat-sidebar-tab {
   position: absolute;
-  left: 0;
+  right: -12px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 101;
+  z-index: 1;
   width: 12px;
   height: 48px;
   background: rgba(255, 255, 255, 0.06);

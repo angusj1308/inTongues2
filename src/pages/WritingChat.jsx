@@ -29,6 +29,20 @@ const MoonIcon = () => (
   </svg>
 )
 
+const formatRelativeTime = (timestamp) => {
+  if (!timestamp) return ''
+  const diff = Date.now() - timestamp
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  const d = new Date(timestamp)
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 const parseResponse = (raw) => {
   const parts = raw.split('\n---\n')
   if (parts.length >= 2) {
@@ -70,6 +84,7 @@ const WritingChat = () => {
         language,
         title: persona.length > 30 ? persona.slice(0, 30) + '…' : persona,
         messages: [],
+        lastActivity: Date.now(),
       }
       setChats([newChat])
       setActiveChatId(newChat.id)
@@ -106,7 +121,7 @@ const WritingChat = () => {
     setSending(true)
 
     setChats((prev) =>
-      prev.map((c) => (c.id === activeChatId ? { ...c, messages: updatedMessages } : c))
+      prev.map((c) => (c.id === activeChatId ? { ...c, messages: updatedMessages, lastActivity: Date.now() } : c))
     )
 
     try {
@@ -138,7 +153,7 @@ const WritingChat = () => {
         const withResponse = [...updatedMessages, assistantMsg]
         setMessages(withResponse)
         setChats((prev) =>
-          prev.map((c) => (c.id === activeChatId ? { ...c, messages: withResponse } : c))
+          prev.map((c) => (c.id === activeChatId ? { ...c, messages: withResponse, lastActivity: Date.now() } : c))
         )
       }
     } catch (err) {
@@ -223,7 +238,7 @@ const WritingChat = () => {
                 onClick={() => handleSelectChat(c.id)}
               >
                 <span className="wchat-sidebar-item-title">{c.title}</span>
-                <span className="wchat-sidebar-item-meta">{c.language} · {c.level}</span>
+                <span className="wchat-sidebar-item-meta">{formatRelativeTime(c.lastActivity)}</span>
               </li>
             ))}
           </ul>

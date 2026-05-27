@@ -14589,9 +14589,12 @@ body:has(.cinema-page) {
   font-family: inherit;
   font-size: 0.9375rem;
   color: #FBFAF8;
-  background: transparent;
-  border: none;
-  outline: none;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
 }
 
 .wchat-input::placeholder {

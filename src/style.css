@@ -14565,14 +14565,16 @@ body:has(.cinema-page) {
   border-top: none;
   flex-shrink: 0;
   background: transparent;
+  position: relative;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .wchat-input {
   display: block;
   width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem 3.25rem 0.75rem 1.25rem;
   font-family: inherit;
   font-size: 0.9375rem;
   color: #FBFAF8;
@@ -14590,13 +14592,13 @@ body:has(.cinema-page) {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-.wchat-input::placeholder {
-  color: #a8a29e;
-}
-
 .wchat-send {
-  width: 36px;
-  height: 36px;
+  position: absolute;
+  right: calc(1.5rem + 4px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: 50%;
   background: #FBFAF8;
@@ -14605,18 +14607,21 @@ body:has(.cinema-page) {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
   transition: opacity 150ms ease;
 }
 
 .wchat-send:disabled {
-  background: transparent;
-  color: rgba(255, 255, 255, 0.2);
+  opacity: 0;
   cursor: default;
+  pointer-events: none;
 }
 
 .wchat-send:hover:not(:disabled) {
-  opacity: 0.8;
+  opacity: 0.85;
+}
+
+.wchat-input::placeholder {
+  color: #a8a29e;
 }
 
 /* Desktop: sidebar pushes content */

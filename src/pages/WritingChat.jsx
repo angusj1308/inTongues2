@@ -209,6 +209,13 @@ const WritingChat = () => {
             onKeyDown={handleKeyDown}
             disabled={sending}
           />
+          <button
+            className="wchat-send"
+            onClick={handleSend}
+            disabled={!inputValue.trim() || sending}
+          >
+            <SendIcon />
+          </button>
         </footer>
       </div>
     </div>

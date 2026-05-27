@@ -14413,38 +14413,29 @@ body:has(.cinema-page) {
   margin-top: 2px;
 }
 
-.wchat-sidebar-footer {
-  padding: 0.75rem 1rem;
-  border-top: 1px solid rgba(28, 26, 23, 0.08);
+
+.wchat-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #000000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
 }
 
-.wchat-sidebar-back {
-  background: none;
-  border: none;
-  color: #78716c;
-  font-family: inherit;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  padding: 0.25rem 0;
-  transition: color 150ms ease;
+.wchat-bar-left,
+.wchat-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
-.wchat-sidebar-back:hover {
-  color: var(--text-primary, #1C1A17);
-}
-
-.wchat-hover-header {
-  backdrop-filter: blur(12px);
-  background: rgba(0, 0, 0, 0.85);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.wchat-hover-header .reader-header-button {
+.wchat-bar .reader-header-button {
   color: #FBFAF8;
 }
 
-.wchat-hover-header .reader-header-button:hover {
+.wchat-bar .reader-header-button:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 

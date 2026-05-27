@@ -156,11 +156,6 @@ const WritingChat = () => {
             </li>
           ))}
         </ul>
-        <div className="wchat-sidebar-footer">
-          <button className="wchat-sidebar-back" onClick={handleBack}>
-            ← Back to Write
-          </button>
-        </div>
       </aside>
 
       {sidebarOpen && (
@@ -168,36 +163,31 @@ const WritingChat = () => {
       )}
 
       <div className="wchat-main">
-        <div className="reader-hover-shell">
-          <div className="reader-hover-hitbox" />
-          <header className="dashboard-header reader-hover-header wchat-hover-header">
-            <div className="dashboard-brand-band reader-header-band listening-brand-band">
-              <div className="listening-header-left">
-                <button
-                  className="reader-header-button icon-button reader-back-button"
-                  onClick={handleBack}
-                  type="button"
-                  aria-label="Back"
-                >
-                  <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12" />
-                    <polyline points="12 19 5 12 12 5" />
-                  </svg>
-                </button>
-                <button
-                  className="reader-header-button icon-button"
-                  onClick={() => setSidebarOpen((v) => !v)}
-                  type="button"
-                  aria-label="Toggle sidebar"
-                >
-                  <MenuIcon />
-                </button>
-              </div>
-              <div className="listening-header-actions reader-header-actions">
-              </div>
-            </div>
-          </header>
-        </div>
+        <header className="wchat-bar">
+          <div className="wchat-bar-left">
+            <button
+              className="reader-header-button icon-button"
+              onClick={handleBack}
+              type="button"
+              aria-label="Back"
+            >
+              <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+            <button
+              className="reader-header-button icon-button"
+              onClick={() => setSidebarOpen((v) => !v)}
+              type="button"
+              aria-label="Toggle sidebar"
+            >
+              <MenuIcon />
+            </button>
+          </div>
+          <div className="wchat-bar-right">
+          </div>
+        </header>
 
         <main className="wchat-messages">
           {messages.length === 0 && (

@@ -14314,9 +14314,13 @@ body:has(.cinema-page) {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #000000;
+  background: var(--bg, #FBFAF8);
   font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow: hidden;
+}
+
+[data-theme='dark'] .wchat-page {
+  background: #000000;
 }
 
 .wchat-body {
@@ -14333,8 +14337,8 @@ body:has(.cinema-page) {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.03);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(28, 26, 23, 0.03);
+  border-right: 1px solid rgba(28, 26, 23, 0.08);
   transform: translateX(-100%);
   transition: transform 250ms ease;
   position: absolute;
@@ -14381,6 +14385,10 @@ body:has(.cinema-page) {
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  color: rgba(28, 26, 23, 0.35);
+}
+
+[data-theme='dark'] .wchat-sidebar-heading {
   color: rgba(255, 255, 255, 0.3);
 }
 
@@ -14411,7 +14419,7 @@ body:has(.cinema-page) {
   display: block;
   font-size: 1rem;
   font-weight: 500;
-  color: var(--text-primary, #1C1A17);
+  color: #1C1A17;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -14431,15 +14439,28 @@ body:has(.cinema-page) {
 
 .wchat-hover-header {
   backdrop-filter: blur(12px);
-  background: rgba(0, 0, 0, 0.85);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(251, 250, 248, 0.92);
+  border-bottom: 1px solid rgba(28, 26, 23, 0.08);
 }
 
 .wchat-hover-header .reader-header-button {
-  color: #FBFAF8;
+  color: #1C1A17;
 }
 
 .wchat-hover-header .reader-header-button:hover {
+  background: rgba(28, 26, 23, 0.06);
+}
+
+[data-theme='dark'] .wchat-hover-header {
+  background: rgba(0, 0, 0, 0.85);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme='dark'] .wchat-hover-header .reader-header-button {
+  color: #FBFAF8;
+}
+
+[data-theme='dark'] .wchat-hover-header .reader-header-button:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -14451,14 +14472,14 @@ body:has(.cinema-page) {
   z-index: 101;
   width: 12px;
   height: 48px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(28, 26, 23, 0.06);
   border: none;
   border-radius: 0 6px 6px 0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(28, 26, 23, 0.3);
   transition: background 200ms ease, color 200ms ease, width 200ms ease, left 250ms ease;
   padding: 0;
 }
@@ -14468,9 +14489,19 @@ body:has(.cinema-page) {
 }
 
 .wchat-sidebar-tab:hover {
+  background: rgba(28, 26, 23, 0.1);
+  color: rgba(28, 26, 23, 0.5);
+  width: 16px;
+}
+
+[data-theme='dark'] .wchat-sidebar-tab {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme='dark'] .wchat-sidebar-tab:hover {
   background: rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.6);
-  width: 16px;
 }
 
 /* Main chat area */
@@ -14525,21 +14556,31 @@ body:has(.cinema-page) {
 }
 
 .wchat-bubble.user .wchat-bubble-content {
-  background: #FBFAF8;
-  color: #000000;
+  background: #1C1A17;
+  color: #FBFAF8;
   border-bottom-right-radius: 4px;
 }
 
 .wchat-bubble.assistant .wchat-bubble-content {
+  background: rgba(28, 26, 23, 0.06);
+  color: #1C1A17;
+  border-bottom-left-radius: 4px;
+}
+
+[data-theme='dark'] .wchat-bubble.user .wchat-bubble-content {
+  background: #FBFAF8;
+  color: #000000;
+}
+
+[data-theme='dark'] .wchat-bubble.assistant .wchat-bubble-content {
   background: rgba(255, 255, 255, 0.08);
   color: #FBFAF8;
-  border-bottom-left-radius: 4px;
 }
 
 .wchat-translate-btn {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(28, 26, 23, 0.3);
   cursor: pointer;
   padding: 0;
   margin-top: 6px;
@@ -14551,21 +14592,38 @@ body:has(.cinema-page) {
 }
 
 .wchat-translate-btn:hover {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(28, 26, 23, 0.5);
 }
 
 .wchat-translate-btn.is-on {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(28, 26, 23, 0.6);
 }
 
 .wchat-translation {
   clear: both;
   font-size: 0.8125rem;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(28, 26, 23, 0.45);
   line-height: 1.4;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(28, 26, 23, 0.08);
+}
+
+[data-theme='dark'] .wchat-translate-btn {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+[data-theme='dark'] .wchat-translate-btn:hover {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme='dark'] .wchat-translate-btn.is-on {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme='dark'] .wchat-translation {
+  color: rgba(255, 255, 255, 0.45);
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .wchat-typing {
@@ -14592,9 +14650,9 @@ body:has(.cinema-page) {
   padding: 0.75rem 3.25rem 0.75rem 1.25rem;
   font-family: inherit;
   font-size: 0.9375rem;
-  color: #FBFAF8;
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #1C1A17;
+  background: var(--bg, #FBFAF8);
+  border: 1px solid rgba(28, 26, 23, 0.15);
   border-radius: 28px;
   outline: none;
   -webkit-appearance: none;
@@ -14604,7 +14662,25 @@ body:has(.cinema-page) {
 }
 
 .wchat-input:focus {
+  border-color: rgba(28, 26, 23, 0.4);
+}
+
+.wchat-input::placeholder {
+  color: #78716c;
+}
+
+[data-theme='dark'] .wchat-input {
+  color: #FBFAF8;
+  background: #000000;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme='dark'] .wchat-input:focus {
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme='dark'] .wchat-input::placeholder {
+  color: #a8a29e;
 }
 
 .wchat-send {
@@ -14616,8 +14692,8 @@ body:has(.cinema-page) {
   height: 32px;
   border: none;
   border-radius: 50%;
-  background: #FBFAF8;
-  color: #000000;
+  background: #1C1A17;
+  color: #FBFAF8;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -14634,8 +14710,9 @@ body:has(.cinema-page) {
   opacity: 0.85;
 }
 
-.wchat-input::placeholder {
-  color: #a8a29e;
+[data-theme='dark'] .wchat-send {
+  background: #FBFAF8;
+  color: #000000;
 }
 
 /* Desktop: sidebar pushes content */

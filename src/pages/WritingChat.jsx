@@ -1,12 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import {
-  READER_PALETTES,
-  READER_PALETTE_ORDER,
-  DEFAULT_READER_PALETTE,
-  resolveReaderPalette,
-} from '../constants/highlightColors'
+import { resolveSupportedLanguageLabel } from '../constants/languages'
 
 const SendIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#000000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -34,64 +29,37 @@ const MoonIcon = () => (
   </svg>
 )
 
+const parseResponse = (raw) => {
+  const parts = raw.split('\n---\n')
+  if (parts.length >= 2) {
+    return { text: parts[0].trim(), translation: parts.slice(1).join('\n---\n').trim() }
+  }
+  return { text: raw.trim(), translation: null }
+}
+
 const WritingChat = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { profile, updateProfile } = useAuth()
+  const { profile } = useAuth()
   const { persona, level, language } = location.state || {}
+  const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [sending, setSending] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [chats, setChats] = useState([])
   const [activeChatId, setActiveChatId] = useState(null)
+  const [expandedTranslations, setExpandedTranslations] = useState(new Set())
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
   const [darkMode, setDarkMode] = useState(() =>
     document.documentElement.getAttribute('data-theme') === 'dark'
   )
-  const [showWordStatus, setShowWordStatus] = useState(() =>
-    localStorage.getItem('extensiveShowWordStatus') !== 'false'
-  )
-  const [paletteOpen, setPaletteOpen] = useState(false)
-  const paletteRef = useRef(null)
-
-  const currentPaletteName = profile?.readerHighlightPalette || DEFAULT_READER_PALETTE
-  const currentPalette = resolveReaderPalette(currentPaletteName)
-  const currentShade = darkMode ? currentPalette.dark : currentPalette.light
-
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
     try { localStorage.setItem('darkMode', JSON.stringify(darkMode)) } catch {}
   }, [darkMode])
-
-  useEffect(() => {
-    localStorage.setItem('extensiveShowWordStatus', showWordStatus ? 'true' : 'false')
-  }, [showWordStatus])
-
-  useEffect(() => {
-    if (!paletteOpen) return
-    const handleClick = (e) => {
-      if (paletteRef.current && !paletteRef.current.contains(e.target)) {
-        setPaletteOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [paletteOpen])
-
-  const toggleWordStatus = useCallback(() => {
-    setShowWordStatus((prev) => !prev)
-  }, [])
-
-  const selectPalette = (name) => {
-    setPaletteOpen(false)
-    if (name === currentPaletteName) return
-    updateProfile({ readerHighlightPalette: name }).catch((err) => {
-      console.error('Failed to update palette:', err)
-    })
-  }
 
   useEffect(() => {
     if (!activeChatId && persona) {
@@ -117,6 +85,15 @@ const WritingChat = () => {
   }, [messages])
 
   const activeChat = chats.find((c) => c.id === activeChatId)
+
+  const toggleTranslation = (msgId) => {
+    setExpandedTranslations((prev) => {
+      const next = new Set(prev)
+      if (next.has(msgId)) next.delete(msgId)
+      else next.add(msgId)
+      return next
+    })
+  }
 
   const handleSend = async () => {
     if (!inputValue.trim() || sending || !activeChat) return
@@ -144,13 +121,20 @@ const WritingChat = () => {
           persona: activeChat.persona,
           level: activeChat.level,
           language: activeChat.language,
+          nativeLanguage,
           corrections: true,
         }),
       })
 
       if (res.ok) {
         const data = await res.json()
-        const assistantMsg = { id: Date.now() + 1, role: 'assistant', content: data.response }
+        const parsed = parseResponse(data.response)
+        const assistantMsg = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: parsed.text,
+          translation: parsed.translation,
+        }
         const withResponse = [...updatedMessages, assistantMsg]
         setMessages(withResponse)
         setChats((prev) =>
@@ -178,6 +162,7 @@ const WritingChat = () => {
     if (chat) {
       setActiveChatId(chatId)
       setMessages(chat.messages)
+      setExpandedTranslations(new Set())
     }
   }
 
@@ -193,91 +178,39 @@ const WritingChat = () => {
 
   return (
     <div className="wchat-page">
-      <header className="wchat-bar">
-        <div className="wchat-bar-left">
-          <button
-            className="reader-header-button icon-button"
-            onClick={handleBack}
-            type="button"
-            aria-label="Back"
-          >
-            <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-          </button>
-        </div>
-        <div className="wchat-bar-right">
-          <button
-            className="reader-header-button icon-button reader-theme-trigger"
-            type="button"
-            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            onClick={(e) => {
-              setDarkMode((prev) => !prev)
-              e.currentTarget.blur()
-            }}
-          >
-            {darkMode ? <MoonIcon /> : <SunIcon />}
-          </button>
-
-          <button
-            className={`reader-header-button ui-text reader-word-status-trigger ${showWordStatus ? 'is-on' : ''}`}
-            type="button"
-            aria-label={showWordStatus ? 'Hide word status' : 'Show word status'}
-            aria-pressed={showWordStatus}
-            onClick={(e) => {
-              toggleWordStatus()
-              e.currentTarget.blur()
-            }}
-            style={showWordStatus ? { color: currentShade.new } : undefined}
-          >
-            Aa
-          </button>
-
-          <div className="reader-palette-popover-wrap" ref={paletteRef}>
-            <button
-              className={`reader-header-button icon-button reader-palette-trigger ${paletteOpen ? 'is-open' : ''}`}
-              type="button"
-              aria-label={`Highlight palette: ${currentPalette.label}`}
-              aria-expanded={paletteOpen}
-              onClick={(e) => {
-                setPaletteOpen((prev) => !prev)
-                e.currentTarget.blur()
-              }}
-            >
-              <span
-                className="palette-circle"
-                style={{ background: currentShade.new }}
-              />
-            </button>
-            {paletteOpen && (
-              <div className="reader-palette-popover" role="listbox" aria-label="Highlighter colour">
-                {READER_PALETTE_ORDER.map((name) => {
-                  const pal = resolveReaderPalette(name)
-                  const shade = darkMode ? pal.dark : pal.light
-                  const isActive = name === currentPaletteName
-                  return (
-                    <button
-                      key={name}
-                      type="button"
-                      role="option"
-                      aria-selected={isActive}
-                      className={`reader-palette-swatch ${isActive ? 'is-active' : ''}`}
-                      title={pal.label}
-                      onClick={() => selectPalette(name)}
-                    >
-                      <span
-                        className="reader-palette-swatch-circle"
-                        style={{ background: shade.new }}
-                      />
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+      <div className="reader-hover-shell wchat-hover-shell">
+        <div className="reader-hover-hitbox" />
+        <header className="reader-hover-header wchat-hover-header">
+          <div className="dashboard-brand-band reader-header-band listening-brand-band">
+            <div className="listening-header-left">
+              <button
+                className="reader-header-button icon-button reader-back-button"
+                onClick={handleBack}
+                type="button"
+                aria-label="Back"
+              >
+                <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg>
+              </button>
+            </div>
+            <div className="listening-header-actions reader-header-actions">
+              <button
+                className="reader-header-button icon-button reader-theme-trigger"
+                type="button"
+                aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                onClick={(e) => {
+                  setDarkMode((prev) => !prev)
+                  e.currentTarget.blur()
+                }}
+              >
+                {darkMode ? <MoonIcon /> : <SunIcon />}
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
 
       <div className="wchat-body">
         <aside className={`wchat-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
@@ -324,6 +257,20 @@ const WritingChat = () => {
           {messages.map((msg) => (
             <div key={msg.id} className={`wchat-bubble ${msg.role}`}>
               <div className="wchat-bubble-content">{msg.content}</div>
+              {msg.role === 'assistant' && msg.translation && (
+                <div className="wchat-translate-wrap">
+                  <button
+                    className={`wchat-translate-btn ${expandedTranslations.has(msg.id) ? 'is-on' : ''}`}
+                    onClick={() => toggleTranslation(msg.id)}
+                    aria-label="Translate"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>translate</span>
+                  </button>
+                  {expandedTranslations.has(msg.id) && (
+                    <div className="wchat-translation">{msg.translation}</div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {sending && (

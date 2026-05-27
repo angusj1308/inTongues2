@@ -137,57 +137,59 @@ const WritingChat = () => {
 
   return (
     <div className="wchat-page">
-      <aside className={`wchat-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
-        <div className="wchat-sidebar-header">
-          <button className="wchat-sidebar-new" onClick={handleNewChat}>
-            <PlusIcon />
-            New Chat
+      <header className="wchat-bar">
+        <div className="wchat-bar-left">
+          <button
+            className="reader-header-button icon-button"
+            onClick={handleBack}
+            type="button"
+            aria-label="Back"
+          >
+            <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </button>
+          <button
+            className="reader-header-button icon-button"
+            onClick={() => setSidebarOpen((v) => !v)}
+            type="button"
+            aria-label="Toggle sidebar"
+          >
+            <MenuIcon />
           </button>
         </div>
-        <ul className="wchat-sidebar-list">
-          {chats.map((c) => (
-            <li
-              key={c.id}
-              className={`wchat-sidebar-item ${c.id === activeChatId ? 'is-active' : ''}`}
-              onClick={() => handleSelectChat(c.id)}
-            >
-              <span className="wchat-sidebar-item-title">{c.title}</span>
-              <span className="wchat-sidebar-item-meta">{c.language} · {c.level}</span>
-            </li>
-          ))}
-        </ul>
-      </aside>
+        <div className="wchat-bar-right">
+        </div>
+      </header>
 
-      {sidebarOpen && (
-        <div className="wchat-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      <div className="wchat-main">
-        <header className="wchat-bar">
-          <div className="wchat-bar-left">
-            <button
-              className="reader-header-button icon-button"
-              onClick={handleBack}
-              type="button"
-              aria-label="Back"
-            >
-              <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
-            </button>
-            <button
-              className="reader-header-button icon-button"
-              onClick={() => setSidebarOpen((v) => !v)}
-              type="button"
-              aria-label="Toggle sidebar"
-            >
-              <MenuIcon />
+      <div className="wchat-body">
+        <aside className={`wchat-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
+          <div className="wchat-sidebar-header">
+            <button className="wchat-sidebar-new" onClick={handleNewChat}>
+              <PlusIcon />
+              New Chat
             </button>
           </div>
-          <div className="wchat-bar-right">
-          </div>
-        </header>
+          <ul className="wchat-sidebar-list">
+            {chats.map((c) => (
+              <li
+                key={c.id}
+                className={`wchat-sidebar-item ${c.id === activeChatId ? 'is-active' : ''}`}
+                onClick={() => handleSelectChat(c.id)}
+              >
+                <span className="wchat-sidebar-item-title">{c.title}</span>
+                <span className="wchat-sidebar-item-meta">{c.language} · {c.level}</span>
+              </li>
+            ))}
+          </ul>
+        </aside>
+
+        {sidebarOpen && (
+          <div className="wchat-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+        )}
+
+        <div className="wchat-main">
 
         <main className="wchat-messages">
           {messages.length === 0 && (
@@ -231,6 +233,7 @@ const WritingChat = () => {
             <SendIcon />
           </button>
         </footer>
+        </div>
       </div>
     </div>
   )

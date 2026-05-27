@@ -14312,10 +14312,18 @@ body:has(.cinema-page) {
 
 .wchat-page {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   background: #000000;
   font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow: hidden;
+}
+
+.wchat-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
 }
 
 /* Sidebar */
@@ -14325,11 +14333,11 @@ body:has(.cinema-page) {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: rgba(28, 26, 23, 0.03);
-  border-right: 1px solid rgba(28, 26, 23, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   transform: translateX(-100%);
   transition: transform 250ms ease;
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
@@ -14341,10 +14349,10 @@ body:has(.cinema-page) {
 }
 
 .wchat-sidebar-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 99;
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .wchat-sidebar-header {

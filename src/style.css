@@ -14441,18 +14441,12 @@ body:has(.cinema-page) {
 
 .wchat-hover-shell {
   z-index: 110;
-  height: 120px;
-}
-
-.wchat-hover-shell .reader-hover-hitbox {
-  height: 120px;
 }
 
 .wchat-hover-header {
   backdrop-filter: blur(12px);
   background: rgba(251, 250, 248, 0.92);
   border-bottom: 1px solid rgba(28, 26, 23, 0.08);
-  padding: 3.5rem 0 3rem;
 }
 
 .wchat-hover-header .reader-header-button {

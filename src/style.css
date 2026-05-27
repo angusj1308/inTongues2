@@ -14409,7 +14409,7 @@ body:has(.cinema-page) {
 
 .wchat-sidebar-item-title {
   display: block;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 500;
   color: var(--text-primary, #1C1A17);
   overflow: hidden;
@@ -14419,7 +14419,7 @@ body:has(.cinema-page) {
 
 .wchat-sidebar-item-meta {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: #78716c;
   margin-top: 2px;
 }

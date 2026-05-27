@@ -14440,6 +14440,20 @@ body:has(.cinema-page) {
   color: var(--text-primary, #1C1A17);
 }
 
+.wchat-hover-header {
+  backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.wchat-hover-header .reader-header-button {
+  color: #FBFAF8;
+}
+
+.wchat-hover-header .reader-header-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* Main chat area */
 
 .wchat-main {
@@ -14449,56 +14463,6 @@ body:has(.cinema-page) {
   min-width: 0;
 }
 
-.wchat-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  flex-shrink: 0;
-}
-
-.wchat-toggle {
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: #FBFAF8;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 150ms ease;
-  flex-shrink: 0;
-}
-
-.wchat-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.wchat-header-info {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.wchat-header-title {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #FBFAF8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wchat-header-meta {
-  font-size: 0.8125rem;
-  color: #a8a29e;
-  flex-shrink: 0;
-}
 
 .wchat-messages {
   flex: 1;

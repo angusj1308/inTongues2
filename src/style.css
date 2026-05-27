@@ -14572,7 +14572,7 @@ body:has(.cinema-page) {
   align-items: center;
   max-width: 720px;
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.08);
+  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 28px;
   padding: 4px 4px 4px 1rem;

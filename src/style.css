@@ -14389,8 +14389,9 @@ body:has(.cinema-page) {
   margin: 0;
   min-height: 110px;
   display: flex;
-  align-items: flex-end;
-  font-size: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -14643,6 +14644,43 @@ body:has(.cinema-page) {
 [data-theme='dark'] .wchat-bubble.assistant .wchat-bubble-content {
   background: rgba(255, 255, 255, 0.08);
   color: #FBFAF8;
+}
+
+.wchat-play-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: rgba(28, 26, 23, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 6px;
+  transition: color 150ms ease;
+}
+
+.wchat-play-btn:hover {
+  color: rgba(28, 26, 23, 0.6);
+}
+
+.wchat-play-btn.is-playing {
+  color: rgba(28, 26, 23, 0.6);
+}
+
+[data-theme='dark'] .wchat-play-btn {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+[data-theme='dark'] .wchat-play-btn:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme='dark'] .wchat-play-btn.is-playing {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .wchat-translate-btn {

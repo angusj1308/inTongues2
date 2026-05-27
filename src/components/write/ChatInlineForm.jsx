@@ -10,14 +10,16 @@ const PLACEHOLDERS = [
 ]
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
+const GENDERS = ['Female', 'Male']
 
-const STEP_ORDER = ['persona', 'level']
+const STEP_ORDER = ['persona', 'level', 'gender']
 
 export default function ChatInlineForm({ activeLanguage }) {
   const navigate = useNavigate()
   const [step, setStep] = useState('persona')
   const [persona, setPersona] = useState('')
   const [level, setLevel] = useState(null)
+  const [gender, setGender] = useState(null)
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [stepDirection, setStepDirection] = useState('')
   const inputRef = useRef(null)
@@ -50,13 +52,19 @@ export default function ChatInlineForm({ activeLanguage }) {
     const idx = STEP_ORDER.indexOf(target)
     if (idx < 0) return
     if (idx <= STEP_ORDER.indexOf('level')) setLevel(null)
+    if (idx <= STEP_ORDER.indexOf('gender')) setGender(null)
     setStep(target)
   }
 
   const handleSelectLevel = (l) => {
     setLevel(l)
+    advance('gender')
+  }
+
+  const handleSelectGender = (g) => {
+    setGender(g)
     navigate('/write/chat', {
-      state: { persona: persona.trim(), level: l, language: activeLanguage },
+      state: { persona: persona.trim(), level, voiceGender: g.toLowerCase(), language: activeLanguage },
     })
   }
 
@@ -65,6 +73,9 @@ export default function ChatInlineForm({ activeLanguage }) {
   if (persona && completed > STEP_ORDER.indexOf('persona')) {
     const label = persona.length > 28 ? persona.slice(0, 28) + '…' : persona
     breadcrumbs.push({ key: 'persona', label })
+  }
+  if (level && completed > STEP_ORDER.indexOf('level')) {
+    breadcrumbs.push({ key: 'level', label: level })
   }
 
   const renderStep = () => {
@@ -112,6 +123,26 @@ export default function ChatInlineForm({ activeLanguage }) {
                 onClick={() => handleSelectLevel(l)}
               >
                 <span className="genq-option-label">{l}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )
+    }
+
+    if (step === 'gender') {
+      return (
+        <>
+          <h3 className="genq-heading">Whose voice?</h3>
+          <div className="genq-options genq-options--stack">
+            {GENDERS.map((g) => (
+              <button
+                key={g}
+                type="button"
+                className="genq-option"
+                onClick={() => handleSelectGender(g)}
+              >
+                <span className="genq-option-label">{g}</span>
               </button>
             ))}
           </div>

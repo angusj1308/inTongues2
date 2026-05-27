@@ -60,7 +60,7 @@ const WritingChat = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, profile } = useAuth()
-  const { persona, level, language } = location.state || {}
+  const { persona, level, language, voiceGender } = location.state || {}
   const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
@@ -73,6 +73,8 @@ const WritingChat = () => {
   const [expandedTranslations, setExpandedTranslations] = useState(new Set())
   const [corrections, setCorrections] = useState(true)
   const [loaded, setLoaded] = useState(false)
+  const [playingId, setPlayingId] = useState(null)
+  const audioRef = useRef(null)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   const createdRef = useRef(false)
@@ -105,13 +107,13 @@ const WritingChat = () => {
     if (!loaded || createdRef.current) return
     if (persona && !activeChatId) {
       createdRef.current = true
-      createWritingChat(user.uid, { persona, level, language }).then((newChat) => {
+      createWritingChat(user.uid, { persona, level, language, voiceGender }).then((newChat) => {
         setActiveChatId(newChat.id)
         setMessages([])
       })
     } else if (persona && chats.length > 0 && !chats.find((c) => c.id === activeChatId)) {
       createdRef.current = true
-      createWritingChat(user.uid, { persona, level, language }).then((newChat) => {
+      createWritingChat(user.uid, { persona, level, language, voiceGender }).then((newChat) => {
         setActiveChatId(newChat.id)
         setMessages([])
       })
@@ -145,6 +147,40 @@ const WritingChat = () => {
   }, [messages])
 
   const activeChat = chats.find((c) => c.id === activeChatId)
+
+  const handlePlay = async (msg) => {
+    if (playingId === msg.id) {
+      audioRef.current?.pause()
+      audioRef.current = null
+      setPlayingId(null)
+      return
+    }
+
+    setPlayingId(msg.id)
+    try {
+      const res = await fetch('/api/tutor/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: msg.content,
+          language: activeChat?.language || language,
+          voiceGender: activeChat?.voiceGender || voiceGender || 'female',
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const audio = new Audio(`data:${data.contentType};base64,${data.audioBase64}`)
+        audioRef.current = audio
+        audio.onended = () => setPlayingId(null)
+        audio.play()
+      } else {
+        setPlayingId(null)
+      }
+    } catch (err) {
+      console.error('TTS error:', err)
+      setPlayingId(null)
+    }
+  }
 
   const toggleTranslation = (msgId) => {
     setExpandedTranslations((prev) => {
@@ -324,6 +360,19 @@ const WritingChat = () => {
           )}
           {messages.map((msg) => (
             <div key={msg.id} className={`wchat-bubble ${msg.role}`}>
+              {msg.role === 'assistant' && (
+                <button
+                  className={`wchat-play-btn ${playingId === msg.id ? 'is-playing' : ''}`}
+                  onClick={() => handlePlay(msg)}
+                  aria-label={playingId === msg.id ? 'Stop' : 'Play'}
+                >
+                  {playingId === msg.id ? (
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                  )}
+                </button>
+              )}
               <div className="wchat-bubble-content">
                 {msg.content}
                 {msg.role === 'assistant' && msg.translation && (

@@ -14601,7 +14601,7 @@ body:has(.cinema-page) {
 
 .wchat-translation {
   clear: both;
-  font-size: 0.8125rem;
+  font-size: inherit;
   color: rgba(28, 26, 23, 0.45);
   line-height: 1.4;
   margin-top: 8px;

@@ -14515,6 +14515,7 @@ body:has(.cinema-page) {
   flex-direction: column;
   align-items: center;
   gap: 3px;
+  margin-top: 4px;
 }
 
 .wchat-toggle-track {

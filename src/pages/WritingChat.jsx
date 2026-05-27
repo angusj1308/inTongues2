@@ -281,6 +281,7 @@ const WritingChat = () => {
 
       <div className="wchat-body">
         <aside className={`wchat-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
+          <h4 className="wchat-sidebar-heading">Recent Chats</h4>
           <ul className="wchat-sidebar-list">
             {chats.map((c) => (
               <li

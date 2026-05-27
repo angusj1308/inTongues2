@@ -14374,6 +14374,16 @@ body:has(.cinema-page) {
   color: rgba(255, 255, 255, 0.8);
 }
 
+.wchat-sidebar-heading {
+  padding: 1rem 1rem 0.5rem;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.3);
+}
+
 .wchat-sidebar-list {
   list-style: none;
   margin: 0;

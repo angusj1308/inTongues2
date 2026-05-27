@@ -199,7 +199,7 @@ const WritingChat = () => {
         </main>
 
         <footer className="wchat-footer">
-          <div className="wchat-input-row">
+          <div className="wchat-input-box">
             <input
               ref={inputRef}
               type="text"

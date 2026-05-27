@@ -14561,29 +14561,31 @@ body:has(.cinema-page) {
   background: transparent;
 }
 
-.wchat-input-row {
+.wchat-input-box {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
   max-width: 720px;
   margin: 0 auto;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  padding: 4px 4px 4px 1rem;
+  transition: border-color 150ms ease;
+}
+
+.wchat-input-box:focus-within {
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .wchat-input {
   flex: 1;
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 0;
   font-family: inherit;
   font-size: 0.9375rem;
   color: #FBFAF8;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 24px;
+  border: none;
   outline: none;
-  transition: border-color 150ms ease;
-}
-
-.wchat-input:focus {
-  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .wchat-input::placeholder {
@@ -14591,8 +14593,8 @@ body:has(.cinema-page) {
 }
 
 .wchat-send {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: none;
   border-radius: 50%;
   background: #FBFAF8;

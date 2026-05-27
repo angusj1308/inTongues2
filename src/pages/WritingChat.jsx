@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 
 const SendIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#000000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 19V5M5 12l7-7 7 7" />
   </svg>
 )

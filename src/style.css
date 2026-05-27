@@ -14510,7 +14510,7 @@ body:has(.cinema-page) {
 
 .wchat-bubble {
   display: flex;
-  max-width: 75%;
+  max-width: 85%;
 }
 
 .wchat-bubble.user {
@@ -14549,6 +14549,7 @@ body:has(.cinema-page) {
   cursor: pointer;
   padding: 0;
   margin-top: 6px;
+  margin-left: 12px;
   display: flex;
   align-items: center;
   float: right;

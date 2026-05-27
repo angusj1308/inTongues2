@@ -64,6 +64,7 @@ const WritingChat = () => {
   const [chats, setChats] = useState([])
   const [activeChatId, setActiveChatId] = useState(null)
   const [expandedTranslations, setExpandedTranslations] = useState(new Set())
+  const [corrections, setCorrections] = useState(true)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -137,7 +138,7 @@ const WritingChat = () => {
           level: activeChat.level,
           language: activeChat.language,
           nativeLanguage,
-          corrections: true,
+          corrections,
         }),
       })
 
@@ -211,6 +212,18 @@ const WritingChat = () => {
               </button>
             </div>
             <div className="listening-header-actions reader-header-actions">
+              <div className="wchat-feedback-toggle">
+                <button
+                  className={`wchat-toggle-track ${corrections ? 'is-on' : ''}`}
+                  onClick={() => setCorrections((v) => !v)}
+                  type="button"
+                  aria-label={corrections ? 'Disable feedback' : 'Enable feedback'}
+                  aria-pressed={corrections}
+                >
+                  <span className="wchat-toggle-thumb" />
+                </button>
+                <span className="wchat-toggle-label">Feedback</span>
+              </div>
               <button
                 className="reader-header-button icon-button reader-theme-trigger"
                 type="button"

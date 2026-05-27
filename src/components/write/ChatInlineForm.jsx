@@ -8,11 +8,14 @@ const PLACEHOLDERS = [
   'Someone to debate me on climate change',
 ]
 
-const STEP_ORDER = ['persona']
+const LEVELS = ['Beginner', 'Intermediate', 'Native']
+
+const STEP_ORDER = ['persona', 'level']
 
 export default function ChatInlineForm({ activeLanguage }) {
   const [step, setStep] = useState('persona')
   const [persona, setPersona] = useState('')
+  const [level, setLevel] = useState(null)
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [stepDirection, setStepDirection] = useState('')
   const inputRef = useRef(null)
@@ -39,12 +42,26 @@ export default function ChatInlineForm({ activeLanguage }) {
     return () => clearInterval(interval)
   }, [persona])
 
-  const handleSubmit = () => {
-    if (!persona.trim()) return
-    // TODO: navigate to chat with persona
+  const advance = (next) => setStep(next)
+
+  const resetFrom = (target) => {
+    const idx = STEP_ORDER.indexOf(target)
+    if (idx < 0) return
+    if (idx <= STEP_ORDER.indexOf('level')) setLevel(null)
+    setStep(target)
+  }
+
+  const handleSelectLevel = (l) => {
+    setLevel(l)
+    // TODO: create chat and navigate
   }
 
   const breadcrumbs = []
+  const completed = STEP_ORDER.indexOf(step)
+  if (persona && completed > STEP_ORDER.indexOf('persona')) {
+    const label = persona.length > 28 ? persona.slice(0, 28) + '…' : persona
+    breadcrumbs.push({ key: 'persona', label })
+  }
 
   const renderStep = () => {
     if (step === 'persona') {
@@ -59,14 +76,16 @@ export default function ChatInlineForm({ activeLanguage }) {
               value={persona}
               onChange={(e) => setPersona(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit()
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && persona.trim()) {
+                  advance('level')
+                }
               }}
               rows={3}
             />
             <button
               type="button"
               className="genq-continue-link"
-              onClick={handleSubmit}
+              onClick={() => persona.trim() && advance('level')}
               disabled={!persona.trim()}
             >
               Continue <span aria-hidden="true">→</span>
@@ -75,6 +94,27 @@ export default function ChatInlineForm({ activeLanguage }) {
         </>
       )
     }
+
+    if (step === 'level') {
+      return (
+        <>
+          <h3 className="genq-heading">What's your level?</h3>
+          <div className="genq-options genq-options--stack">
+            {LEVELS.map((l) => (
+              <button
+                key={l}
+                type="button"
+                className="genq-option"
+                onClick={() => handleSelectLevel(l)}
+              >
+                <span className="genq-option-label">{l}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )
+    }
+
     return null
   }
 
@@ -86,7 +126,7 @@ export default function ChatInlineForm({ activeLanguage }) {
             key={b.key}
             type="button"
             className="genq-breadcrumb"
-            onClick={() => setStep(b.key)}
+            onClick={() => resetFrom(b.key)}
           >
             {b.label}
           </button>

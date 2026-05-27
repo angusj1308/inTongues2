@@ -14447,6 +14447,32 @@ body:has(.cinema-page) {
   background: rgba(255, 255, 255, 0.1);
 }
 
+.wchat-sidebar-tab {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 101;
+  width: 12px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
+  transition: background 200ms ease, color 200ms ease, width 200ms ease;
+  padding: 0;
+}
+
+.wchat-sidebar-tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+  width: 16px;
+}
+
 /* Main chat area */
 
 .wchat-main {

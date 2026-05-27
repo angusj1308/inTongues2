@@ -1,14 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-const MenuIcon = () => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-    <line x1="3" y1="6" x2="21" y2="6" />
-    <line x1="3" y1="12" x2="21" y2="12" />
-    <line x1="3" y1="18" x2="21" y2="18" />
-  </svg>
-)
-
 const PlusIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="12" y1="5" x2="12" y2="19" />
@@ -150,20 +142,22 @@ const WritingChat = () => {
               <polyline points="12 19 5 12 12 5" />
             </svg>
           </button>
-          <button
-            className="reader-header-button icon-button"
-            onClick={() => setSidebarOpen((v) => !v)}
-            type="button"
-            aria-label="Toggle sidebar"
-          >
-            <MenuIcon />
-          </button>
         </div>
         <div className="wchat-bar-right">
         </div>
       </header>
 
       <div className="wchat-body">
+        <button
+          className="wchat-sidebar-tab"
+          onClick={() => setSidebarOpen((v) => !v)}
+          aria-label="Toggle sidebar"
+        >
+          <svg viewBox="0 0 8 24" width="8" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="4" y1="8" x2="4" y2="16" />
+          </svg>
+        </button>
+
         <aside className={`wchat-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
           <div className="wchat-sidebar-header">
             <button className="wchat-sidebar-new" onClick={handleNewChat}>

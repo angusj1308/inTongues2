@@ -14561,7 +14561,7 @@ body:has(.cinema-page) {
 }
 
 .wchat-footer {
-  padding: 0.75rem 1.5rem 1.25rem;
+  padding: 1rem 1.5rem;
   border-top: none;
   flex-shrink: 0;
   background: transparent;
@@ -14594,7 +14594,7 @@ body:has(.cinema-page) {
 
 .wchat-send {
   position: absolute;
-  right: calc(1.5rem + 4px);
+  right: calc(1.5rem + 5px);
   top: 50%;
   transform: translateY(-50%);
   width: 32px;

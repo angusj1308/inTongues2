@@ -196,7 +196,7 @@ const WritingChat = () => {
     <div className="wchat-page">
       <div className="reader-hover-shell wchat-hover-shell">
         <div className="reader-hover-hitbox" />
-        <header className="reader-hover-header wchat-hover-header">
+        <header className="dashboard-header reader-hover-header wchat-hover-header">
           <div className="dashboard-brand-band reader-header-band listening-brand-band">
             <div className="listening-header-left">
               <button

@@ -14367,10 +14367,12 @@ body:has(.cinema-page) {
   background: none;
   color: rgba(255, 255, 255, 0.4);
   font-family: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
+  font-weight: 400;
   cursor: pointer;
   flex-shrink: 0;
-  text-align: left;
+  text-align: center;
+  width: 100%;
   transition: color 150ms ease;
 }
 

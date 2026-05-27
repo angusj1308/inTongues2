@@ -17,8 +17,8 @@ const PlusIcon = () => (
 )
 
 const SendIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="#000000">
-    <path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94l18-8a.75.75 0 0 0 0-1.38l-18-8Z" />
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#000000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 19V5M5 12l7-7 7 7" />
   </svg>
 )
 

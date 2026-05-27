@@ -16564,7 +16564,7 @@ Respond naturally to the student's message.`
 
 app.post('/api/writing-chat/message', async (req, res) => {
   try {
-    const { message, conversationHistory, persona, level, language, corrections } = req.body || {}
+    const { message, conversationHistory, persona, level, language, nativeLanguage, corrections } = req.body || {}
 
     if (!message || !language) {
       return res.status(400).json({ error: 'message and language are required' })
@@ -16574,6 +16574,8 @@ app.post('/api/writing-chat/message', async (req, res) => {
       return res.status(500).json({ error: 'Anthropic client not configured' })
     }
 
+    const native = nativeLanguage || 'English'
+
     const correctionsLine = corrections
       ? 'You are providing corrections on grammar, spelling and vocabulary.'
       : 'You are not providing corrections on grammar, spelling and vocabulary.'
@@ -16582,7 +16584,17 @@ app.post('/api/writing-chat/message', async (req, res) => {
 
 Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs.
 
-${correctionsLine}`
+${correctionsLine}
+
+IMPORTANT: Always format your response exactly like this:
+1. First write your response in ${language}
+2. Then on a new line write exactly: ---
+3. Then on a new line write the ${native} translation of your response
+
+Example format:
+Hola, ¿cómo estás hoy?
+---
+Hello, how are you today?`
 
     const historyMessages = (conversationHistory || []).map((m) => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',

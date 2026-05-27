@@ -14536,6 +14536,40 @@ body:has(.cinema-page) {
   border-bottom-left-radius: 4px;
 }
 
+.wchat-translate-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.wchat-translate-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  transition: color 150ms ease;
+}
+
+.wchat-translate-btn:hover {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.wchat-translate-btn.is-on {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.wchat-translation {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.4;
+  padding: 0.25rem 0;
+}
+
 .wchat-typing {
   display: flex;
   align-items: center;

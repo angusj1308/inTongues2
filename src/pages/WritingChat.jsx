@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { resolveSupportedLanguageLabel } from '../constants/languages'
 
 const SendIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#000000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -27,16 +29,27 @@ const MoonIcon = () => (
   </svg>
 )
 
+const parseResponse = (raw) => {
+  const parts = raw.split('\n---\n')
+  if (parts.length >= 2) {
+    return { text: parts[0].trim(), translation: parts.slice(1).join('\n---\n').trim() }
+  }
+  return { text: raw.trim(), translation: null }
+}
+
 const WritingChat = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { profile } = useAuth()
   const { persona, level, language } = location.state || {}
+  const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [sending, setSending] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [chats, setChats] = useState([])
   const [activeChatId, setActiveChatId] = useState(null)
+  const [expandedTranslations, setExpandedTranslations] = useState(new Set())
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -73,6 +86,15 @@ const WritingChat = () => {
 
   const activeChat = chats.find((c) => c.id === activeChatId)
 
+  const toggleTranslation = (msgId) => {
+    setExpandedTranslations((prev) => {
+      const next = new Set(prev)
+      if (next.has(msgId)) next.delete(msgId)
+      else next.add(msgId)
+      return next
+    })
+  }
+
   const handleSend = async () => {
     if (!inputValue.trim() || sending || !activeChat) return
 
@@ -99,13 +121,20 @@ const WritingChat = () => {
           persona: activeChat.persona,
           level: activeChat.level,
           language: activeChat.language,
+          nativeLanguage,
           corrections: true,
         }),
       })
 
       if (res.ok) {
         const data = await res.json()
-        const assistantMsg = { id: Date.now() + 1, role: 'assistant', content: data.response }
+        const parsed = parseResponse(data.response)
+        const assistantMsg = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: parsed.text,
+          translation: parsed.translation,
+        }
         const withResponse = [...updatedMessages, assistantMsg]
         setMessages(withResponse)
         setChats((prev) =>
@@ -133,6 +162,7 @@ const WritingChat = () => {
     if (chat) {
       setActiveChatId(chatId)
       setMessages(chat.messages)
+      setExpandedTranslations(new Set())
     }
   }
 
@@ -227,6 +257,20 @@ const WritingChat = () => {
           {messages.map((msg) => (
             <div key={msg.id} className={`wchat-bubble ${msg.role}`}>
               <div className="wchat-bubble-content">{msg.content}</div>
+              {msg.role === 'assistant' && msg.translation && (
+                <div className="wchat-translate-wrap">
+                  <button
+                    className={`wchat-translate-btn ${expandedTranslations.has(msg.id) ? 'is-on' : ''}`}
+                    onClick={() => toggleTranslation(msg.id)}
+                    aria-label="Translate"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>translate</span>
+                  </button>
+                  {expandedTranslations.has(msg.id) && (
+                    <div className="wchat-translation">{msg.translation}</div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {sending && (

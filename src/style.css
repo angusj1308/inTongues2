@@ -14361,30 +14361,21 @@ body:has(.cinema-page) {
   background: rgba(0, 0, 0, 0.4);
 }
 
-.wchat-sidebar-header {
-  padding: 1rem;
-  flex-shrink: 0;
-}
-
 .wchat-sidebar-new {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.625rem 0.75rem;
-  border: 1px solid rgba(28, 26, 23, 0.15);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-primary, #1C1A17);
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.4);
   font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.8125rem;
   cursor: pointer;
-  transition: background 150ms ease;
+  flex-shrink: 0;
+  text-align: left;
+  transition: color 150ms ease;
 }
 
 .wchat-sidebar-new:hover {
-  background: rgba(28, 26, 23, 0.04);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .wchat-sidebar-list {

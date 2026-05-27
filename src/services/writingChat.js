@@ -13,11 +13,12 @@ import { db } from '../firebase'
 
 const getChatsCollection = (userId) => collection(db, 'users', userId, 'writingChats')
 
-export const createWritingChat = async (userId, { persona, level, language }) => {
+export const createWritingChat = async (userId, { persona, level, language, voiceGender }) => {
   const data = {
     persona,
     level,
     language,
+    voiceGender: voiceGender || 'female',
     title: persona.length > 30 ? persona.slice(0, 30) + '…' : persona,
     messages: [],
     lastActivity: serverTimestamp(),

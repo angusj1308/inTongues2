@@ -14542,22 +14542,16 @@ body:has(.cinema-page) {
   border-bottom-left-radius: 4px;
 }
 
-.wchat-translate-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  margin-top: 4px;
-}
-
 .wchat-translate-btn {
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.25);
   cursor: pointer;
-  padding: 2px;
+  padding: 0;
+  margin-top: 6px;
   display: flex;
   align-items: center;
+  float: right;
   transition: color 150ms ease;
 }
 
@@ -14570,10 +14564,13 @@ body:has(.cinema-page) {
 }
 
 .wchat-translation {
+  clear: both;
   font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.45);
   line-height: 1.4;
-  padding: 0.25rem 0;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .wchat-typing {

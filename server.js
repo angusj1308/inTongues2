@@ -16562,6 +16562,52 @@ Respond naturally to the student's message.`
   }
 })
 
+app.post('/api/writing-chat/message', async (req, res) => {
+  try {
+    const { message, conversationHistory, persona, level, language, corrections } = req.body || {}
+
+    if (!message || !language) {
+      return res.status(400).json({ error: 'message and language are required' })
+    }
+
+    if (!anthropicClient) {
+      return res.status(500).json({ error: 'Anthropic client not configured' })
+    }
+
+    const correctionsLine = corrections
+      ? 'You are providing corrections on grammar, spelling and vocabulary.'
+      : 'You are not providing corrections on grammar, spelling and vocabulary.'
+
+    const systemPrompt = `You are a native ${language} speaker. You are having the following conversation: ${persona || 'A casual chat partner'}
+
+Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs.
+
+${correctionsLine}`
+
+    const historyMessages = (conversationHistory || []).map((m) => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.content,
+    }))
+
+    const response = await anthropicClient.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 64000,
+      system: systemPrompt,
+      messages: [
+        ...historyMessages,
+        { role: 'user', content: message },
+      ],
+    })
+
+    const text = response?.content?.[0]?.type === 'text' ? response.content[0].text : ''
+
+    return res.json({ response: text || 'Sorry, I could not respond.' })
+  } catch (error) {
+    console.error('Writing chat error:', error)
+    return res.status(500).json({ error: 'Failed to get chat response' })
+  }
+})
+
 // Reader-context AI tutor — story-aware teaching endpoint
 app.post('/api/reader/tutor', async (req, res) => {
   try {

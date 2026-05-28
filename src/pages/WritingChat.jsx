@@ -48,11 +48,20 @@ const MoonIcon = () => (
 )
 
 const parseResponse = (raw) => {
-  const parts = raw.split('\n---\n')
-  if (parts.length >= 2) {
-    return { text: parts[0].trim(), translation: parts.slice(1).join('\n---\n').trim() }
+  // Split off the corrections section first (=== marker), then the translation (---).
+  let correction = null
+  let body = raw
+  const corrIdx = raw.indexOf('\n===\n')
+  if (corrIdx !== -1) {
+    body = raw.slice(0, corrIdx)
+    const corr = raw.slice(corrIdx + 5).trim()
+    if (corr && corr.toUpperCase() !== 'OK') correction = corr
   }
-  return { text: raw.trim(), translation: null }
+  const parts = body.split('\n---\n')
+  if (parts.length >= 2) {
+    return { text: parts[0].trim(), translation: parts.slice(1).join('\n---\n').trim(), correction }
+  }
+  return { text: body.trim(), translation: null, correction }
 }
 
 const formatRelativeTime = (timestamp) => {
@@ -426,6 +435,7 @@ const WritingChat = () => {
           role: 'assistant',
           content: parsed.text,
           translation: parsed.translation,
+          correction: parsed.correction || null,
           audioUrl: data.audioUrl || null,
         }
         const withResponse = [...updatedMessages, assistantMsg]
@@ -708,6 +718,12 @@ const WritingChat = () => {
                   </div>
                 ) : (
                   <div className="wchat-bubble-content">
+                    {msg.role === 'assistant' && msg.correction && (
+                      <div className="wchat-correction wchat-correction--top">
+                        <span className="material-symbols-outlined" style={{ fontSize: 15 }}>edit</span>
+                        <span>{msg.correction}</span>
+                      </div>
+                    )}
                     {msg.role === 'assistant' ? renderWords(msg.content) : msg.content}
                     {msg.role === 'assistant' && msg.translation && (
                       <>

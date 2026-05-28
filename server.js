@@ -16576,15 +16576,27 @@ app.post('/api/writing-chat/message', async (req, res) => {
 
     const native = nativeLanguage || 'English'
 
-    const correctionsLine = corrections
-      ? `If the learner makes mistakes in grammar, spelling, or vocabulary, gently point them out and give the correct version before continuing the conversation naturally. Keep corrections brief and encouraging.`
-      : `Do not correct the learner's grammar, spelling, or vocabulary. Just converse naturally even if they make mistakes.`
+    const systemPrompt = corrections
+      ? `You are a native ${language} speaker. You are having the following conversation: ${persona || 'A casual chat partner'}
 
-    const systemPrompt = `You are a native ${language} speaker. You are having the following conversation: ${persona || 'A casual chat partner'}
+Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs. Stay in character for the conversation above.
 
-Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs.
+IMPORTANT: Always format your response in exactly FOUR parts separated by the markers shown:
+1. Your in-character reply in ${language}
+2. A line with exactly: ---
+3. The ${native} translation of your reply
+4. A line with exactly: ===
+5. Corrections: review the learner's LAST message for any grammar, spelling, or vocabulary mistakes. If there are mistakes, write each correction in ${native} as "you wrote X → correct is Y". If there are no mistakes, write exactly: OK
 
-${correctionsLine}
+Example format:
+¿Crees que el feto es humano desde la concepción?
+---
+Do you think the fetus is human from conception?
+===
+you wrote "hummano" → correct is "humano"`
+      : `You are a native ${language} speaker. You are having the following conversation: ${persona || 'A casual chat partner'}
+
+Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs. Do not correct the learner's grammar, spelling, or vocabulary — just converse naturally even if they make mistakes.
 
 IMPORTANT: Always format your response exactly like this:
 1. First write your response in ${language}

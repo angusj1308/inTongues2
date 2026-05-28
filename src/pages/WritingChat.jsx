@@ -71,7 +71,11 @@ const WritingChat = () => {
     try { return localStorage.getItem('wchat-active') || null } catch { return null }
   })
   const [expandedTranslations, setExpandedTranslations] = useState(new Set())
+  const [revealedText, setRevealedText] = useState(new Set())
   const [corrections, setCorrections] = useState(true)
+  const [listenFirst, setListenFirst] = useState(() => {
+    try { return localStorage.getItem('wchat-listen-first') === 'true' } catch { return false }
+  })
   const [loaded, setLoaded] = useState(false)
   const [playingId, setPlayingId] = useState(null)
   const audioRef = useRef(null)
@@ -86,6 +90,10 @@ const WritingChat = () => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
     try { localStorage.setItem('darkMode', JSON.stringify(darkMode)) } catch {}
   }, [darkMode])
+
+  useEffect(() => {
+    try { localStorage.setItem('wchat-listen-first', listenFirst ? 'true' : 'false') } catch {}
+  }, [listenFirst])
 
   useEffect(() => {
     if (!user?.uid) return
@@ -168,6 +176,14 @@ const WritingChat = () => {
       const next = new Set(prev)
       if (next.has(msgId)) next.delete(msgId)
       else next.add(msgId)
+      return next
+    })
+  }
+
+  const revealText = (msgId) => {
+    setRevealedText((prev) => {
+      const next = new Set(prev)
+      next.add(msgId)
       return next
     })
   }
@@ -273,6 +289,18 @@ const WritingChat = () => {
             <div className="listening-header-actions reader-header-actions">
               <div className="wchat-feedback-toggle">
                 <button
+                  className={`wchat-toggle-track ${listenFirst ? 'is-on' : ''}`}
+                  onClick={() => setListenFirst((v) => !v)}
+                  type="button"
+                  aria-label={listenFirst ? 'Disable listen first' : 'Enable listen first'}
+                  aria-pressed={listenFirst}
+                >
+                  <span className="wchat-toggle-thumb" />
+                </button>
+                <span className="wchat-toggle-label">Listen First</span>
+              </div>
+              <div className="wchat-feedback-toggle">
+                <button
                   className={`wchat-toggle-track ${corrections ? 'is-on' : ''}`}
                   onClick={() => setCorrections((v) => !v)}
                   type="button"
@@ -341,40 +369,69 @@ const WritingChat = () => {
               <p className="muted">Start the conversation in {chatLanguage}.</p>
             </div>
           )}
-          {messages.map((msg) => (
-            <div key={msg.id} className={`wchat-bubble ${msg.role}`}>
-              {msg.role === 'assistant' && msg.audioUrl && (
-                <button
-                  className={`wchat-play-btn ${playingId === msg.id ? 'is-playing' : ''}`}
-                  onClick={() => handlePlay(msg)}
-                  aria-label={playingId === msg.id ? 'Stop' : 'Play'}
-                >
-                  {playingId === msg.id ? (
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-                  )}
-                </button>
-              )}
-              <div className="wchat-bubble-content">
-                {msg.content}
-                {msg.role === 'assistant' && msg.translation && (
-                  <>
-                    <button
-                      className={`wchat-translate-btn ${expandedTranslations.has(msg.id) ? 'is-on' : ''}`}
-                      onClick={() => toggleTranslation(msg.id)}
-                      aria-label="Translate"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>translate</span>
-                    </button>
-                    {expandedTranslations.has(msg.id) && (
-                      <div className="wchat-translation">{msg.translation}</div>
+          {messages.map((msg) => {
+            const hidden =
+              listenFirst &&
+              msg.role === 'assistant' &&
+              msg.audioUrl &&
+              !revealedText.has(msg.id)
+
+            return (
+              <div key={msg.id} className={`wchat-bubble ${msg.role}`}>
+                {msg.role === 'assistant' && msg.audioUrl && (
+                  <button
+                    className={`wchat-play-btn ${playingId === msg.id ? 'is-playing' : ''}`}
+                    onClick={() => handlePlay(msg)}
+                    aria-label={playingId === msg.id ? 'Stop' : 'Play'}
+                  >
+                    {playingId === msg.id ? (
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
                     )}
-                  </>
+                  </button>
+                )}
+                {hidden ? (
+                  <div className="wchat-bubble-content wchat-voice-note">
+                    <div className="wchat-waveform" aria-hidden="true">
+                      {[10, 18, 8, 22, 14, 26, 12, 20, 9, 24, 16, 11, 19, 7, 21, 13].map((h, i) => (
+                        <span key={i} style={{ height: `${h}px` }} />
+                      ))}
+                    </div>
+                    <button
+                      className="wchat-reveal-btn"
+                      onClick={() => revealText(msg.id)}
+                      aria-label="Reveal text"
+                    >
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        <line x1="8" y1="9" x2="16" y2="9" />
+                        <line x1="8" y1="13" x2="13" y2="13" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="wchat-bubble-content">
+                    {msg.content}
+                    {msg.role === 'assistant' && msg.translation && (
+                      <>
+                        <button
+                          className={`wchat-translate-btn ${expandedTranslations.has(msg.id) ? 'is-on' : ''}`}
+                          onClick={() => toggleTranslation(msg.id)}
+                          aria-label="Translate"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>translate</span>
+                        </button>
+                        {expandedTranslations.has(msg.id) && (
+                          <div className="wchat-translation">{msg.translation}</div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
-          ))}
+            )
+          })}
           {sending && (
             <div className="wchat-bubble assistant">
               <div className="wchat-bubble-content wchat-typing">

@@ -475,6 +475,7 @@ const WritingChat = () => {
         <div className="wchat-main">
 
         <main className="wchat-messages">
+          <div className="wchat-messages-inner">
           {messages.length === 0 && (
             <div className="wchat-empty">
               <p className="muted">Start the conversation in {chatLanguage}.</p>
@@ -553,6 +554,7 @@ const WritingChat = () => {
             </div>
           )}
           <div ref={messagesEndRef} />
+          </div>
         </main>
 
         <footer className="wchat-footer">

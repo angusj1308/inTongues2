@@ -48,20 +48,11 @@ const MoonIcon = () => (
 )
 
 const parseResponse = (raw) => {
-  // Split off the corrections section first (=== marker), then the translation (---).
-  let correction = null
-  let body = raw
-  const corrIdx = raw.indexOf('\n===\n')
-  if (corrIdx !== -1) {
-    body = raw.slice(0, corrIdx)
-    const corr = raw.slice(corrIdx + 5).trim()
-    if (corr && corr.toUpperCase() !== 'OK') correction = corr
-  }
-  const parts = body.split('\n---\n')
+  const parts = raw.split('\n---\n')
   if (parts.length >= 2) {
-    return { text: parts[0].trim(), translation: parts.slice(1).join('\n---\n').trim(), correction }
+    return { text: parts[0].trim(), translation: parts.slice(1).join('\n---\n').trim() }
   }
-  return { text: body.trim(), translation: null, correction }
+  return { text: raw.trim(), translation: null }
 }
 
 const formatRelativeTime = (timestamp) => {
@@ -435,7 +426,7 @@ const WritingChat = () => {
           role: 'assistant',
           content: parsed.text,
           translation: parsed.translation,
-          correction: parsed.correction || null,
+          correction: data.correction || null,
           audioUrl: data.audioUrl || null,
         }
         const withResponse = [...updatedMessages, assistantMsg]

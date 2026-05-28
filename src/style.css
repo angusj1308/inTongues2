@@ -14916,9 +14916,22 @@ body:has(.cinema-page) {
   border-top: 1px solid rgba(184, 116, 47, 0.25);
 }
 
+.wchat-correction--top {
+  margin-top: 0;
+  margin-bottom: 10px;
+  padding-top: 0;
+  padding-bottom: 10px;
+  border-top: none;
+  border-bottom: 1px solid rgba(184, 116, 47, 0.25);
+}
+
 [data-theme='dark'] .wchat-correction {
   color: #e0a458;
   border-top-color: rgba(224, 164, 88, 0.25);
+}
+
+[data-theme='dark'] .wchat-correction--top {
+  border-bottom-color: rgba(224, 164, 88, 0.25);
 }
 
 [data-theme='dark'] .wchat-translate-btn {

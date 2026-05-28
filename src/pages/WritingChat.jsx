@@ -718,6 +718,12 @@ const WritingChat = () => {
                   </div>
                 ) : (
                   <div className="wchat-bubble-content">
+                    {msg.role === 'assistant' && msg.correction && (
+                      <div className="wchat-correction wchat-correction--top">
+                        <span className="material-symbols-outlined" style={{ fontSize: 15 }}>edit</span>
+                        <span>{msg.correction}</span>
+                      </div>
+                    )}
                     {msg.role === 'assistant' ? renderWords(msg.content) : msg.content}
                     {msg.role === 'assistant' && msg.translation && (
                       <>
@@ -732,12 +738,6 @@ const WritingChat = () => {
                           <div className="wchat-translation">{msg.translation}</div>
                         )}
                       </>
-                    )}
-                    {msg.role === 'assistant' && msg.correction && (
-                      <div className="wchat-correction">
-                        <span className="material-symbols-outlined" style={{ fontSize: 15 }}>edit</span>
-                        <span>{msg.correction}</span>
-                      </div>
                     )}
                   </div>
                 )}

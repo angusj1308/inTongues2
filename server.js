@@ -16577,8 +16577,8 @@ app.post('/api/writing-chat/message', async (req, res) => {
     const native = nativeLanguage || 'English'
 
     const correctionsLine = corrections
-      ? 'You are providing corrections on grammar, spelling and vocabulary.'
-      : 'You are not providing corrections on grammar, spelling and vocabulary.'
+      ? `If the learner makes mistakes in grammar, spelling, or vocabulary, gently point them out and give the correct version before continuing the conversation naturally. Keep corrections brief and encouraging.`
+      : `Do not correct the learner's grammar, spelling, or vocabulary. Just converse naturally even if they make mistakes.`
 
     const systemPrompt = `You are a native ${language} speaker. You are having the following conversation: ${persona || 'A casual chat partner'}
 

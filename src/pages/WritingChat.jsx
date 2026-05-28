@@ -5,6 +5,7 @@ import { resolveSupportedLanguageLabel } from '../constants/languages'
 import {
   createWritingChat,
   updateWritingChat,
+  deleteWritingChat,
   subscribeToWritingChats,
 } from '../services/writingChat'
 
@@ -314,6 +315,29 @@ const WritingChat = () => {
     }
   }
 
+  const handleDeleteChat = async (chatId, e) => {
+    e.stopPropagation()
+    if (!user?.uid) return
+    const remaining = chats.filter((c) => c.id !== chatId)
+    try {
+      await deleteWritingChat(user.uid, chatId)
+    } catch (err) {
+      console.error('Failed to delete chat:', err)
+      return
+    }
+    if (chatId === activeChatId) {
+      if (remaining.length > 0) {
+        setActiveChatId(remaining[0].id)
+        setMessages(remaining[0].messages || [])
+      } else {
+        setActiveChatId(null)
+        setMessages([])
+        try { localStorage.removeItem('wchat-active') } catch {}
+        navigate('/dashboard', { state: { initialTab: 'write' } })
+      }
+    }
+  }
+
   const handleNewChat = () => {
     navigate('/dashboard', { state: { initialTab: 'write' } })
   }
@@ -394,8 +418,20 @@ const WritingChat = () => {
                 className={`wchat-sidebar-item ${c.id === activeChatId ? 'is-active' : ''}`}
                 onClick={() => handleSelectChat(c.id)}
               >
-                <span className="wchat-sidebar-item-title">{c.title}</span>
-                <span className="wchat-sidebar-item-meta">{formatRelativeTime(c.lastActivity)}</span>
+                <div className="wchat-sidebar-item-text">
+                  <span className="wchat-sidebar-item-title">{c.title}</span>
+                  <span className="wchat-sidebar-item-meta">{formatRelativeTime(c.lastActivity)}</span>
+                </div>
+                <button
+                  className="wchat-sidebar-delete"
+                  onClick={(e) => handleDeleteChat(c.id, e)}
+                  aria-label="Delete chat"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
               </li>
             ))}
           </ul>

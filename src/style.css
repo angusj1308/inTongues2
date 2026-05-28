@@ -14407,10 +14407,47 @@ body:has(.cinema-page) {
 }
 
 .wchat-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.625rem 0.75rem;
   border-radius: 8px;
   cursor: pointer;
   transition: background 150ms ease;
+}
+
+.wchat-sidebar-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.wchat-sidebar-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: rgba(28, 26, 23, 0.3);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 150ms ease, color 150ms ease;
+}
+
+.wchat-sidebar-item:hover .wchat-sidebar-delete {
+  opacity: 1;
+}
+
+.wchat-sidebar-delete:hover {
+  color: rgba(28, 26, 23, 0.7);
+}
+
+[data-theme='dark'] .wchat-sidebar-delete {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme='dark'] .wchat-sidebar-delete:hover {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .wchat-sidebar-item:hover {

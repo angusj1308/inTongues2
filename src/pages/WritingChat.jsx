@@ -5,6 +5,8 @@ import { resolveSupportedLanguageLabel } from '../constants/languages'
 import {
   createWritingChat,
   updateWritingChat,
+  deleteWritingChat,
+  regenerateChatTitle,
   subscribeToWritingChats,
 } from '../services/writingChat'
 
@@ -86,6 +88,7 @@ const WritingChat = () => {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   const createdRef = useRef(false)
+  const backfilledRef = useRef(false)
 
   const [darkMode, setDarkMode] = useState(() =>
     document.documentElement.getAttribute('data-theme') === 'dark'
@@ -114,6 +117,20 @@ const WritingChat = () => {
     )
     return unsubscribe
   }, [user?.uid])
+
+  // One-off backfill: regenerate clean titles for older chats whose title
+  // is still the raw/truncated persona.
+  useEffect(() => {
+    if (!loaded || !user?.uid || backfilledRef.current || chats.length === 0) return
+    backfilledRef.current = true
+    chats.forEach((c) => {
+      if (!c.persona) return
+      const truncated = c.persona.length > 28 ? c.persona.slice(0, 28) + '…' : c.persona
+      if (c.title === truncated || c.title === c.persona) {
+        regenerateChatTitle(user.uid, c.id, c.persona)
+      }
+    })
+  }, [loaded, chats, user?.uid])
 
   useEffect(() => {
     if (!loaded || createdRef.current) return
@@ -314,6 +331,29 @@ const WritingChat = () => {
     }
   }
 
+  const handleDeleteChat = async (chatId, e) => {
+    e.stopPropagation()
+    if (!user?.uid) return
+    const remaining = chats.filter((c) => c.id !== chatId)
+    try {
+      await deleteWritingChat(user.uid, chatId)
+    } catch (err) {
+      console.error('Failed to delete chat:', err)
+      return
+    }
+    if (chatId === activeChatId) {
+      if (remaining.length > 0) {
+        setActiveChatId(remaining[0].id)
+        setMessages(remaining[0].messages || [])
+      } else {
+        setActiveChatId(null)
+        setMessages([])
+        try { localStorage.removeItem('wchat-active') } catch {}
+        navigate('/dashboard', { state: { initialTab: 'write' } })
+      }
+    }
+  }
+
   const handleNewChat = () => {
     navigate('/dashboard', { state: { initialTab: 'write' } })
   }
@@ -394,8 +434,20 @@ const WritingChat = () => {
                 className={`wchat-sidebar-item ${c.id === activeChatId ? 'is-active' : ''}`}
                 onClick={() => handleSelectChat(c.id)}
               >
-                <span className="wchat-sidebar-item-title">{c.title}</span>
-                <span className="wchat-sidebar-item-meta">{formatRelativeTime(c.lastActivity)}</span>
+                <div className="wchat-sidebar-item-text">
+                  <span className="wchat-sidebar-item-title">{c.title}</span>
+                  <span className="wchat-sidebar-item-meta">{formatRelativeTime(c.lastActivity)}</span>
+                </div>
+                <button
+                  className="wchat-sidebar-delete"
+                  onClick={(e) => handleDeleteChat(c.id, e)}
+                  aria-label="Delete chat"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
               </li>
             ))}
           </ul>

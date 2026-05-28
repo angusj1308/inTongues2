@@ -16642,6 +16642,29 @@ Hello, how are you today?`
   }
 })
 
+app.post('/api/writing-chat/title', async (req, res) => {
+  try {
+    const { persona } = req.body || {}
+    if (!persona) return res.json({ title: null })
+    if (!anthropicClient) return res.json({ title: null })
+
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 32,
+      system: 'You generate concise chat titles. Given a description of who the user wants to talk to, return a short 2-3 word title capturing the topic or persona. Return ONLY the title — no quotes, no punctuation, title case.',
+      messages: [{ role: 'user', content: persona }],
+    })
+    const final = await stream.finalMessage()
+    let title = final?.content?.[0]?.type === 'text' ? final.content[0].text.trim() : ''
+    title = title.replace(/^["']|["']$/g, '').replace(/[.!?]+$/, '').trim()
+
+    return res.json({ title: title || null })
+  } catch (error) {
+    console.error('Writing chat title error:', error)
+    return res.json({ title: null })
+  }
+})
+
 // Reader-context AI tutor — story-aware teaching endpoint
 app.post('/api/reader/tutor', async (req, res) => {
   try {

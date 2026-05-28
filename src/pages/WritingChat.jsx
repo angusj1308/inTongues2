@@ -78,7 +78,11 @@ const WritingChat = () => {
   })
   const [loaded, setLoaded] = useState(false)
   const [playingId, setPlayingId] = useState(null)
+  const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
   const audioRef = useRef(null)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   const createdRef = useRef(false)
@@ -186,6 +190,59 @@ const WritingChat = () => {
       next.add(msgId)
       return next
     })
+  }
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        stream.getTracks().forEach((t) => t.stop())
+        setTranscribing(true)
+        try {
+          const form = new FormData()
+          form.append('audio', blob, 'voice.webm')
+          form.append('language', activeChat?.language || language || 'English')
+          const res = await fetch('/api/speech/transcribe', { method: 'POST', body: form })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.text) {
+              setInputValue((prev) => (prev ? `${prev} ${data.text}` : data.text))
+            }
+          }
+        } catch (err) {
+          console.error('Transcription error:', err)
+        } finally {
+          setTranscribing(false)
+          inputRef.current?.focus()
+        }
+      }
+
+      mediaRecorder.start()
+      setRecording(true)
+    } catch (err) {
+      console.error('Recording error:', err)
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording) {
+      mediaRecorderRef.current.stop()
+      setRecording(false)
+    }
+  }
+
+  const toggleRecording = () => {
+    if (recording) stopRecording()
+    else startRecording()
   }
 
   const handleSend = async () => {
@@ -449,19 +506,39 @@ const WritingChat = () => {
             ref={inputRef}
             type="text"
             className="wchat-input"
-            placeholder={`Type in ${chatLanguage}...`}
+            placeholder={transcribing ? 'Transcribing…' : recording ? 'Recording… tap mic to stop' : `Type in ${chatLanguage}...`}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={sending}
+            disabled={sending || transcribing}
           />
-          <button
-            className="wchat-send"
-            onClick={handleSend}
-            disabled={!inputValue.trim() || sending}
-          >
-            <SendIcon />
-          </button>
+          {inputValue.trim() ? (
+            <button
+              className="wchat-send"
+              onClick={handleSend}
+              disabled={sending}
+            >
+              <SendIcon />
+            </button>
+          ) : (
+            <button
+              className={`wchat-send wchat-mic ${recording ? 'is-recording' : ''}`}
+              onClick={toggleRecording}
+              disabled={sending || transcribing}
+              aria-label={recording ? 'Stop recording' : 'Record voice note'}
+            >
+              {recording ? (
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" y1="19" x2="12" y2="23" />
+                  <line x1="8" y1="23" x2="16" y2="23" />
+                </svg>
+              )}
+            </button>
+          )}
         </footer>
         </div>
       </div>

@@ -6,6 +6,7 @@ import {
   createWritingChat,
   updateWritingChat,
   deleteWritingChat,
+  regenerateChatTitle,
   subscribeToWritingChats,
 } from '../services/writingChat'
 
@@ -87,6 +88,7 @@ const WritingChat = () => {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   const createdRef = useRef(false)
+  const backfilledRef = useRef(false)
 
   const [darkMode, setDarkMode] = useState(() =>
     document.documentElement.getAttribute('data-theme') === 'dark'
@@ -115,6 +117,20 @@ const WritingChat = () => {
     )
     return unsubscribe
   }, [user?.uid])
+
+  // One-off backfill: regenerate clean titles for older chats whose title
+  // is still the raw/truncated persona.
+  useEffect(() => {
+    if (!loaded || !user?.uid || backfilledRef.current || chats.length === 0) return
+    backfilledRef.current = true
+    chats.forEach((c) => {
+      if (!c.persona) return
+      const truncated = c.persona.length > 28 ? c.persona.slice(0, 28) + '…' : c.persona
+      if (c.title === truncated || c.title === c.persona) {
+        regenerateChatTitle(user.uid, c.id, c.persona)
+      }
+    })
+  }, [loaded, chats, user?.uid])
 
   useEffect(() => {
     if (!loaded || createdRef.current) return

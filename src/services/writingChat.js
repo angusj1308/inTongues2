@@ -49,6 +49,25 @@ export const updateWritingChat = async (userId, chatId, updates) => {
   await updateDoc(ref, { ...updates, lastActivity: serverTimestamp() })
 }
 
+// Regenerate a clean title for a chat without bumping lastActivity.
+export const regenerateChatTitle = async (userId, chatId, persona) => {
+  if (!persona) return
+  try {
+    const res = await fetch('/api/writing-chat/title', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ persona }),
+    })
+    if (!res.ok) return
+    const { title } = await res.json()
+    if (title) {
+      await updateDoc(doc(getChatsCollection(userId), chatId), { title })
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
 export const deleteWritingChat = async (userId, chatId) => {
   await deleteDoc(doc(getChatsCollection(userId), chatId))
 }

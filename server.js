@@ -16581,19 +16581,19 @@ app.post('/api/writing-chat/message', async (req, res) => {
 
 Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs. Stay in character for the conversation above.
 
-IMPORTANT: Always format your response in exactly FOUR parts separated by the markers shown:
+IMPORTANT: Always format your response in exactly these parts separated by the markers shown:
 1. Your in-character reply in ${language}
 2. A line with exactly: ---
 3. The ${native} translation of your reply
 4. A line with exactly: ===
-5. Corrections: review the learner's LAST message for any grammar, spelling, or vocabulary mistakes. If there are mistakes, write each correction in ${native} as "you wrote X → correct is Y". If there are no mistakes, write exactly: OK
+5. Corrections — review ONLY this exact message the learner just sent: "${message}". Do not review or re-correct anything from earlier in the conversation. Quote the learner's words EXACTLY as they wrote them, character for character (do not silently fix them in your quote). For each genuine grammar, spelling, gender-agreement, or vocabulary mistake, write one line in ${native}: "you wrote X → correct is Y". Only list actual mistakes — never list words that are already correct. If the message has no mistakes, write exactly: OK
 
 Example format:
 ¿Crees que el feto es humano desde la concepción?
 ---
 Do you think the fetus is human from conception?
 ===
-you wrote "hummano" → correct is "humano"`
+you wrote "una problema" → correct is "un problema"`
       : `You are a native ${language} speaker. You are having the following conversation: ${persona || 'A casual chat partner'}
 
 Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs. Do not correct the learner's grammar, spelling, or vocabulary — just converse naturally even if they make mistakes.
@@ -16614,7 +16614,7 @@ Hello, how are you today?`
     }))
 
     const stream = anthropicClient.messages.stream({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: systemPrompt,
       messages: [

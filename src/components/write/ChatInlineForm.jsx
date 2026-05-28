@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+import { subscribeToWritingChats } from '../../services/writingChat'
 
 const PLACEHOLDERS = [
   'A friend to chat casually with',
@@ -12,11 +14,13 @@ const PLACEHOLDERS = [
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 const GENDERS = ['Female', 'Male']
 
-const STEP_ORDER = ['persona', 'level', 'gender']
+const STEP_ORDER = ['start', 'persona', 'level', 'gender']
 
 export default function ChatInlineForm({ activeLanguage }) {
   const navigate = useNavigate()
-  const [step, setStep] = useState('persona')
+  const { user } = useAuth()
+  const [hasChats, setHasChats] = useState(false)
+  const [step, setStep] = useState('start')
   const [persona, setPersona] = useState('')
   const [level, setLevel] = useState(null)
   const [gender, setGender] = useState(null)
@@ -24,6 +28,21 @@ export default function ChatInlineForm({ activeLanguage }) {
   const [stepDirection, setStepDirection] = useState('')
   const inputRef = useRef(null)
   const prevStepRef = useRef(step)
+
+  useEffect(() => {
+    if (!user?.uid) return
+    const unsubscribe = subscribeToWritingChats(
+      user.uid,
+      (chats) => {
+        const any = chats.length > 0
+        setHasChats(any)
+        // No history yet — skip the New/Recent fork and go straight to setup.
+        setStep((s) => (s === 'start' && !any ? 'persona' : s))
+      },
+      () => setStep((s) => (s === 'start' ? 'persona' : s))
+    )
+    return unsubscribe
+  }, [user?.uid])
 
   useEffect(() => {
     const prev = STEP_ORDER.indexOf(prevStepRef.current)
@@ -56,6 +75,10 @@ export default function ChatInlineForm({ activeLanguage }) {
     setStep(target)
   }
 
+  const handleOpenRecent = () => {
+    navigate('/write/chat')
+  }
+
   const handleSelectLevel = (l) => {
     setLevel(l)
     advance('gender')
@@ -79,6 +102,30 @@ export default function ChatInlineForm({ activeLanguage }) {
   }
 
   const renderStep = () => {
+    if (step === 'start') {
+      return (
+        <>
+          <h3 className="genq-heading">Chat</h3>
+          <div className="genq-options genq-options--stack">
+            <button
+              type="button"
+              className="genq-option"
+              onClick={() => advance('persona')}
+            >
+              <span className="genq-option-label">New conversation</span>
+            </button>
+            <button
+              type="button"
+              className="genq-option"
+              onClick={handleOpenRecent}
+            >
+              <span className="genq-option-label">Recent chats</span>
+            </button>
+          </div>
+        </>
+      )
+    }
+
     if (step === 'persona') {
       return (
         <>

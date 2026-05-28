@@ -14,6 +14,11 @@ import {
   upsertVocabEntry,
   normaliseExpression,
 } from '../services/vocab'
+import {
+  READER_PALETTE_ORDER,
+  DEFAULT_READER_PALETTE,
+  resolveReaderPalette,
+} from '../constants/highlightColors'
 import WordToken from '../components/read/WordToken'
 
 const SendIcon = () => (
@@ -67,7 +72,7 @@ const formatRelativeTime = (timestamp) => {
 const WritingChat = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, profile } = useAuth()
+  const { user, profile, updateProfile } = useAuth()
   const { persona, level, language, voiceGender } = location.state || {}
   const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')
   const [messages, setMessages] = useState([])
@@ -90,6 +95,11 @@ const WritingChat = () => {
   const [transcribing, setTranscribing] = useState(false)
   const [vocab, setVocab] = useState({})
   const [wordPopup, setWordPopup] = useState(null)
+  const [showWordStatus, setShowWordStatus] = useState(() => {
+    try { return localStorage.getItem('wchat-word-status') !== 'false' } catch { return true }
+  })
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const paletteRef = useRef(null)
   const audioRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -109,6 +119,33 @@ const WritingChat = () => {
   useEffect(() => {
     try { localStorage.setItem('wchat-listen-first', listenFirst ? 'true' : 'false') } catch {}
   }, [listenFirst])
+
+  useEffect(() => {
+    try { localStorage.setItem('wchat-word-status', showWordStatus ? 'true' : 'false') } catch {}
+  }, [showWordStatus])
+
+  const paletteName = profile?.readerHighlightPalette || DEFAULT_READER_PALETTE
+  const palette = resolveReaderPalette(paletteName)
+  const paletteShade = darkMode ? palette.dark : palette.light
+
+  useEffect(() => {
+    if (!paletteOpen) return
+    const handleClick = (e) => {
+      if (paletteRef.current && !paletteRef.current.contains(e.target)) {
+        setPaletteOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [paletteOpen])
+
+  const selectPalette = (name) => {
+    setPaletteOpen(false)
+    if (name === paletteName) return
+    updateProfile({ readerHighlightPalette: name }).catch((err) => {
+      console.error('Failed to update palette:', err)
+    })
+  }
 
   useEffect(() => {
     if (!user?.uid) return
@@ -255,7 +292,7 @@ const WritingChat = () => {
             key={i}
             text={token}
             status={entry?.status}
-            readerMode="intensive"
+            readerMode={showWordStatus ? 'intensive' : 'extensive'}
             tone={tone}
             onWordClick={handleWordClick}
           />
@@ -456,7 +493,14 @@ const WritingChat = () => {
   const chatLanguage = activeChat?.language || language || 'your target language'
 
   return (
-    <div className="wchat-page">
+    <div
+      className="wchat-page"
+      style={{
+        '--hlt-new': paletteShade.new,
+        '--hlt-recognised': paletteShade.recognised,
+        '--hlt-familiar': paletteShade.familiar,
+      }}
+    >
       <div className="reader-hover-shell wchat-hover-shell">
         <div className="reader-hover-hitbox" />
         <header className="dashboard-header reader-hover-header wchat-hover-header">
@@ -510,6 +554,57 @@ const WritingChat = () => {
               >
                 {darkMode ? <MoonIcon /> : <SunIcon />}
               </button>
+
+              <button
+                className={`reader-header-button ui-text reader-word-status-trigger ${showWordStatus ? 'is-on' : ''}`}
+                type="button"
+                aria-label={showWordStatus ? 'Hide word status' : 'Show word status'}
+                aria-pressed={showWordStatus}
+                onClick={(e) => {
+                  setShowWordStatus((v) => !v)
+                  e.currentTarget.blur()
+                }}
+                style={showWordStatus ? { color: paletteShade.new } : undefined}
+              >
+                Aa
+              </button>
+
+              <div className="reader-palette-popover-wrap" ref={paletteRef}>
+                <button
+                  className={`reader-header-button icon-button reader-palette-trigger ${paletteOpen ? 'is-open' : ''}`}
+                  type="button"
+                  aria-label={`Highlight palette: ${palette.label}`}
+                  aria-expanded={paletteOpen}
+                  onClick={(e) => {
+                    setPaletteOpen((v) => !v)
+                    e.currentTarget.blur()
+                  }}
+                >
+                  <span className="palette-circle" style={{ background: paletteShade.new }} />
+                </button>
+                {paletteOpen && (
+                  <div className="reader-palette-popover" role="listbox" aria-label="Highlighter colour">
+                    {READER_PALETTE_ORDER.map((name) => {
+                      const pal = resolveReaderPalette(name)
+                      const shade = darkMode ? pal.dark : pal.light
+                      const isActive = name === paletteName
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          role="option"
+                          aria-selected={isActive}
+                          className={`reader-palette-swatch ${isActive ? 'is-active' : ''}`}
+                          title={pal.label}
+                          onClick={() => selectPalette(name)}
+                        >
+                          <span className="reader-palette-swatch-circle" style={{ background: shade.new }} />
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>

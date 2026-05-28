@@ -16576,32 +16576,14 @@ app.post('/api/writing-chat/message', async (req, res) => {
 
     const native = nativeLanguage || 'English'
 
-    const systemPrompt = corrections
-      ? `You are a native ${language} speaker. You are having the following conversation: ${persona || 'A casual chat partner'}
+    const systemPrompt = `You are a native ${language} speaker. You are having the following conversation: ${persona || 'A casual chat partner'}
 
-Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs. Stay in character for the conversation above.
-
-IMPORTANT: Always format your response in exactly these parts separated by the markers shown:
-1. Your in-character reply in ${language}
-2. A line with exactly: ---
-3. The ${native} translation of your reply
-4. A line with exactly: ===
-5. Corrections — review ONLY this exact message the learner just sent: "${message}". Do not review or re-correct anything from earlier in the conversation. Quote the learner's words EXACTLY as they wrote them, character for character (do not silently fix them in your quote). For each genuine grammar, spelling, gender-agreement, or vocabulary mistake, write one line in ${native}: "you wrote X → correct is Y". Only list actual mistakes — never list words that are already correct. If the message has no mistakes, write exactly: OK
-
-Example format:
-¿Crees que el feto es humano desde la concepción?
----
-Do you think the fetus is human from conception?
-===
-you wrote "una problema" → correct is "un problema"`
-      : `You are a native ${language} speaker. You are having the following conversation: ${persona || 'A casual chat partner'}
-
-Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs. Do not correct the learner's grammar, spelling, or vocabulary — just converse naturally even if they make mistakes.
+Always respond in ${level || 'Beginner'} ${language}, even if the learner writes to you in another language. Keep responses conversational — a few sentences, not long paragraphs. Stay in character for the conversation above. Do not correct the learner — just converse naturally even if they make mistakes.
 
 IMPORTANT: Always format your response exactly like this:
-1. First write your response in ${language}
+1. First write your in-character reply in ${language}
 2. Then on a new line write exactly: ---
-3. Then on a new line write the ${native} translation of your response
+3. Then on a new line write the ${native} translation of your reply
 
 Example format:
 Hola, ¿cómo estás hoy?
@@ -16626,6 +16608,35 @@ Hello, how are you today?`
     const finalMessage = await stream.finalMessage()
     const text = finalMessage?.content?.[0]?.type === 'text' ? finalMessage.content[0].text : ''
 
+    // Corrections run as a SEPARATE, isolated call that only sees this one
+    // message — no conversation history — so it can never reach back and
+    // re-correct earlier messages.
+    let correction = null
+    if (corrections) {
+      try {
+        const corrSystem = `You are a ${language} language teacher. The learner wrote a single message in ${language}. Review ONLY this message for genuine grammar, spelling, gender-agreement, or vocabulary mistakes.
+
+Rules:
+- Quote the learner's words EXACTLY as written, character for character. Never silently fix them inside your quote.
+- For each real mistake, output one line in ${native}: you wrote "X" → correct is "Y"
+- Only list actual mistakes. Never list words that are already correct.
+- Output nothing else — no preamble, no encouragement.
+- If there are no mistakes at all, output exactly: OK`
+
+        const corrStream = anthropicClient.messages.stream({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 400,
+          system: corrSystem,
+          messages: [{ role: 'user', content: message }],
+        })
+        const corrFinal = await corrStream.finalMessage()
+        const corrText = corrFinal?.content?.[0]?.type === 'text' ? corrFinal.content[0].text.trim() : ''
+        if (corrText && corrText.toUpperCase() !== 'OK') correction = corrText
+      } catch (corrErr) {
+        console.error('Writing chat correction error:', corrErr)
+      }
+    }
+
     // Generate TTS audio for the target-language portion (before the --- separator)
     // and upload it to Cloud Storage so it can be replayed without re-fetching.
     let audioUrl = null
@@ -16647,7 +16658,7 @@ Hello, how are you today?`
       }
     }
 
-    return res.json({ response: text || 'Sorry, I could not respond.', audioUrl })
+    return res.json({ response: text || 'Sorry, I could not respond.', audioUrl, correction })
   } catch (error) {
     console.error('Writing chat error:', error)
     return res.status(500).json({ error: 'Failed to get chat response' })

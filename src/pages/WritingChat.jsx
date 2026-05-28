@@ -105,17 +105,14 @@ const WritingChat = () => {
 
   useEffect(() => {
     if (!loaded || createdRef.current) return
-    if (persona && !activeChatId) {
+    if (persona) {
+      // Arrived from the setup form — always start a fresh chat.
       createdRef.current = true
       createWritingChat(user.uid, { persona, level, language, voiceGender }).then((newChat) => {
         setActiveChatId(newChat.id)
         setMessages([])
-      })
-    } else if (persona && chats.length > 0 && !chats.find((c) => c.id === activeChatId)) {
-      createdRef.current = true
-      createWritingChat(user.uid, { persona, level, language, voiceGender }).then((newChat) => {
-        setActiveChatId(newChat.id)
-        setMessages([])
+        // Clear navigation state so a refresh doesn't spawn another chat.
+        navigate(location.pathname, { replace: true, state: {} })
       })
     }
   }, [loaded, persona])

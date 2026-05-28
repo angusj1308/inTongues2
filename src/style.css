@@ -14641,6 +14641,56 @@ body:has(.cinema-page) {
   color: #FBFAF8;
 }
 
+.wchat-voice-note {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 180px;
+}
+
+.wchat-waveform {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  height: 28px;
+}
+
+.wchat-waveform span {
+  display: block;
+  width: 3px;
+  border-radius: 2px;
+  background: rgba(28, 26, 23, 0.3);
+}
+
+[data-theme='dark'] .wchat-waveform span {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.wchat-reveal-btn {
+  background: none;
+  border: none;
+  color: rgba(28, 26, 23, 0.4);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color 150ms ease;
+}
+
+.wchat-reveal-btn:hover {
+  color: rgba(28, 26, 23, 0.7);
+}
+
+[data-theme='dark'] .wchat-reveal-btn {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme='dark'] .wchat-reveal-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .wchat-play-btn {
   width: 28px;
   height: 28px;

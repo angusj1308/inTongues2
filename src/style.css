@@ -14623,7 +14623,7 @@ body:has(.cinema-page) {
 
 .wchat-messages-inner {
   padding: 5.5rem 1.5rem 1.5rem;
-  max-width: 720px;
+  max-width: 920px;
   margin: 0 auto;
   width: 100%;
   display: flex;
@@ -14654,10 +14654,10 @@ body:has(.cinema-page) {
 }
 
 .wchat-bubble-content {
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1.125rem;
   border-radius: 16px;
-  font-size: 0.9375rem;
-  line-height: 1.5;
+  font-size: 1.0625rem;
+  line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -14933,7 +14933,7 @@ body:has(.cinema-page) {
   flex-shrink: 0;
   background: transparent;
   position: relative;
-  max-width: 720px;
+  max-width: 920px;
   margin: 0 auto;
   width: 100%;
 }

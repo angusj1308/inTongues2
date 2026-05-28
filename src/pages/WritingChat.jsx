@@ -9,6 +9,12 @@ import {
   regenerateChatTitle,
   subscribeToWritingChats,
 } from '../services/writingChat'
+import {
+  loadUserVocab,
+  upsertVocabEntry,
+  normaliseExpression,
+} from '../services/vocab'
+import WordToken from '../components/read/WordToken'
 
 const SendIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -82,6 +88,8 @@ const WritingChat = () => {
   const [playingId, setPlayingId] = useState(null)
   const [recording, setRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
+  const [vocab, setVocab] = useState({})
+  const [wordPopup, setWordPopup] = useState(null)
   const audioRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -175,6 +183,87 @@ const WritingChat = () => {
   }, [messages])
 
   const activeChat = chats.find((c) => c.id === activeChatId)
+  const chatLang = activeChat?.language || language
+
+  useEffect(() => {
+    if (!user?.uid || !chatLang) return
+    let cancelled = false
+    loadUserVocab(user.uid, chatLang)
+      .then((entries) => { if (!cancelled) setVocab(entries || {}) })
+      .catch((err) => console.error('Vocab load error:', err))
+    return () => { cancelled = true }
+  }, [user?.uid, chatLang])
+
+  const handleWordClick = async (word, event) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const normalised = normaliseExpression(word)
+    setWordPopup({
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 8,
+      word: normalised,
+      displayText: word,
+      translation: null,
+      loading: true,
+    })
+
+    try {
+      const res = await fetch('/api/translatePhrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrase: word,
+          sourceLang: chatLang,
+          targetLang: nativeLanguage,
+          skipAudio: true,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setWordPopup((p) => p && p.word === normalised
+          ? { ...p, translation: data.translation || '—', loading: false }
+          : p)
+      } else {
+        setWordPopup((p) => p && p.word === normalised ? { ...p, translation: '—', loading: false } : p)
+      }
+    } catch {
+      setWordPopup((p) => p && p.word === normalised ? { ...p, translation: '—', loading: false } : p)
+    }
+  }
+
+  const handleSetWordStatus = async (status) => {
+    if (!wordPopup || !user?.uid || !chatLang) return
+    const word = wordPopup.word
+    const translation = wordPopup.translation
+    // Optimistic update
+    setVocab((prev) => ({ ...prev, [word]: { ...(prev[word] || {}), status, translation } }))
+    setWordPopup(null)
+    try {
+      await upsertVocabEntry(user.uid, chatLang, word, translation, status)
+    } catch (err) {
+      console.error('Failed to set word status:', err)
+    }
+  }
+
+  const renderWords = (content) => {
+    const tokens = (content || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+    const tone = darkMode ? 'dark' : 'light'
+    return tokens.map((token, i) => {
+      if (/^[\p{L}\p{N}][\p{L}\p{N}'-]*$/u.test(token)) {
+        const entry = vocab[normaliseExpression(token)]
+        return (
+          <WordToken
+            key={i}
+            text={token}
+            status={entry?.status}
+            readerMode="intensive"
+            tone={tone}
+            onWordClick={handleWordClick}
+          />
+        )
+      }
+      return <span key={i}>{token}</span>
+    })
+  }
 
   const handlePlay = async (msg) => {
     if (playingId === msg.id) {
@@ -524,7 +613,7 @@ const WritingChat = () => {
                   </div>
                 ) : (
                   <div className="wchat-bubble-content">
-                    {msg.content}
+                    {msg.role === 'assistant' ? renderWords(msg.content) : msg.content}
                     {msg.role === 'assistant' && msg.translation && (
                       <>
                         <button
@@ -598,6 +687,41 @@ const WritingChat = () => {
         </footer>
         </div>
       </div>
+
+      {wordPopup && (
+        <>
+          <div className="wchat-word-popup-backdrop" onClick={() => setWordPopup(null)} />
+          <div
+            className="wchat-word-popup"
+            style={{ left: wordPopup.x, top: wordPopup.y }}
+          >
+            <div className="wchat-word-popup-word">{wordPopup.displayText}</div>
+            <div className="wchat-word-popup-translation">
+              {wordPopup.loading ? '…' : wordPopup.translation}
+            </div>
+            <div className="wchat-word-popup-status">
+              {[
+                { level: 'unknown', label: 'New' },
+                { level: 'recognised', label: 'Seen' },
+                { level: 'familiar', label: 'Familiar' },
+                { level: 'known', label: 'Known' },
+              ].map(({ level, label }) => {
+                const current = vocab[wordPopup.word]?.status
+                const active = current === level
+                return (
+                  <button
+                    key={level}
+                    className={`wchat-word-status-btn ${active ? 'is-active' : ''}`}
+                    onClick={() => handleSetWordStatus(level)}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

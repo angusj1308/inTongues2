@@ -14945,7 +14945,7 @@ body:has(.cinema-page) {
   font-family: inherit;
   font-size: 0.9375rem;
   color: #1C1A17;
-  background: var(--bg, #FBFAF8);
+  background: transparent;
   border: 1px solid rgba(28, 26, 23, 0.15);
   border-radius: 28px;
   outline: none;
@@ -14965,7 +14965,7 @@ body:has(.cinema-page) {
 
 [data-theme='dark'] .wchat-input {
   color: #FBFAF8;
-  background: #000000;
+  background: transparent;
   border-color: rgba(255, 255, 255, 0.12);
 }
 

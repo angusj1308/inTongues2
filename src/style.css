@@ -14690,6 +14690,106 @@ body:has(.cinema-page) {
   color: #FBFAF8;
 }
 
+.wchat-bubble-content .reader-word {
+  color: inherit;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.wchat-bubble-content .reader-word--highlighted {
+  background-color: var(--hlt-color);
+  color: #1C1A17;
+}
+
+[data-theme='dark'] .wchat-bubble-content .reader-word--highlighted {
+  background-color: transparent;
+  color: var(--hlt-color);
+}
+
+.wchat-word-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.wchat-word-popup {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 201;
+  min-width: 160px;
+  max-width: 260px;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  font-family: 'Source Sans 3', 'DM Sans', sans-serif;
+}
+
+[data-theme='dark'] .wchat-word-popup {
+  background: #1f1d1b;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+.wchat-word-popup-word {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1C1A17;
+}
+
+.wchat-word-popup-translation {
+  font-size: 0.875rem;
+  color: #78716c;
+  margin-top: 2px;
+  margin-bottom: 0.625rem;
+}
+
+[data-theme='dark'] .wchat-word-popup-word {
+  color: #FBFAF8;
+}
+
+[data-theme='dark'] .wchat-word-popup-translation {
+  color: #a8a29e;
+}
+
+.wchat-word-popup-status {
+  display: flex;
+  gap: 4px;
+}
+
+.wchat-word-status-btn {
+  flex: 1;
+  padding: 4px 2px;
+  font-size: 0.6875rem;
+  font-family: inherit;
+  border: 1px solid rgba(28, 26, 23, 0.15);
+  border-radius: 6px;
+  background: transparent;
+  color: #78716c;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.wchat-word-status-btn:hover {
+  border-color: rgba(28, 26, 23, 0.4);
+}
+
+.wchat-word-status-btn.is-active {
+  background: #1C1A17;
+  color: #FBFAF8;
+  border-color: #1C1A17;
+}
+
+[data-theme='dark'] .wchat-word-status-btn {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .wchat-word-status-btn.is-active {
+  background: #FBFAF8;
+  color: #1C1A17;
+  border-color: #FBFAF8;
+}
+
 .wchat-voice-note {
   display: flex;
   align-items: center;

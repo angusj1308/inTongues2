@@ -16586,7 +16586,7 @@ IMPORTANT: Always format your response in exactly these parts separated by the m
 2. A line with exactly: ---
 3. The ${native} translation of your reply
 4. A line with exactly: ===
-5. Corrections — review ONLY this exact message the learner just sent: "${message}". Do not review or re-correct anything from earlier in the conversation. Quote the learner's words EXACTLY as they wrote them, character for character (do not silently fix them in your quote). For each genuine grammar, spelling, gender-agreement, or vocabulary mistake, write one line in ${native}: "you wrote X → correct is Y". Only list actual mistakes — never list words that are already correct. If the message has no mistakes, write exactly: OK
+5. Corrections — review ONLY this exact message the learner just sent: "${message}". Do not review, re-correct, mention, or reference anything from earlier in the conversation — not even to say you are skipping it. Quote the learner's words EXACTLY as they wrote them, character for character (do not silently fix them in your quote). For each genuine grammar, spelling, gender-agreement, or vocabulary mistake in this message only, write one line in ${native}: "you wrote X → correct is Y". Only list actual mistakes — never list words that are already correct. If this message has no mistakes, write exactly: OK
 
 Example format:
 ¿Crees que el feto es humano desde la concepción?

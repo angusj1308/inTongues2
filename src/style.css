@@ -14866,6 +14866,18 @@ body:has(.cinema-page) {
   color: #000000;
 }
 
+.wchat-send.wchat-mic.is-recording,
+[data-theme='dark'] .wchat-send.wchat-mic.is-recording {
+  background: #e5484d;
+  color: #fff;
+  animation: wchat-mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes wchat-mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(229, 72, 77, 0); }
+}
+
 /* Desktop: sidebar pushes content */
 @media (min-width: 768px) {
   .wchat-sidebar-overlay {

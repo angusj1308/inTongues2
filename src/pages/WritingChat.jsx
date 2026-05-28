@@ -124,9 +124,11 @@ const WritingChat = () => {
     if (!loaded || !user?.uid || backfilledRef.current || chats.length === 0) return
     backfilledRef.current = true
     chats.forEach((c) => {
-      if (!c.persona) return
-      const truncated = c.persona.length > 28 ? c.persona.slice(0, 28) + '…' : c.persona
-      if (c.title === truncated || c.title === c.persona) {
+      if (!c.persona || !c.title) return
+      const strippedTitle = c.title.replace(/…$/, '').trim().toLowerCase()
+      const personaLower = c.persona.trim().toLowerCase()
+      // Title still looks like the raw/truncated persona (persona starts with it).
+      if (strippedTitle && personaLower.startsWith(strippedTitle)) {
         regenerateChatTitle(user.uid, c.id, c.persona)
       }
     })

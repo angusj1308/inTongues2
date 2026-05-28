@@ -17097,9 +17097,8 @@ const SPEECH_LANGUAGE_CODES = {
  * Simple audio transcription endpoint for tutor voice messages
  */
 app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
-  let tempFilePath = null
+  const audioFile = req.file
   try {
-    const audioFile = req.file
     const language = req.body.language || 'en'
 
     if (!audioFile) {
@@ -17115,16 +17114,10 @@ app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
     // Get language code
     const languageCode = SPEECH_LANGUAGE_CODES[language] || language.toLowerCase().slice(0, 2) || 'en'
 
-    // Save buffer to temporary file (OpenAI SDK needs a file stream in Node.js)
-    const tempDir = os.tmpdir()
-    tempFilePath = path.join(tempDir, `tutor-audio-${Date.now()}.webm`)
-    await fs.writeFile(tempFilePath, audioFile.buffer)
-
-    console.log('Temp file saved:', tempFilePath, 'Size:', audioFile.buffer.length)
-
-    // Transcribe using Whisper with file stream
+    // multer disk storage already wrote the upload to audioFile.path —
+    // stream straight from there.
     const transcription = await client.audio.transcriptions.create({
-      file: createReadStream(tempFilePath),
+      file: createReadStream(audioFile.path),
       model: 'whisper-1',
       language: languageCode
     })
@@ -17139,10 +17132,10 @@ app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
     console.error('Transcription error:', error)
     res.status(500).json({ error: 'Failed to transcribe audio' })
   } finally {
-    // Clean up temp file
-    if (tempFilePath) {
+    // Clean up the uploaded temp file
+    if (audioFile?.path) {
       try {
-        await fs.unlink(tempFilePath)
+        await fs.unlink(audioFile.path)
       } catch (e) {
         // Ignore cleanup errors
       }

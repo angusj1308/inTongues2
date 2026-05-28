@@ -153,30 +153,14 @@ const WritingChat = () => {
       return
     }
 
+    if (!msg.audioUrl) return
+
+    audioRef.current?.pause()
+    const audio = new Audio(msg.audioUrl)
+    audioRef.current = audio
+    audio.onended = () => setPlayingId(null)
+    audio.play()
     setPlayingId(msg.id)
-    try {
-      const res = await fetch('/api/tutor/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: msg.content,
-          language: activeChat?.language || language,
-          voiceGender: activeChat?.voiceGender || voiceGender || 'female',
-        }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        const audio = new Audio(`data:${data.contentType};base64,${data.audioBase64}`)
-        audioRef.current = audio
-        audio.onended = () => setPlayingId(null)
-        audio.play()
-      } else {
-        setPlayingId(null)
-      }
-    } catch (err) {
-      console.error('TTS error:', err)
-      setPlayingId(null)
-    }
   }
 
   const toggleTranslation = (msgId) => {
@@ -211,6 +195,7 @@ const WritingChat = () => {
           level: activeChat.level,
           language: activeChat.language,
           nativeLanguage,
+          voiceGender: activeChat.voiceGender || voiceGender || 'female',
           corrections,
         }),
       })
@@ -223,6 +208,7 @@ const WritingChat = () => {
           role: 'assistant',
           content: parsed.text,
           translation: parsed.translation,
+          audioUrl: data.audioUrl || null,
         }
         const withResponse = [...updatedMessages, assistantMsg]
         setMessages(withResponse)
@@ -357,7 +343,7 @@ const WritingChat = () => {
           )}
           {messages.map((msg) => (
             <div key={msg.id} className={`wchat-bubble ${msg.role}`}>
-              {msg.role === 'assistant' && (
+              {msg.role === 'assistant' && msg.audioUrl && (
                 <button
                   className={`wchat-play-btn ${playingId === msg.id ? 'is-playing' : ''}`}
                   onClick={() => handlePlay(msg)}

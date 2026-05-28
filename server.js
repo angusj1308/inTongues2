@@ -16564,7 +16564,7 @@ Respond naturally to the student's message.`
 
 app.post('/api/writing-chat/message', async (req, res) => {
   try {
-    const { message, conversationHistory, persona, level, language, nativeLanguage, corrections } = req.body || {}
+    const { message, conversationHistory, persona, level, language, nativeLanguage, voiceGender, corrections } = req.body || {}
 
     if (!message || !language) {
       return res.status(400).json({ error: 'message and language are required' })
@@ -16614,7 +16614,28 @@ Hello, how are you today?`
     const finalMessage = await stream.finalMessage()
     const text = finalMessage?.content?.[0]?.type === 'text' ? finalMessage.content[0].text : ''
 
-    return res.json({ response: text || 'Sorry, I could not respond.' })
+    // Generate TTS audio for the target-language portion (before the --- separator)
+    // and upload it to Cloud Storage so it can be replayed without re-fetching.
+    let audioUrl = null
+    const targetText = (text || '').split('\n---\n')[0].trim()
+    if (targetText && bucket) {
+      try {
+        const { voiceId } = resolveElevenLabsVoiceId(language, voiceGender || 'female')
+        const { audioBuffer } = await requestElevenLabsTts(targetText, voiceId)
+        const storagePath = `writingChatAudio/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`
+        const file = bucket.file(storagePath)
+        await file.save(audioBuffer, {
+          contentType: 'audio/mpeg',
+          metadata: { cacheControl: 'public, max-age=31536000' },
+        })
+        await file.makePublic()
+        audioUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+      } catch (audioErr) {
+        console.error('Writing chat TTS error:', audioErr)
+      }
+    }
+
+    return res.json({ response: text || 'Sorry, I could not respond.', audioUrl })
   } catch (error) {
     console.error('Writing chat error:', error)
     return res.status(500).json({ error: 'Failed to get chat response' })

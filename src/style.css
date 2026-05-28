@@ -14397,6 +14397,7 @@ body:has(.cinema-page) {
   letter-spacing: 0.05em;
   color: rgba(28, 26, 23, 0.35);
   box-sizing: border-box;
+  transform: translateY(-0.5cm);
 }
 
 [data-theme='dark'] .wchat-sidebar-heading {

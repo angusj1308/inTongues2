@@ -402,7 +402,21 @@ const WritingChat = () => {
     setSending(true)
 
     try {
-      const history = messages.map((m) => ({ role: m.role, content: m.content }))
+      // Flatten the thread for the LLM: text messages stay as-is, call
+      // records expand into their transcript turns so the agent retains
+      // context from the spoken conversation when continuing in text.
+      const history = messages.flatMap((m) => {
+        if (m.role === 'call') {
+          if (!Array.isArray(m.transcript) || m.transcript.length === 0) return []
+          return m.transcript
+            .filter((t) => t && t.content)
+            .map((t) => ({
+              role: t.role === 'user' ? 'user' : 'assistant',
+              content: t.content,
+            }))
+        }
+        return m.content ? [{ role: m.role, content: m.content }] : []
+      })
 
       const res = await fetch('/api/writing-chat/message', {
         method: 'POST',

@@ -20,6 +20,7 @@ import {
   resolveReaderPalette,
 } from '../constants/highlightColors'
 import WordToken from '../components/read/WordToken'
+import CallRecordCard from '../components/write/CallRecordCard'
 
 const SendIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -401,7 +402,21 @@ const WritingChat = () => {
     setSending(true)
 
     try {
-      const history = messages.map((m) => ({ role: m.role, content: m.content }))
+      // Flatten the thread for the LLM: text messages stay as-is, call
+      // records expand into their transcript turns so the agent retains
+      // context from the spoken conversation when continuing in text.
+      const history = messages.flatMap((m) => {
+        if (m.role === 'call') {
+          if (!Array.isArray(m.transcript) || m.transcript.length === 0) return []
+          return m.transcript
+            .filter((t) => t && t.content)
+            .map((t) => ({
+              role: t.role === 'user' ? 'user' : 'assistant',
+              content: t.content,
+            }))
+        }
+        return m.content ? [{ role: m.role, content: m.content }] : []
+      })
 
       const res = await fetch('/api/writing-chat/message', {
         method: 'POST',
@@ -667,6 +682,9 @@ const WritingChat = () => {
             </div>
           )}
           {messages.map((msg) => {
+            if (msg.role === 'call') {
+              return <CallRecordCard key={msg.id} record={msg} />
+            }
             const hidden =
               listenFirst &&
               msg.role === 'assistant' &&
@@ -752,13 +770,27 @@ const WritingChat = () => {
           <input
             ref={inputRef}
             type="text"
-            className="wchat-input"
+            className="wchat-input wchat-input--with-call"
             placeholder={transcribing ? 'Transcribing…' : recording ? 'Recording… tap mic to stop' : `Type in ${chatLanguage}...`}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={sending || transcribing}
           />
+          <button
+            className="wchat-send wchat-phone"
+            onClick={() => {
+              if (!activeChat?.id) return
+              navigate('/converse/call', { state: { chatId: activeChat.id } })
+            }}
+            disabled={sending || !activeChat?.id}
+            aria-label="Start voice call"
+            title="Voice call"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 0 0-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z" />
+            </svg>
+          </button>
           {inputValue.trim() ? (
             <button
               className="wchat-send"

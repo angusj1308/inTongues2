@@ -31,6 +31,7 @@ import TutorPage from './pages/TutorPage'
 import PronunciationPractice from './pages/PronunciationPractice'
 import FreeSpeakingSession from './pages/FreeSpeakingSession'
 import WritingChat from './pages/WritingChat'
+import ConverseCall from './pages/ConverseCall'
 import Settings from './pages/Settings'
 
 const LandingRedirect = () => {
@@ -326,6 +327,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <WritingChat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/converse/call"
+        element={
+          <ProtectedRoute>
+            <ConverseCall />
           </ProtectedRoute>
         }
       />

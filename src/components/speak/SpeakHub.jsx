@@ -7,6 +7,7 @@ import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { SpeakingPracticeHub } from './speakingPractice/SpeakingPracticeHub'
 import { SpeakingPracticeSession } from './speakingPractice/SpeakingPracticeSession'
 import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
+import ConverseInlineForm from './ConverseInlineForm'
 
 export function SpeakHub({ activeLanguage, nativeLanguage }) {
   const { user } = useAuth()
@@ -139,13 +140,19 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
           </p>
         </button>
 
-        <button className="discover-door discover-door--landing" onClick={() => {}}>
-          <h2 className="discover-door-label">Converse</h2>
-          <span className="discover-door-rule" aria-hidden="true" />
-          <p className="discover-door-description">
-            Have a spoken conversation and build confidence speaking naturally.
-          </p>
-        </button>
+        {expandedDoor === 'converse' ? (
+          <div ref={expandedCardRef} className="discover-door discover-door--landing is-expanded">
+            <ConverseInlineForm activeLanguage={activeLanguage} />
+          </div>
+        ) : (
+          <button className="discover-door discover-door--landing" onClick={() => setExpandedDoor('converse')}>
+            <h2 className="discover-door-label">Converse</h2>
+            <span className="discover-door-rule" aria-hidden="true" />
+            <p className="discover-door-description">
+              Have a spoken conversation and build confidence speaking naturally.
+            </p>
+          </button>
+        )}
       </div>
 
       {readySpeakingLessons.length > 0 && (

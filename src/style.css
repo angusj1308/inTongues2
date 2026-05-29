@@ -14963,10 +14963,21 @@ body:has(.cinema-page) {
   border-top: none;
   flex-shrink: 0;
   background: transparent;
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   max-width: 920px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Wraps the input + its absolute mic/send button so the buttons stay
+   pinned to the input's right edge while the wrap itself can sit as a
+   flex child next to the phone button. */
+.wchat-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .wchat-input {
@@ -15010,7 +15021,7 @@ body:has(.cinema-page) {
 
 .wchat-send {
   position: absolute;
-  right: calc(1.5rem + 5px);
+  right: 5px;
   top: 50%;
   transform: translateY(-50%);
   width: 32px;
@@ -15040,15 +15051,13 @@ body:has(.cinema-page) {
   color: #000000;
 }
 
-/* Phone (start voice call) sits to the left of the mic/send button inside
-   the same input row. Same circular style as send so they look like a pair. */
+/* Phone (start voice call) sits outside the input pill as a sibling on the
+   right. Same circular style as send so they read as a pair, with a small
+   gap between the pill and the phone. */
 .wchat-send.wchat-phone {
-  right: calc(1.5rem + 45px);
-}
-
-/* Pad the input pill further on the right when both buttons are present. */
-.wchat-input.wchat-input--with-call {
-  padding-right: 5.75rem;
+  position: static;
+  transform: none;
+  flex-shrink: 0;
 }
 
 .wchat-send.wchat-mic.is-recording,

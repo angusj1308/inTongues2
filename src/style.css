@@ -32500,3 +32500,200 @@ body:has(.cinema-page) {
 .listen-deep-tab {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
+
+/* ----- Converse voice call view ----- */
+
+.converse-call-page {
+  position: fixed;
+  inset: 0;
+  background: var(--bg, #FBFAF8);
+  color: #1C1A17;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Source Sans 3', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  z-index: 50;
+}
+
+[data-theme='dark'] .converse-call-page {
+  background: #2a221c;
+  color: #FBFAF8;
+}
+
+.converse-call-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 4rem 1.5rem 3rem;
+}
+
+.converse-call-status {
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: currentColor;
+  opacity: 0.6;
+  margin: 0;
+}
+
+.converse-call-timer {
+  font-family: 'DM Sans', sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  margin: 0;
+  opacity: 0.7;
+}
+
+.converse-call-error {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.converse-call-error p {
+  margin: 0;
+  font-size: 0.9375rem;
+  max-width: 32ch;
+}
+
+.converse-call-retry {
+  padding: 0.5rem 1rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.converse-call-end {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: #e5484d;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(229, 72, 77, 0.35);
+  transition: transform 120ms ease, opacity 150ms ease;
+}
+
+.converse-call-end:hover { transform: scale(1.04); }
+.converse-call-end:disabled { opacity: 0.4; cursor: default; }
+
+/* ----- Orb ----- */
+
+.orb {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orb-core,
+.orb-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Core: monochrome foreground, breathing. */
+.orb-core {
+  width: 50%;
+  height: 50%;
+  margin: -25% 0 0 -25%;
+  background: radial-gradient(circle at 30% 30%, currentColor 0%, currentColor 55%, transparent 100%);
+  opacity: 0.92;
+  transition: opacity 280ms ease;
+  will-change: transform, opacity;
+  animation: orb-breathe 4s ease-in-out infinite;
+}
+
+.orb-ring--mid {
+  width: 78%;
+  height: 78%;
+  margin: -39% 0 0 -39%;
+  background: radial-gradient(circle, currentColor 0%, transparent 70%);
+  opacity: 0.18;
+  animation: orb-breathe 4s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.orb-ring--outer {
+  width: 100%;
+  height: 100%;
+  margin: -50% 0 0 -50%;
+  background: radial-gradient(circle, currentColor 0%, transparent 65%);
+  opacity: 0.08;
+  animation: orb-breathe 4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1); opacity: var(--orb-op, 0.92); }
+  50% { transform: scale(1.04); opacity: calc(var(--orb-op, 0.92) * 0.85); }
+}
+
+/* State-specific overrides — change tempo and intensity. */
+
+.orb--connecting .orb-core,
+.orb--connecting .orb-ring {
+  animation-duration: 1.6s;
+  opacity: 0.5;
+}
+
+.orb--idle .orb-core { animation-duration: 4.5s; }
+.orb--idle .orb-ring { animation-duration: 4.5s; }
+
+.orb--learner-speaking .orb-core,
+.orb--learner-speaking .orb-ring {
+  animation-duration: 2.4s;
+  opacity: 0.95;
+}
+
+.orb--agent-thinking .orb-core,
+.orb--agent-thinking .orb-ring {
+  animation-duration: 1.1s;
+  opacity: 0.75;
+}
+
+.orb--agent-speaking .orb-core,
+.orb--agent-speaking .orb-ring {
+  animation-duration: 1.8s;
+  opacity: 1;
+}
+
+.orb--ending .orb-core,
+.orb--ending .orb-ring {
+  opacity: 0.25;
+  animation-duration: 3s;
+}
+
+.orb--error .orb-core,
+.orb--error .orb-ring {
+  opacity: 0.35;
+  animation: none;
+}
+
+/* Greyed disabled header controls during the call. */
+.converse-call-page .reader-header-button[disabled] {
+  opacity: 0.25;
+  cursor: default;
+  pointer-events: none;
+}
+.converse-call-page .reader-header-button[disabled] .palette-circle {
+  background: currentColor;
+}
+

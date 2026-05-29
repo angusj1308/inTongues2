@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const PLACEHOLDERS = [
   'A friend to chat casually with',
@@ -14,6 +15,7 @@ const GENDERS = ['Female', 'Male']
 const STEP_ORDER = ['start', 'persona', 'level', 'gender']
 
 export default function ConverseInlineForm({ activeLanguage }) {
+  const navigate = useNavigate()
   // No history wiring yet, so start straight on the persona step. The
   // New/Recent fork is kept in STEP_ORDER for when conversations are stored.
   const [step, setStep] = useState('persona')
@@ -63,7 +65,15 @@ export default function ConverseInlineForm({ activeLanguage }) {
 
   const handleSelectGender = (g) => {
     setGender(g)
-    // TODO: wire up navigation to the spoken conversation experience.
+    navigate('/converse/call', {
+      state: {
+        persona: persona.trim(),
+        level,
+        language: activeLanguage,
+        voiceGender: g.toLowerCase(),
+        feedback: false,
+      },
+    })
   }
 
   const breadcrumbs = []

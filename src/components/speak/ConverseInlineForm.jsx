@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+import { createWritingChat } from '../../services/writingChat'
 
 const PLACEHOLDERS = [
   'A friend to chat casually with',
@@ -16,6 +18,8 @@ const STEP_ORDER = ['start', 'persona', 'level', 'gender']
 
 export default function ConverseInlineForm({ activeLanguage }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const [starting, setStarting] = useState(false)
   // No history wiring yet, so start straight on the persona step. The
   // New/Recent fork is kept in STEP_ORDER for when conversations are stored.
   const [step, setStep] = useState('persona')
@@ -63,17 +67,35 @@ export default function ConverseInlineForm({ activeLanguage }) {
     advance('gender')
   }
 
-  const handleSelectGender = (g) => {
+  const handleSelectGender = async (g) => {
+    if (starting) return
     setGender(g)
-    navigate('/converse/call', {
-      state: {
-        persona: persona.trim(),
-        level,
-        language: activeLanguage,
-        voiceGender: g.toLowerCase(),
-        feedback: false,
-      },
-    })
+    setStarting(true)
+    const params = {
+      persona: persona.trim(),
+      level,
+      language: activeLanguage,
+      voiceGender: g.toLowerCase(),
+      feedback: false,
+    }
+    // Create the thread upfront so the call view can append the call record
+    // when it ends. If thread creation fails we still launch the call —
+    // anonymous mode is better than a dead end.
+    let chatId = null
+    try {
+      if (user?.uid) {
+        const chat = await createWritingChat(user.uid, {
+          persona: params.persona,
+          level: params.level,
+          language: params.language,
+          voiceGender: params.voiceGender,
+        })
+        chatId = chat?.id || null
+      }
+    } catch (err) {
+      console.error('Failed to create speak thread:', err)
+    }
+    navigate('/converse/call', { state: { ...params, chatId } })
   }
 
   const breadcrumbs = []

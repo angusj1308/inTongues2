@@ -3,6 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import { startConverseCall, saveConverseRecording } from '../services/converseAgent'
+import {
+  getWritingChat,
+  appendCallRecord,
+  patchCallRecord,
+} from '../services/writingChat'
 import Orb from '../components/speak/converse/Orb'
 
 const SunIcon = () => (
@@ -31,21 +36,42 @@ const formatDuration = (seconds) => {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+// Wait up to ~30s for ElevenLabs to finalise the call audio, retrying the
+// /api/converse/recording endpoint with light backoff. Returns the audioUrl
+// or null if it never becomes available in time.
+const fetchRecordingWithRetry = async (conversationId) => {
+  const delays = [3000, 5000, 7000, 9000, 12000]
+  for (const wait of delays) {
+    try {
+      const result = await saveConverseRecording(conversationId)
+      if (result?.audioUrl) return result.audioUrl
+      if (!result?.pending) return null
+    } catch {
+      /* ignore */
+    }
+    await new Promise((r) => setTimeout(r, wait))
+  }
+  return null
+}
+
 const ConverseCall = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { profile } = useAuth()
-  const params = location.state || {}
-  const persona = params.persona
-  const level = params.level
-  const language = params.language
-  const voiceGender = params.voiceGender || 'female'
-  const initialFeedback = params.feedback === true
+  const { user, profile } = useAuth()
+  const state = location.state || {}
+  const [params, setParams] = useState({
+    chatId: state.chatId || null,
+    persona: state.persona || '',
+    level: state.level || '',
+    language: state.language || '',
+    voiceGender: state.voiceGender || 'female',
+    feedback: state.feedback === true,
+  })
   const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')
 
-  const [callState, setCallState] = useState('connecting') // connecting|idle|learner-speaking|agent-thinking|agent-speaking|ending|error
+  const [callState, setCallState] = useState('connecting')
   const [errorMessage, setErrorMessage] = useState('')
-  const [feedback, setFeedback] = useState(initialFeedback)
+  const [feedback, setFeedback] = useState(params.feedback)
   const [durationSec, setDurationSec] = useState(0)
   const [amplitude, setAmplitude] = useState(0)
 
@@ -53,8 +79,13 @@ const ConverseCall = () => {
   const conversationIdRef = useRef(null)
   const startedAtRef = useRef(null)
   const ampRafRef = useRef(null)
-  const isEndingRef = useRef(false)
-  const restartingRef = useRef(false)
+  const restartingRef = useRef(null) // holds the user-initiated reason for disconnect ('end'|'restart'|null)
+  const transcriptRef = useRef([])
+  const segmentStartRef = useRef(null) // start time of the *current* signed-url segment (resets across feedback restarts)
+  const callRecordIdRef = useRef(null) // id of the appended call record, used for patching audio later
+  // When the user finishes speaking the SDK fires onMessage(source='user').
+  // From there until onModeChange('speaking') we're in the "thinking" gap.
+  const thinkingTimeoutRef = useRef(null)
 
   const [darkMode, setDarkMode] = useState(() =>
     document.documentElement.getAttribute('data-theme') === 'dark'
@@ -64,11 +95,29 @@ const ConverseCall = () => {
     try { localStorage.setItem('darkMode', JSON.stringify(darkMode)) } catch {}
   }, [darkMode])
 
-  // Pull RMS amplitude from the SDK's input (learner) or output (agent)
-  // analyser depending on who is talking. Drives the orb's reactive pulse.
+  // If we landed here with only a chatId (from the phone icon on an existing
+  // thread), pull the thread's params before starting the call.
   useEffect(() => {
     let cancelled = false
+    const needsHydrate = params.chatId && !params.language && user?.uid
+    if (!needsHydrate) return
+    getWritingChat(user.uid, params.chatId).then((chat) => {
+      if (cancelled || !chat) return
+      setParams((p) => ({
+        ...p,
+        persona: chat.persona || '',
+        level: chat.level || '',
+        language: chat.language || '',
+        voiceGender: chat.voiceGender || 'female',
+      }))
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [params.chatId, user?.uid])
 
+  // Pull RMS amplitude from the SDK's input or output analyser depending on
+  // who is talking. Drives the orb's reactive pulse.
+  useEffect(() => {
+    let cancelled = false
     const tick = () => {
       const c = conversationRef.current
       if (!cancelled && c && (callState === 'learner-speaking' || callState === 'agent-speaking')) {
@@ -78,7 +127,6 @@ const ConverseCall = () => {
             : c.getOutputByteFrequencyData
           const data = getter?.call(c)
           if (data && data.length) {
-            // Use mid-band energy as the amplitude signal; ignore very low/high bins.
             let sum = 0
             const lo = 4, hi = Math.min(data.length, 64)
             for (let i = lo; i < hi; i++) sum += data[i] * data[i]
@@ -100,7 +148,6 @@ const ConverseCall = () => {
     }
   }, [callState])
 
-  // Duration timer ticks once per second while the call is active.
   useEffect(() => {
     if (!startedAtRef.current) return
     if (callState === 'ending' || callState === 'error') return
@@ -110,16 +157,24 @@ const ConverseCall = () => {
     return () => clearInterval(id)
   }, [callState])
 
+  const clearThinkingTimer = () => {
+    if (thinkingTimeoutRef.current) {
+      clearTimeout(thinkingTimeoutRef.current)
+      thinkingTimeoutRef.current = null
+    }
+  }
+
   const handleStartSession = useCallback(async (withFeedback) => {
     setCallState('connecting')
     setErrorMessage('')
+    segmentStartRef.current = Date.now()
     try {
       const conv = await startConverseCall({
-        persona,
-        level,
-        language,
+        persona: params.persona,
+        level: params.level,
+        language: params.language,
         nativeLanguage,
-        voiceGender,
+        voiceGender: params.voiceGender,
         feedback: withFeedback,
         callbacks: {
           onConnect: ({ conversationId } = {}) => {
@@ -128,19 +183,46 @@ const ConverseCall = () => {
             setCallState('idle')
           },
           onDisconnect: () => {
-            if (isEndingRef.current || restartingRef.current) return
+            // Ignore disconnects we triggered ourselves (end / feedback restart).
+            if (restartingRef.current) return
             setCallState('ending')
           },
           onError: (err) => {
+            const msg = typeof err === 'string' ? err : err?.message || ''
+            const isPermission = /permission|denied|notallowed|getusermedia/i.test(msg)
             console.error('Converse SDK error:', err)
             setCallState('error')
-            setErrorMessage(typeof err === 'string' ? err : err?.message || 'Call error')
+            setErrorMessage(isPermission
+              ? 'Microphone access denied. Allow microphone access in your browser settings to start a call.'
+              : (msg || 'Call error'))
+          },
+          onMessage: ({ message, source } = {}) => {
+            if (!message) return
+            const role = source === 'user' ? 'user' : 'assistant'
+            transcriptRef.current = [...transcriptRef.current, { role, content: message }]
+            if (role === 'user') {
+              // User just finished speaking → enter the "thinking" gap until
+              // the agent starts speaking. Clear after a safety timeout in
+              // case the speaking transition never arrives.
+              clearThinkingTimer()
+              setCallState('agent-thinking')
+              thinkingTimeoutRef.current = setTimeout(() => {
+                setCallState((s) => (s === 'agent-thinking' ? 'idle' : s))
+              }, 8000)
+            }
           },
           onModeChange: ({ mode } = {}) => {
-            // SDK exposes 'listening' (waiting for/hearing the user) and
-            // 'speaking' (agent is talking).
-            if (mode === 'speaking') setCallState('agent-speaking')
-            else if (mode === 'listening') setCallState('learner-speaking')
+            if (mode === 'speaking') {
+              clearThinkingTimer()
+              setCallState('agent-speaking')
+            } else if (mode === 'listening') {
+              // SDK is now listening for the user. If we're already showing
+              // 'agent-thinking', keep that until the user actually starts
+              // speaking (amplitude detection below).
+              setCallState((s) =>
+                s === 'agent-thinking' || s === 'connecting' ? s : 'idle',
+              )
+            }
           },
           onStatusChange: ({ status } = {}) => {
             if (status === 'connecting') setCallState('connecting')
@@ -148,7 +230,6 @@ const ConverseCall = () => {
         },
       })
       conversationRef.current = conv
-      // Some SDK versions expose getId() rather than the connect payload.
       try {
         const id = conv.getId?.()
         if (id) conversationIdRef.current = id
@@ -157,58 +238,165 @@ const ConverseCall = () => {
       }
     } catch (err) {
       console.error('Failed to start converse call:', err)
+      const msg = err?.message || 'Failed to start call'
+      const isPermission = /permission|denied|notallowed|getusermedia/i.test(msg)
       setCallState('error')
-      setErrorMessage(err?.message || 'Failed to start call')
+      setErrorMessage(isPermission
+        ? 'Microphone access denied. Allow microphone access in your browser settings to start a call.'
+        : msg)
     }
-  }, [persona, level, language, nativeLanguage, voiceGender])
+  }, [params.persona, params.level, params.language, params.voiceGender, nativeLanguage])
 
-  // Kick off the call when the page mounts.
+  // While idle/listening, raise amplitude detection on the mic input to
+  // promote the orb to 'learner-speaking' as soon as the user starts talking.
   useEffect(() => {
-    if (!language) {
-      setCallState('error')
-      setErrorMessage('Missing call parameters')
-      return
+    if (callState !== 'idle') return
+    let cancelled = false
+    let raf
+    const tick = () => {
+      if (cancelled) return
+      const c = conversationRef.current
+      try {
+        const data = c?.getInputByteFrequencyData?.call(c)
+        if (data && data.length) {
+          let sum = 0
+          const lo = 4, hi = Math.min(data.length, 64)
+          for (let i = lo; i < hi; i++) sum += data[i] * data[i]
+          const rms = Math.sqrt(sum / (hi - lo)) / 255
+          if (rms > 0.06) {
+            setCallState('learner-speaking')
+            return
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      raf = requestAnimationFrame(tick)
     }
-    handleStartSession(initialFeedback)
-    // Clean up on unmount: best-effort recording save + close session.
+    raf = requestAnimationFrame(tick)
+    return () => { cancelled = true; cancelAnimationFrame(raf) }
+  }, [callState])
+
+  // While 'learner-speaking', drop back to 'idle' when the user falls silent.
+  useEffect(() => {
+    if (callState !== 'learner-speaking') return
+    let cancelled = false
+    let silentSince = null
+    let raf
+    const tick = () => {
+      if (cancelled) return
+      const c = conversationRef.current
+      try {
+        const data = c?.getInputByteFrequencyData?.call(c)
+        if (data && data.length) {
+          let sum = 0
+          const lo = 4, hi = Math.min(data.length, 64)
+          for (let i = lo; i < hi; i++) sum += data[i] * data[i]
+          const rms = Math.sqrt(sum / (hi - lo)) / 255
+          if (rms < 0.04) {
+            if (!silentSince) silentSince = Date.now()
+            else if (Date.now() - silentSince > 500) {
+              setCallState('idle')
+              return
+            }
+          } else {
+            silentSince = null
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => { cancelled = true; cancelAnimationFrame(raf) }
+  }, [callState])
+
+  // Kick off the call when params are ready.
+  useEffect(() => {
+    if (!params.language) return
+    if (conversationRef.current) return
+    handleStartSession(params.feedback)
     return () => {
+      // Cleanup on unmount: end the session and append a call record so the
+      // thread shows what happened even if the user closes the tab abruptly.
       const conv = conversationRef.current
+      const conversationId = conversationIdRef.current
       conversationRef.current = null
-      const id = conversationIdRef.current
       try { conv?.endSession?.() } catch {}
-      if (id) saveConverseRecording(id).catch(() => {})
+      finaliseCallRecord(conversationId).catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [params.language])
 
-  const handleEndCall = async () => {
-    isEndingRef.current = true
-    setCallState('ending')
-    const conv = conversationRef.current
-    const id = conversationIdRef.current
-    conversationRef.current = null
-    try { await conv?.endSession?.() } catch {}
-    if (id) saveConverseRecording(id).catch(() => {})
-    navigate('/dashboard', { state: { initialTab: 'speak' } })
+  // Build the call record, append it to the thread, then poll for the audio
+  // URL and patch it in once ready.
+  const finaliseCallRecord = async (conversationId) => {
+    if (!params.chatId || !user?.uid) return
+    if (!conversationId && transcriptRef.current.length === 0) return
+    const startedAt = segmentStartRef.current || startedAtRef.current || Date.now()
+    const endedAt = Date.now()
+    const durSec = Math.max(0, Math.round((endedAt - startedAt) / 1000))
+    const record = {
+      id: `call-${endedAt}`,
+      conversationId: conversationId || null,
+      audioUrl: null,
+      durationSec: durSec,
+      transcript: [...transcriptRef.current],
+      startedAt,
+      endedAt,
+    }
+    callRecordIdRef.current = record.id
+    try {
+      await appendCallRecord(user.uid, params.chatId, record)
+    } catch (err) {
+      console.error('Failed to append call record:', err)
+    }
+    if (conversationId) {
+      const audioUrl = await fetchRecordingWithRetry(conversationId)
+      if (audioUrl) {
+        try {
+          await patchCallRecord(user.uid, params.chatId, record.id, { audioUrl })
+        } catch (err) {
+          console.error('Failed to patch call record audio:', err)
+        }
+      }
+    }
+    transcriptRef.current = []
   }
 
-  // Flipping feedback mid-call cleanly restarts the session with a new signed
-  // URL and updated prompt. The orb stays mounted so the visual is continuous;
-  // there's an unavoidable brief audio gap during the swap.
+  const handleEndCall = async () => {
+    restartingRef.current = 'end'
+    setCallState('ending')
+    const conv = conversationRef.current
+    const conversationId = conversationIdRef.current
+    conversationRef.current = null
+    conversationIdRef.current = null
+    try { await conv?.endSession?.() } catch {}
+    // Fire-and-forget the recording mirror + thread append.
+    finaliseCallRecord(conversationId).catch(() => {})
+    if (params.chatId) {
+      try { localStorage.setItem('wchat-active', params.chatId) } catch {}
+      navigate('/write/chat')
+    } else {
+      navigate('/dashboard', { state: { initialTab: 'speak' } })
+    }
+  }
+
   const handleToggleFeedback = async () => {
     const next = !feedback
     setFeedback(next)
     if (callState === 'connecting' || callState === 'error') return
-    restartingRef.current = true
+    restartingRef.current = 'restart'
     const conv = conversationRef.current
     const oldId = conversationIdRef.current
     conversationRef.current = null
     conversationIdRef.current = null
     try { await conv?.endSession?.() } catch {}
-    // Save the segment that's ending so partial transcripts aren't lost.
-    if (oldId) saveConverseRecording(oldId).catch(() => {})
+    finaliseCallRecord(oldId).catch(() => {})
+    transcriptRef.current = []
     await handleStartSession(next)
-    restartingRef.current = false
+    restartingRef.current = null
   }
 
   const orbLabel = {
@@ -253,7 +441,6 @@ const ConverseCall = () => {
                 </button>
                 <span className="wchat-toggle-label">Feedback</span>
               </div>
-              {/* Disabled controls retained for visual continuity from the chat header. */}
               <button className="reader-header-button ui-text reader-word-status-trigger" disabled aria-disabled="true">Aa</button>
               <button className="reader-header-button icon-button reader-palette-trigger" disabled aria-disabled="true">
                 <span className="palette-circle" />

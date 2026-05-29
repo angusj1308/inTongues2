@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   addDoc,
+  getDoc,
   updateDoc,
   deleteDoc,
   onSnapshot,
@@ -70,6 +71,47 @@ export const regenerateChatTitle = async (userId, chatId, persona) => {
 
 export const deleteWritingChat = async (userId, chatId) => {
   await deleteDoc(doc(getChatsCollection(userId), chatId))
+}
+
+// One-time fetch of a single chat (used by the voice call view to pull the
+// thread's persona/level/language without needing the full subscription).
+export const getWritingChat = async (userId, chatId) => {
+  if (!userId || !chatId) return null
+  const snap = await getDoc(doc(getChatsCollection(userId), chatId))
+  if (!snap.exists()) return null
+  const data = snap.data()
+  return {
+    id: snap.id,
+    ...data,
+    lastActivity: data.lastActivity?.toMillis?.() || Date.now(),
+  }
+}
+
+// Append a call record (role: 'call') to a thread. Pulls the latest messages
+// to avoid clobbering anything the user sent while the call was in progress.
+export const appendCallRecord = async (userId, chatId, callRecord) => {
+  if (!userId || !chatId || !callRecord) return
+  const ref = doc(getChatsCollection(userId), chatId)
+  const snap = await getDoc(ref)
+  const current = snap.exists() ? (snap.data().messages || []) : []
+  const next = [...current, { role: 'call', ...callRecord }]
+  await updateDoc(ref, {
+    messages: next,
+    lastActivity: serverTimestamp(),
+  })
+}
+
+// Patch an existing call record (matched by id) — used when the recording
+// audio URL becomes ready after the call already saved.
+export const patchCallRecord = async (userId, chatId, recordId, patch) => {
+  if (!userId || !chatId || !recordId) return
+  const ref = doc(getChatsCollection(userId), chatId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const messages = (snap.data().messages || []).map((m) =>
+    m.role === 'call' && m.id === recordId ? { ...m, ...patch } : m,
+  )
+  await updateDoc(ref, { messages })
 }
 
 export const subscribeToWritingChats = (userId, onData, onError) => {

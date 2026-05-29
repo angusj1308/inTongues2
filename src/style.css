@@ -15040,6 +15040,17 @@ body:has(.cinema-page) {
   color: #000000;
 }
 
+/* Phone (start voice call) sits to the left of the mic/send button inside
+   the same input row. Same circular style as send so they look like a pair. */
+.wchat-send.wchat-phone {
+  right: calc(1.5rem + 45px);
+}
+
+/* Pad the input pill further on the right when both buttons are present. */
+.wchat-input.wchat-input--with-call {
+  padding-right: 5.75rem;
+}
+
 .wchat-send.wchat-mic.is-recording,
 [data-theme='dark'] .wchat-send.wchat-mic.is-recording {
   background: #e5484d;
@@ -32499,6 +32510,181 @@ body:has(.cinema-page) {
    use the brand sans, not the display serif, so they read as controls. */
 .listen-deep-tab {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ----- Call record card (in chat thread) ----- */
+
+.callrecord {
+  align-self: stretch;
+  width: 100%;
+  margin: 0.5rem 0;
+  padding: 0.875rem 1rem;
+  background: rgba(28, 26, 23, 0.04);
+  border: 1px solid rgba(28, 26, 23, 0.08);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  font-family: 'Source Sans 3', 'DM Sans', sans-serif;
+}
+
+[data-theme='dark'] .callrecord {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.callrecord-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  color: rgba(28, 26, 23, 0.65);
+}
+[data-theme='dark'] .callrecord-head {
+  color: rgba(255, 255, 255, 0.65);
+}
+.callrecord-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(28, 26, 23, 0.08);
+}
+[data-theme='dark'] .callrecord-icon { background: rgba(255, 255, 255, 0.08); }
+.callrecord-title {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+}
+.callrecord-duration {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  opacity: 0.7;
+}
+
+.callrecord-player {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.callrecord-play {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #1C1A17;
+  color: #FBFAF8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+[data-theme='dark'] .callrecord-play {
+  background: #FBFAF8;
+  color: #1C1A17;
+}
+.callrecord-play:disabled { opacity: 0.35; cursor: default; }
+
+.callrecord-scrub {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(28, 26, 23, 0.18);
+  border-radius: 2px;
+  outline: none;
+}
+[data-theme='dark'] .callrecord-scrub { background: rgba(255, 255, 255, 0.18); }
+.callrecord-scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.callrecord-scrub::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.callrecord-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.callrecord-speed {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid rgba(28, 26, 23, 0.2);
+  border-radius: 999px;
+  padding: 2px 8px;
+  cursor: pointer;
+  color: inherit;
+}
+[data-theme='dark'] .callrecord-speed { border-color: rgba(255, 255, 255, 0.2); }
+.callrecord-speed:disabled { opacity: 0.35; cursor: default; }
+
+.callrecord-pending {
+  font-size: 0.75rem;
+  opacity: 0.55;
+  margin: -0.25rem 0 0;
+  font-style: italic;
+}
+
+.callrecord-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid rgba(28, 26, 23, 0.08);
+  padding-top: 0.625rem;
+}
+[data-theme='dark'] .callrecord-transcript { border-top-color: rgba(255, 255, 255, 0.08); }
+
+.callrecord-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.875rem;
+}
+.callrecord-turn--user { align-items: flex-end; text-align: right; }
+.callrecord-turn--agent { align-items: flex-start; text-align: left; }
+.callrecord-turn-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  opacity: 0.6;
+}
+.callrecord-turn-text {
+  line-height: 1.45;
+  max-width: 80%;
+}
+
+.callrecord-expand {
+  align-self: flex-start;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  color: inherit;
+  opacity: 0.7;
 }
 
 /* ----- Converse voice call view ----- */

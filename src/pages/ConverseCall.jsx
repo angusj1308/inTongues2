@@ -215,6 +215,10 @@ const ConverseCall = () => {
             if (mode === 'speaking') {
               clearThinkingTimer()
               setCallState('agent-speaking')
+              // Half-duplex: mute the mic while the agent is talking so the
+              // speakers can't loop back through. Trade-off: no
+              // interrupt-by-voice — wait for the agent to finish.
+              try { conversationRef.current?.setMicMuted?.(true) } catch {}
             } else if (mode === 'listening') {
               // SDK is now listening for the user. If we're already showing
               // 'agent-thinking', keep that until the user actually starts
@@ -222,6 +226,8 @@ const ConverseCall = () => {
               setCallState((s) =>
                 s === 'agent-thinking' || s === 'connecting' ? s : 'idle',
               )
+              // Re-open the mic now that the agent's done.
+              try { conversationRef.current?.setMicMuted?.(false) } catch {}
             }
           },
           onStatusChange: ({ status } = {}) => {

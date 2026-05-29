@@ -26,8 +26,11 @@ const VERTEX = /* glsl */`
   }
 `
 
-// Fragment shader — combines public-domain 3D simplex noise (Ashima Arts,
-// Stefan Gustavson) with a soft radial falloff to render an edgeless cloud.
+// Fragment shader — divine/holy-spirit aesthetic. A bright concentrated core
+// (gaussian falloff) with a soft outer halo, overlaid with two sets of
+// counter-rotating light rays that emanate from the centre. Subtle simplex
+// noise shimmers the whole field so the rays feel alive rather than
+// geometric. Single foreground colour throughout — intensity carries meaning.
 const FRAGMENT = /* glsl */`
   precision highp float;
   varying vec2 vUv;
@@ -87,30 +90,47 @@ const FRAGMENT = /* glsl */`
   }
 
   void main() {
-    // Centre UV in -1..1 range.
     vec2 p = vUv * 2.0 - 1.0;
     float r = length(p);
+    float angle = atan(p.y, p.x);
+    float t = uTime;
 
-    // Soft radial falloff. Amplitude expands the orb slightly so it visibly
-    // grows when the speaker is loud. Breathe oscillates it during idle /
-    // thinking states.
-    float radius = 0.78 + uAmplitude * 0.14 + uBreathe * 0.05;
-    float falloff = 1.0 - smoothstep(radius * 0.05, radius * 1.05, r);
+    // --- Bright concentrated core (the "presence") ---
+    // Pulses with breath and brightens on amplitude.
+    float coreSize = 0.20 + uBreathe * 0.04 + uAmplitude * 0.05;
+    float core = exp(-r * r / (coreSize * coreSize));
 
-    // Three octaves of drifting 3D noise. Time becomes the z-axis so the
-    // pattern slides through 3D space — much more organic than 2D scrolling.
-    float t = uTime * uDrift;
-    float n  = snoise(vec3(p * 1.2, t * 0.40));
-    n       += snoise(vec3(p * 2.6, t * 0.75)) * 0.55;
-    n       += snoise(vec3(p * 5.0, t * 1.10)) * 0.28;
-    // Map roughly into 0..1 — clamp later.
-    n = n * 0.5 + 0.5;
+    // --- Soft outer halo (the corona) ---
+    // Wide gentle exponential — gives the orb its outer presence.
+    float haloRadius = 0.55 + uAmplitude * 0.15 + uBreathe * 0.05;
+    float halo = exp(-r / haloRadius) * 0.6;
 
-    // Final alpha: falloff masks the noise; density + amplitude + breathe
-    // raise the overall opacity; pow on falloff softens the apparent edge.
-    float density = uDensity + uAmplitude * 0.22 + uBreathe * 0.06;
-    float alpha = pow(falloff, 1.4) * mix(0.18, 1.0, n) * density;
-    alpha = clamp(alpha, 0.0, 1.0);
+    // --- Light rays radiating outward ---
+    // Two layers counter-rotating at different angular frequencies for richness.
+    // Rays peak in a middle annulus — dim at the bright core, fading at outside.
+    float rayBand = smoothstep(0.04, 0.30, r) * (1.0 - smoothstep(0.55, 1.05, r));
+    float spinA = t * uDrift * 0.18;
+    float spinB = t * uDrift * -0.27;
+    float raysA = 0.5 + 0.5 * cos(angle * 8.0 + spinA);
+    raysA = pow(raysA, 3.0);
+    float raysB = 0.5 + 0.5 * cos(angle * 12.0 + spinB);
+    raysB = pow(raysB, 4.0);
+    float rays = (raysA * 0.65 + raysB * 0.4) * rayBand;
+    // Rays intensify with amplitude — agent/learner speech "blooms" outward.
+    rays *= 0.35 + uAmplitude * 0.6;
+
+    // --- Subtle drifting noise shimmer ---
+    // Modulates everything by ±15% so the light feels alive, not stamped.
+    float shimmer = snoise(vec3(p * 1.4, t * uDrift * 0.4));
+    float shimmerMod = 1.0 + shimmer * 0.15;
+
+    // --- Outer cutoff so the canvas edges stay clean ---
+    float fade = 1.0 - smoothstep(0.6, 1.05, r);
+
+    // --- Combine layers ---
+    float density = uDensity * shimmerMod;
+    float light = core * 1.3 + halo * 0.55 + rays * 0.35;
+    float alpha = clamp(light * density * fade, 0.0, 1.0);
 
     gl_FragColor = vec4(uColor, alpha);
   }

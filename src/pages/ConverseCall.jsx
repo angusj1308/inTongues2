@@ -236,6 +236,10 @@ const ConverseCall = () => {
       } catch {
         /* ignore */
       }
+      // Quieter agent playback gives the browser's AEC a better chance of
+      // cancelling speaker-into-mic loopback when the user isn't wearing
+      // headphones. Still very audible — just not at full blast.
+      try { await conv.setVolume?.({ volume: 0.65 }) } catch {}
     } catch (err) {
       console.error('Failed to start converse call:', err)
       const msg = err?.message || 'Failed to start call'

@@ -215,6 +215,10 @@ const ConverseCall = () => {
             if (mode === 'speaking') {
               clearThinkingTimer()
               setCallState('agent-speaking')
+              // Half-duplex: mute the mic while the agent is talking so the
+              // speakers can't loop back through. Trade-off: no
+              // interrupt-by-voice — wait for the agent to finish.
+              try { conversationRef.current?.setMicMuted?.(true) } catch {}
             } else if (mode === 'listening') {
               // SDK is now listening for the user. If we're already showing
               // 'agent-thinking', keep that until the user actually starts
@@ -222,6 +226,8 @@ const ConverseCall = () => {
               setCallState((s) =>
                 s === 'agent-thinking' || s === 'connecting' ? s : 'idle',
               )
+              // Re-open the mic now that the agent's done.
+              try { conversationRef.current?.setMicMuted?.(false) } catch {}
             }
           },
           onStatusChange: ({ status } = {}) => {
@@ -236,10 +242,6 @@ const ConverseCall = () => {
       } catch {
         /* ignore */
       }
-      // Quieter agent playback gives the browser's AEC a better chance of
-      // cancelling speaker-into-mic loopback when the user isn't wearing
-      // headphones. Still very audible — just not at full blast.
-      try { await conv.setVolume?.({ volume: 0.65 }) } catch {}
     } catch (err) {
       console.error('Failed to start converse call:', err)
       const msg = err?.message || 'Failed to start call'

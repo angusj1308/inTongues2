@@ -73,12 +73,10 @@ const ConverseCall = () => {
   const [errorMessage, setErrorMessage] = useState('')
   const [feedback, setFeedback] = useState(params.feedback)
   const [durationSec, setDurationSec] = useState(0)
-  const [amplitude, setAmplitude] = useState(0)
 
   const conversationRef = useRef(null)
   const conversationIdRef = useRef(null)
   const startedAtRef = useRef(null)
-  const ampRafRef = useRef(null)
   const restartingRef = useRef(null) // holds the user-initiated reason for disconnect ('end'|'restart'|null)
   const transcriptRef = useRef([])
   const segmentStartRef = useRef(null) // start time of the *current* signed-url segment (resets across feedback restarts)
@@ -113,40 +111,6 @@ const ConverseCall = () => {
     }).catch(() => {})
     return () => { cancelled = true }
   }, [params.chatId, user?.uid])
-
-  // Pull RMS amplitude from the SDK's input or output analyser depending on
-  // who is talking. Drives the orb's reactive pulse.
-  useEffect(() => {
-    let cancelled = false
-    const tick = () => {
-      const c = conversationRef.current
-      if (!cancelled && c && (callState === 'learner-speaking' || callState === 'agent-speaking')) {
-        try {
-          const getter = callState === 'learner-speaking'
-            ? c.getInputByteFrequencyData
-            : c.getOutputByteFrequencyData
-          const data = getter?.call(c)
-          if (data && data.length) {
-            let sum = 0
-            const lo = 4, hi = Math.min(data.length, 64)
-            for (let i = lo; i < hi; i++) sum += data[i] * data[i]
-            const rms = Math.sqrt(sum / (hi - lo)) / 255
-            setAmplitude(Math.min(1, rms * 2.2))
-          }
-        } catch {
-          /* analyser not ready yet */
-        }
-      } else if (!cancelled) {
-        setAmplitude(0)
-      }
-      ampRafRef.current = requestAnimationFrame(tick)
-    }
-    ampRafRef.current = requestAnimationFrame(tick)
-    return () => {
-      cancelled = true
-      cancelAnimationFrame(ampRafRef.current)
-    }
-  }, [callState])
 
   useEffect(() => {
     if (!startedAtRef.current) return
@@ -496,7 +460,6 @@ const ConverseCall = () => {
       <main className="converse-call-stage">
         <Orb
           state={callState}
-          amplitude={amplitude}
           label={orbLabel}
           color={darkMode ? '#FBFAF8' : '#1C1A17'}
         />

@@ -149,16 +149,16 @@ const ELEVENLABS_VOICE_MAP = {
     female: 'ZF6FPAbjXT4488VcRRnw',
   },
   Spanish: {
-    male: 'FrrTxu4nrplZwLlMy2kD',
-    female: '1WXz8v08ntDcSTeVXMN2',
+    male: 'tomkxGQGz4b1kE0EM722',
+    female: '1eHrpOW5l98cxiSRjbzJ',
   },
   French: {
-    male: 'UBXZKOKbt62aLQHhc1Jm',
-    female: 'sANWqF1bCMzR6eyZbCGw',
+    male: 'kENkNtk0xyzG09WW40xE',
+    female: 'YxrwjAKoUKULGd0g8K9Y',
   },
   Italian: {
-    male: 'W71zT1VwIFFx3mMGH2uZ',
-    female: 'gfKKsLN1k0oYYN9n2dXX',
+    male: 'o4b57JYAECRMJyCEXyIE',
+    female: '3LTv5xMEHTJYUIMl1jBR',
   },
   Russian: {
     male: 'pvY1pikBdoI4SB62vEVo',
@@ -16685,6 +16685,163 @@ app.post('/api/writing-chat/title', async (req, res) => {
   } catch (error) {
     console.error('Writing chat title error:', error)
     return res.json({ title: null })
+  }
+})
+
+// Build the ElevenLabs Conversational AI system prompt for a spoken language-
+// learning session. Mirrors the four agent variables ({{language}}, {{persona}},
+// {{level}}, {{feedback}}) defined on the dashboard agent.
+const FEEDBACK_ON = 'When the learner makes a meaningful grammar, vocabulary, or pronunciation error, briefly correct it in character before continuing. Keep corrections short — one quick note, then move on.'
+const FEEDBACK_OFF = 'Speak naturally even if the learner makes mistakes; do not stop to correct them.'
+
+const buildConverseSystemPrompt = ({ language, persona, level, feedback }) =>
+  `You are a native ${language} speaker having a spoken conversation with a language learner. The conversation: ${persona || 'A casual chat partner'}
+
+Always speak in ${level || 'Beginner'} ${language}, even if the learner speaks to you in another language. Keep replies short and conversational — this is a real-time spoken chat, so a sentence or two at a time. Stay in character.
+
+${feedback ? FEEDBACK_ON : FEEDBACK_OFF}`
+
+// Mint a signed ElevenLabs Conversational AI session: builds the system prompt
+// and per-conversation overrides (prompt, language, voice) from the same
+// variables as the text chat, and returns a short-lived signed URL the browser
+// uses to connect directly to the agent's WebSocket. First message is left
+// blank on the agent (learner initiates).
+app.post('/api/converse/session', async (req, res) => {
+  try {
+    const { persona, level, language, nativeLanguage, voiceGender, feedback } = req.body || {}
+
+    if (!language) {
+      return res.status(400).json({ error: 'language is required' })
+    }
+
+    const apiKey = process.env.ELEVENLABS_API_KEY
+    if (!apiKey) {
+      return res.status(500).json({ error: 'ElevenLabs API key not configured' })
+    }
+
+    const agentId = process.env.ELEVENLABS_CONVAI_AGENT_ID
+    if (!agentId) {
+      return res.status(500).json({ error: 'ElevenLabs Conversational AI agent not configured' })
+    }
+
+    const gender = voiceGender || 'female'
+
+    let voiceId
+    try {
+      const resolved = resolveElevenLabsVoiceId(language, gender)
+      voiceId = resolved.voiceId
+    } catch (voiceErr) {
+      console.error('Converse voice resolution failed:', voiceErr)
+      return res.status(400).json({ error: 'Unsupported language or voice' })
+    }
+
+    const normalizedLanguage = normalizeLanguageLabel(language) || language
+    const isoCode = LANGUAGE_NAME_TO_CODE[normalizedLanguage] || 'en'
+
+    const systemPrompt = buildConverseSystemPrompt({
+      language: normalizedLanguage,
+      persona,
+      level,
+      feedback: feedback === true,
+    })
+
+    // Mint a signed URL for the browser to open the agent WebSocket directly.
+    let signedUrl
+    try {
+      const signedRes = await fetch(
+        `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${encodeURIComponent(agentId)}`,
+        { headers: { 'xi-api-key': apiKey } },
+      )
+      if (!signedRes.ok) {
+        const errText = await signedRes.text().catch(() => '')
+        console.error('Converse signed URL failed:', signedRes.status, errText.slice(0, 400))
+        return res.status(502).json({ error: 'Failed to start conversation session' })
+      }
+      const payload = await signedRes.json()
+      signedUrl = payload.signed_url
+    } catch (fetchErr) {
+      console.error('Converse signed URL fetch error:', fetchErr)
+      return res.status(502).json({ error: 'Failed to start conversation session' })
+    }
+
+    if (!signedUrl) {
+      return res.status(502).json({ error: 'ElevenLabs did not return a signed URL' })
+    }
+
+    return res.json({
+      signedUrl,
+      overrides: {
+        type: 'conversation_initiation_client_data',
+        conversation_config_override: {
+          agent: {
+            prompt: { prompt: systemPrompt },
+            language: isoCode,
+          },
+          tts: { voice_id: voiceId },
+        },
+      },
+    })
+  } catch (error) {
+    console.error('Converse session error:', error)
+    return res.status(500).json({ error: 'Failed to start conversation session' })
+  }
+})
+
+// Pull the finalised audio for a finished Converse call from ElevenLabs and
+// mirror it into Firebase Storage for long-term retention (ElevenLabs deletes
+// it after 7 days). Returns { audioUrl } once ready, or { pending: true } if
+// ElevenLabs hasn't finalised the recording yet so the frontend can retry.
+app.post('/api/converse/recording', async (req, res) => {
+  try {
+    const { conversationId } = req.body || {}
+
+    if (!conversationId) {
+      return res.status(400).json({ error: 'conversationId is required' })
+    }
+
+    const apiKey = process.env.ELEVENLABS_API_KEY
+    if (!apiKey) {
+      return res.status(500).json({ error: 'ElevenLabs API key not configured' })
+    }
+
+    if (!bucket) {
+      return res.status(500).json({ error: 'Storage bucket not configured' })
+    }
+
+    const audioRes = await fetch(
+      `https://api.elevenlabs.io/v1/convai/conversations/${encodeURIComponent(conversationId)}/audio`,
+      { headers: { 'xi-api-key': apiKey } },
+    )
+
+    if (audioRes.status === 404) {
+      // ElevenLabs hasn't finalised the recording yet — frontend can retry.
+      return res.json({ pending: true })
+    }
+
+    if (!audioRes.ok) {
+      const errText = await audioRes.text().catch(() => '')
+      console.error('Converse recording fetch failed:', audioRes.status, errText.slice(0, 400))
+      return res.status(502).json({ error: 'Failed to fetch conversation audio' })
+    }
+
+    const audioBuffer = Buffer.from(await audioRes.arrayBuffer())
+    if (!audioBuffer.length) {
+      return res.json({ pending: true })
+    }
+
+    const storagePath = `converseAudio/${conversationId}.mp3`
+    const file = bucket.file(storagePath)
+    await file.save(audioBuffer, {
+      contentType: 'audio/mpeg',
+      metadata: { cacheControl: 'public, max-age=31536000' },
+    })
+    await file.makePublic()
+    const audioUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+
+    return res.json({ audioUrl, conversationId })
+  } catch (error) {
+    console.error('Converse recording error:', error)
+    return res.status(500).json({ error: 'Failed to save conversation audio' })
   }
 })
 

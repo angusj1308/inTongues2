@@ -32807,27 +32807,12 @@ body:has(.cinema-page) {
   will-change: transform;
 }
 
-/* State-driven breathing — gentle for idle, dimmer/slower for connecting,
-   a touch quicker for thinking. Speaking states don't breathe — the
-   amplitude-driven inline scale carries them. */
-.orb--idle .orb-disc {
-  animation: orb-breathe 3.6s ease-in-out infinite;
-}
-.orb--connecting .orb-disc {
-  animation: orb-breathe 2s ease-in-out infinite;
-  opacity: 0.5;
-}
-.orb--agent-thinking .orb-disc {
-  animation: orb-breathe 1.4s ease-in-out infinite;
-  opacity: 0.85;
-}
+/* Two states only: idle (static circle, no animation) and reactive (scale
+   pulse driven by amplitude, applied inline by JS during the two speaking
+   states). Connecting, thinking, silence — all idle. Error dims the disc;
+   ending fades it out for the navigation transition. */
 .orb--error .orb-disc {
   opacity: 0.4;
-}
-
-@keyframes orb-breathe {
-  0%, 100% { opacity: 0.92; }
-  50% { opacity: 0.7; }
 }
 
 .orb--ending {

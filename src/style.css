@@ -32794,8 +32794,8 @@ body:has(.cinema-page) {
 
 .orb {
   position: relative;
-  width: 220px;
-  height: 220px;
+  width: 160px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -32827,10 +32827,10 @@ body:has(.cinema-page) {
 
 @media (max-width: 600px) {
   .orb {
-    width: 60vw;
-    height: 60vw;
-    max-width: 220px;
-    max-height: 220px;
+    width: 50vw;
+    height: 50vw;
+    max-width: 160px;
+    max-height: 160px;
   }
 }
 

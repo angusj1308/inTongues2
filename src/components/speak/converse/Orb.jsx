@@ -7,12 +7,17 @@ const Orb = ({ state, amplitude = 0, color, label }) => {
   const ref = useRef(null)
   const smoothedRef = useRef(0)
   const rafRef = useRef(0)
+  // Keep latest amplitude in a ref so the rAF loop can read it without
+  // re-running on every prop change (~60Hz). The loop runs continuously
+  // and only restarts on state changes.
+  const ampRef = useRef(amplitude)
+  useEffect(() => { ampRef.current = amplitude }, [amplitude])
 
   useEffect(() => {
     const tick = () => {
       const node = ref.current
       // Smooth the amplitude so the pulse doesn't jitter on raw frame data.
-      smoothedRef.current += (amplitude - smoothedRef.current) * 0.2
+      smoothedRef.current += (ampRef.current - smoothedRef.current) * 0.2
       if (node) {
         const reactive = state === 'learner-speaking' || state === 'agent-speaking'
         const scale = reactive ? 1 + smoothedRef.current * 0.18 : 1
@@ -22,7 +27,7 @@ const Orb = ({ state, amplitude = 0, color, label }) => {
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [state, amplitude])
+  }, [state])
 
   return (
     <div className={`orb orb--${state}`} role="img" aria-label={label || state}>

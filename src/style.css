@@ -32784,6 +32784,15 @@ body:has(.cinema-page) {
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 380ms ease, transform 380ms ease;
+  will-change: opacity, transform;
+}
+
+.orb--ending {
+  opacity: 0;
+  transform: scale(0.92);
 }
 
 .orb-core,

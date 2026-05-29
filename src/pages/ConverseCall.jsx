@@ -329,6 +329,33 @@ const ConverseCall = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.language])
 
+  // Best-effort recording save on tab close / refresh / browser back. The
+  // unmount cleanup above handles the React-side teardown, but its fetches
+  // won't reliably complete during a page unload — sendBeacon will.
+  useEffect(() => {
+    const flushOnUnload = () => {
+      const conv = conversationRef.current
+      const conversationId = conversationIdRef.current
+      try { conv?.endSession?.() } catch {}
+      if (conversationId && typeof navigator.sendBeacon === 'function') {
+        try {
+          const blob = new Blob([JSON.stringify({ conversationId })], {
+            type: 'application/json',
+          })
+          navigator.sendBeacon('/api/converse/recording', blob)
+        } catch {
+          /* best effort */
+        }
+      }
+    }
+    window.addEventListener('beforeunload', flushOnUnload)
+    window.addEventListener('pagehide', flushOnUnload)
+    return () => {
+      window.removeEventListener('beforeunload', flushOnUnload)
+      window.removeEventListener('pagehide', flushOnUnload)
+    }
+  }, [])
+
   // Build the call record, append it to the thread, then poll for the audio
   // URL and patch it in once ready.
   const finaliseCallRecord = async (conversationId) => {
@@ -375,6 +402,8 @@ const ConverseCall = () => {
     try { await conv?.endSession?.() } catch {}
     // Fire-and-forget the recording mirror + thread append.
     finaliseCallRecord(conversationId).catch(() => {})
+    // Let the ending fade animation play before we navigate away.
+    await new Promise((r) => setTimeout(r, 380))
     if (params.chatId) {
       try { localStorage.setItem('wchat-active', params.chatId) } catch {}
       navigate('/write/chat')

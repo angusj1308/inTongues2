@@ -494,7 +494,12 @@ const ConverseCall = () => {
       </div>
 
       <main className="converse-call-stage">
-        <Orb state={callState} amplitude={amplitude} label={orbLabel} />
+        <Orb
+          state={callState}
+          amplitude={amplitude}
+          label={orbLabel}
+          color={darkMode ? '#FBFAF8' : '#1C1A17'}
+        />
         {callState === 'connecting' && (
           <p className="converse-call-status">Connecting…</p>
         )}

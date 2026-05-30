@@ -32609,14 +32609,30 @@ body:has(.cinema-page) {
 
 .callrecord-scrub {
   flex: 1;
-  height: 1px;
+  height: 16px; /* hit-target height; visible track is 1px (see below) */
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(28, 26, 23, 0.35);
-  border-radius: 0;
+  background: transparent;
   outline: none;
+  padding: 0;
+  margin: 0;
 }
-[data-theme='dark'] .callrecord-scrub { background: rgba(255, 255, 255, 0.35); }
+.callrecord-scrub::-webkit-slider-runnable-track {
+  height: 1px;
+  background: rgba(28, 26, 23, 0.35);
+  border: none;
+  border-radius: 0;
+}
+.callrecord-scrub::-moz-range-track {
+  height: 1px;
+  background: rgba(28, 26, 23, 0.35);
+  border: none;
+  border-radius: 0;
+}
+[data-theme='dark'] .callrecord-scrub::-webkit-slider-runnable-track,
+[data-theme='dark'] .callrecord-scrub::-moz-range-track {
+  background: rgba(255, 255, 255, 0.35);
+}
 .callrecord-scrub::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 8px;
@@ -32624,6 +32640,7 @@ body:has(.cinema-page) {
   border-radius: 50%;
   background: currentColor;
   border: none;
+  margin-top: -3.5px; /* center 8px thumb on 1px track */
 }
 .callrecord-scrub::-moz-range-thumb {
   width: 8px;

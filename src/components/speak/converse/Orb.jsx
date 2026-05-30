@@ -18,7 +18,7 @@ import * as THREE from 'three'
 // keeps the bigger size so there's no shrink-and-regrow between you
 // finishing and the agent starting.
 const SLOW_DRIFT = 0.10
-const FAST_DRIFT = 1.10
+const FAST_DRIFT = 2.20
 const SCALE_BIG = 1.00
 const SCALE_SMALL = 0.88
 const STATE_SCALE = {

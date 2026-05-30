@@ -151,13 +151,15 @@ const FRAGMENT = /* glsl */`
   }
 `
 
-const Orb = ({ state, palette, label }) => {
+const Orb = ({ state, palette, getOutputAmplitude, label }) => {
   const containerRef = useRef(null)
   // Latest values for the rAF loop to read without restarting on prop churn.
   const stateRef = useRef(state)
   const paletteRef = useRef(palette || FALLBACK_PALETTE)
+  const getOutputAmplitudeRef = useRef(getOutputAmplitude)
   useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => { paletteRef.current = palette || FALLBACK_PALETTE }, [palette])
+  useEffect(() => { getOutputAmplitudeRef.current = getOutputAmplitude }, [getOutputAmplitude])
 
   useEffect(() => {
     const container = containerRef.current
@@ -204,6 +206,13 @@ const Orb = ({ state, palette, label }) => {
     let rafId = 0
     let lastT = performance.now()
     let currentScale = initialScale
+    // Audio-based "agent is currently vocalising" detection. The SDK's
+    // 'speaking' mode event is unreliable for sustained turns — it fires
+    // once then flips back to 'listening' while playback is still ongoing.
+    // Polling output amplitude tells the truth.
+    let agentAudible = false
+    let audibleSince = 0
+    let silentSince = 0
     const tickLight = new THREE.Color()
     const tickMid = new THREE.Color()
     const tickDeep = new THREE.Color()
@@ -220,14 +229,39 @@ const Orb = ({ state, palette, label }) => {
       currentScale += (targetScale - currentScale) * scaleLerp
       canvas.style.transform = `scale(${currentScale.toFixed(3)})`
 
-      // Fast drift is gated on BOTH conditions: the state is agent-speaking
-      // AND the orb has fully grown to the speaking size. Until the orb is
-      // fully grown the swirl stays slow, so size transitions are never
-      // accompanied by a fast swirl. Same on the way down: as soon as the
-      // state leaves agent-speaking the swirl drops to slow even while the
-      // orb is still visibly shrinking.
+      // Poll the SDK's output frequency data each frame to decide if the
+      // agent is currently making sound. Hysteresis (250ms to flip on,
+      // 600ms to flip off) prevents flicker between syllables.
+      try {
+        const data = getOutputAmplitudeRef.current?.()
+        if (data && data.length) {
+          let sum = 0
+          const lo = 4, hi = Math.min(data.length, 64)
+          for (let i = lo; i < hi; i++) sum += data[i] * data[i]
+          const rms = Math.sqrt(sum / (hi - lo)) / 255
+          const ON_THRESHOLD = 0.04
+          const OFF_THRESHOLD = 0.02
+          if (rms > ON_THRESHOLD) {
+            silentSince = 0
+            if (!audibleSince) audibleSince = now
+            if (now - audibleSince > 250) agentAudible = true
+          } else if (rms < OFF_THRESHOLD) {
+            audibleSince = 0
+            if (!silentSince) silentSince = now
+            if (now - silentSince > 600) agentAudible = false
+          }
+        }
+      } catch {
+        /* analyser not ready */
+      }
+
+      // Fast drift is gated on BOTH conditions: the agent is actually
+      // making sound right now AND the orb has fully grown to the speaking
+      // size. Until the orb is fully grown the swirl stays slow, so size
+      // transitions are never accompanied by a fast swirl. The instant the
+      // agent goes quiet the swirl drops to slow.
       const fullyGrown = currentScale > SCALE_BIG - 0.02
-      const wantsFast = stateRef.current === 'agent-speaking' && fullyGrown
+      const wantsFast = agentAudible && fullyGrown
       const driftTarget = wantsFast ? FAST_DRIFT : SLOW_DRIFT
       const driftLerp = 1 - Math.pow(0.000001, dt) // ~150ms to target
       uniforms.uDrift.value += (driftTarget - uniforms.uDrift.value) * driftLerp

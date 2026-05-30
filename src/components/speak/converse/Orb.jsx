@@ -65,7 +65,6 @@ const FRAGMENT = /* glsl */`
   precision highp float;
   varying vec2 vUv;
   uniform float uTime;
-  uniform float uDrift;
   uniform vec3  uLight;
   uniform vec3  uMid;
   uniform vec3  uDeep;
@@ -130,7 +129,11 @@ const FRAGMENT = /* glsl */`
     // horizontal bands like a rotating planet's atmosphere — not isotropic
     // round blobs. Then a tiny domain warp (much smaller than before) gives
     // the bands a gentle living waver without curling them into marble.
-    float t = uTime * uDrift;
+    // uTime is pre-integrated in JS as ∫ drift dt, so changing the drift
+    // rate does not retroactively rescale past time (which would cause a
+    // visible "swirl burst" during transitions while sustained playback
+    // looks slow — the exact symptom we had).
+    float t = uTime;
     vec2 sampleP = vec2(p.x, p.y * 1.7);
     vec2 warp = vec2(
       snoise(vec3(sampleP * 0.55, t * 0.20)),
@@ -186,7 +189,6 @@ const Orb = ({ state, palette, getOutputVolume, label }) => {
 
     const uniforms = {
       uTime:  { value: 0 },
-      uDrift: { value: SLOW_DRIFT },
       uLight: { value: new THREE.Color(initialPalette.light) },
       uMid:   { value: new THREE.Color(initialPalette.mid) },
       uDeep:  { value: new THREE.Color(initialPalette.deep) },
@@ -206,6 +208,7 @@ const Orb = ({ state, palette, getOutputVolume, label }) => {
     let rafId = 0
     let lastT = performance.now()
     let currentScale = initialScale
+    let currentDrift = SLOW_DRIFT
     // Audio-based "agent is currently vocalising" detection. The SDK's
     // 'speaking' mode event is unreliable for sustained turns — it fires
     // once then flips back to 'listening' while playback is still ongoing.
@@ -221,8 +224,6 @@ const Orb = ({ state, palette, getOutputVolume, label }) => {
       const now = performance.now()
       const dt = Math.min(0.066, (now - lastT) / 1000)
       lastT = now
-
-      uniforms.uTime.value += dt
 
       const targetScale = STATE_SCALE[stateRef.current] ?? SCALE_SMALL
       const scaleLerp = 1 - Math.pow(0.006, dt) // ~450ms settle
@@ -264,7 +265,12 @@ const Orb = ({ state, palette, getOutputVolume, label }) => {
       const wantsFast = agentAudible || stateRef.current === 'agent-speaking'
       const driftTarget = wantsFast ? FAST_DRIFT : SLOW_DRIFT
       const driftLerp = 1 - Math.pow(0.000001, dt) // ~150ms to target
-      uniforms.uDrift.value += (driftTarget - uniforms.uDrift.value) * driftLerp
+      currentDrift += (driftTarget - currentDrift) * driftLerp
+
+      // Integrate noise time as ∫ drift dt so the on-screen rate is exactly
+      // `currentDrift`. The shader reads uTime directly — no multiplication —
+      // which is why a drift change cannot cause a retroactive jump.
+      uniforms.uTime.value += dt * currentDrift
 
       const pal = paletteRef.current
       tickLight.set(pal.light)

@@ -32607,45 +32607,55 @@ body:has(.cinema-page) {
 }
 .callrecord-play:disabled { opacity: 0.35; cursor: default; }
 
-.callrecord-scrub {
+.callrecord .callrecord-scrub {
   flex: 1;
+  width: 100%;
   height: 16px; /* hit-target height; visible track is 1px (see below) */
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   outline: none;
+  border: none;
+  box-shadow: none;
   padding: 0;
   margin: 0;
+  accent-color: transparent;
+  cursor: pointer;
 }
-.callrecord-scrub::-webkit-slider-runnable-track {
+.callrecord .callrecord-scrub::-webkit-slider-runnable-track {
   height: 1px;
   background: rgba(28, 26, 23, 0.35);
   border: none;
   border-radius: 0;
+  box-shadow: none;
 }
-.callrecord-scrub::-moz-range-track {
+.callrecord .callrecord-scrub::-moz-range-track {
   height: 1px;
   background: rgba(28, 26, 23, 0.35);
   border: none;
   border-radius: 0;
+  box-shadow: none;
 }
-[data-theme='dark'] .callrecord-scrub::-webkit-slider-runnable-track,
-[data-theme='dark'] .callrecord-scrub::-moz-range-track {
+[data-theme='dark'] .callrecord .callrecord-scrub::-webkit-slider-runnable-track,
+[data-theme='dark'] .callrecord .callrecord-scrub::-moz-range-track {
   background: rgba(255, 255, 255, 0.35);
 }
-.callrecord-scrub::-webkit-slider-thumb {
+.callrecord .callrecord-scrub::-webkit-slider-thumb {
   -webkit-appearance: none;
+  appearance: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: currentColor;
   border: none;
+  box-shadow: none;
   margin-top: -3.5px; /* center 8px thumb on 1px track */
 }
-.callrecord-scrub::-moz-range-thumb {
+.callrecord .callrecord-scrub::-moz-range-thumb {
   width: 8px;
   height: 8px;
   border: none;
+  box-shadow: none;
   border-radius: 50%;
   background: currentColor;
 }

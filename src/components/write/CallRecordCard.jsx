@@ -12,7 +12,6 @@ const formatTime = (seconds) => {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-const SPEEDS = [0.5, 1, 1.5, 2]
 const MVP_SPEAKER_LABEL = 'Speaker'
 
 const CallRecordCard = ({ record }) => {
@@ -20,7 +19,6 @@ const CallRecordCard = ({ record }) => {
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(record?.durationSec || 0)
-  const [speed, setSpeed] = useState(1)
   const [expanded, setExpanded] = useState(false)
 
   const audioUrl = record?.audioUrl || null
@@ -28,12 +26,6 @@ const CallRecordCard = ({ record }) => {
   // MVP: 4 turns visible, 2 per side. Brief flagged the speaker label as a
   // future LLM call — for now everything from the agent is "Speaker".
   const visibleTranscript = expanded ? transcript : transcript.slice(0, 4)
-
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    audio.playbackRate = speed
-  }, [speed])
 
   useEffect(() => {
     if (!playing) return
@@ -71,11 +63,6 @@ const CallRecordCard = ({ record }) => {
     }
   }
 
-  const handleCycleSpeed = () => {
-    const idx = SPEEDS.indexOf(speed)
-    setSpeed(SPEEDS[(idx + 1) % SPEEDS.length])
-  }
-
   const totalDuration = duration || record?.durationSec || 0
 
   return (
@@ -111,14 +98,6 @@ const CallRecordCard = ({ record }) => {
         <span className="callrecord-time">
           {formatTime(currentTime)} / {formatTime(totalDuration)}
         </span>
-        <button
-          className="callrecord-speed"
-          onClick={handleCycleSpeed}
-          aria-label="Playback speed"
-          disabled={!audioUrl}
-        >
-          {speed}×
-        </button>
       </div>
       {!audioUrl && (
         <p className="callrecord-pending">Saving recording…</p>

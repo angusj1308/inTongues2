@@ -32603,24 +32603,25 @@ body:has(.cinema-page) {
 
 .callrecord-scrub {
   flex: 1;
-  height: 4px;
+  height: 1px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(28, 26, 23, 0.18);
-  border-radius: 2px;
+  background: rgba(28, 26, 23, 0.35);
+  border-radius: 0;
   outline: none;
 }
-[data-theme='dark'] .callrecord-scrub { background: rgba(255, 255, 255, 0.18); }
+[data-theme='dark'] .callrecord-scrub { background: rgba(255, 255, 255, 0.35); }
 .callrecord-scrub::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentColor;
+  border: none;
 }
 .callrecord-scrub::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border: none;
   border-radius: 50%;
   background: currentColor;
@@ -32632,20 +32633,6 @@ body:has(.cinema-page) {
   opacity: 0.6;
   white-space: nowrap;
 }
-
-.callrecord-speed {
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: transparent;
-  border: 1px solid rgba(28, 26, 23, 0.2);
-  border-radius: 999px;
-  padding: 2px 8px;
-  cursor: pointer;
-  color: inherit;
-}
-[data-theme='dark'] .callrecord-speed { border-color: rgba(255, 255, 255, 0.2); }
-.callrecord-speed:disabled { opacity: 0.35; cursor: default; }
 
 .callrecord-pending {
   font-size: 0.75rem;

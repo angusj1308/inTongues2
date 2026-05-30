@@ -18,7 +18,7 @@ import * as THREE from 'three'
 // keeps the bigger size so there's no shrink-and-regrow between you
 // finishing and the agent starting.
 const SLOW_DRIFT = 0.10
-const FAST_DRIFT = 0.55
+const FAST_DRIFT = 1.10
 const SCALE_BIG = 1.00
 const SCALE_SMALL = 0.88
 const STATE_SCALE = {
@@ -255,13 +255,17 @@ const Orb = ({ state, palette, getOutputAmplitude, label }) => {
         /* analyser not ready */
       }
 
-      // Fast drift is gated on BOTH conditions: the agent is actually
-      // making sound right now AND the orb has fully grown to the speaking
-      // size. Until the orb is fully grown the swirl stays slow, so size
-      // transitions are never accompanied by a fast swirl. The instant the
-      // agent goes quiet the swirl drops to slow.
-      const fullyGrown = currentScale > SCALE_BIG - 0.02
-      const wantsFast = agentAudible && fullyGrown
+      // Fast drift triggers from EITHER signal: the SDK reporting we're
+      // still in agent-speaking mode, OR the audio analyser detecting live
+      // sound coming out of the speakers. Either one alone keeps the
+      // swirl fast — they're a safety net for each other since the SDK
+      // mode sometimes drops back to 'listening' while playback continues.
+      // No size gate: the swirl reacts to "is the agent currently
+      // making sound" directly, and the size reacts to "any sound at all"
+      // (its own state target above). Both react to the same trigger when
+      // the agent starts talking from silence, so they visibly move together
+      // — which is correct, since the agent starting is the reason for both.
+      const wantsFast = agentAudible || stateRef.current === 'agent-speaking'
       const driftTarget = wantsFast ? FAST_DRIFT : SLOW_DRIFT
       const driftLerp = 1 - Math.pow(0.000001, dt) // ~150ms to target
       uniforms.uDrift.value += (driftTarget - uniforms.uDrift.value) * driftLerp

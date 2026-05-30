@@ -14,14 +14,28 @@ import * as THREE from 'three'
 //
 // Transitions lerp toward target each frame so the orb settles, no pulsing.
 const STATE_TARGETS = {
-  connecting:         { scale: 0.88, drift: 0.25 },
-  idle:               { scale: 0.88, drift: 0.25 },
-  'learner-speaking': { scale: 1.00, drift: 0.25 },
-  'agent-thinking':   { scale: 0.88, drift: 0.25 },
-  'agent-speaking':   { scale: 1.00, drift: 1.55 },
-  ending:             { scale: 0.70, drift: 0.20 },
+  connecting:         { scale: 0.88, drift: 0.10 },
+  idle:               { scale: 0.88, drift: 0.10 },
+  'learner-speaking': { scale: 1.00, drift: 0.10 },
+  'agent-thinking':   { scale: 0.88, drift: 0.10 },
+  'agent-speaking':   { scale: 1.00, drift: 0.55 },
+  ending:             { scale: 0.70, drift: 0.08 },
   error:              { scale: 0.85, drift: 0.0  },
 }
+
+// Per-language palette: each language is its own "planet" with three tones
+// derived from its flag. `deep` dominates the surface, `mid` is the
+// transitional band, `light` is the bright highlight.
+const FALLBACK_PALETTE = { light: '#FBFAF8', mid: '#A8A29E', deep: '#3D3934' }
+export const LANGUAGE_PALETTES = {
+  English: { light: '#FFFFFF', mid: '#5B7FB8', deep: '#1F3A6B' },
+  Spanish: { light: '#FFFFFF', mid: '#F2A0A0', deep: '#C8102E' },
+  French:  { light: '#FFFFFF', mid: '#6A93D6', deep: '#0A3D8F' },
+  Italian: { light: '#FFFFFF', mid: '#7FC79A', deep: '#008C45' },
+  Russian: { light: '#FFFFFF', mid: '#6FA3CC', deep: '#0039A6' },
+}
+export const paletteForLanguage = (language) =>
+  LANGUAGE_PALETTES[language] || FALLBACK_PALETTE
 
 const VERTEX = /* glsl */`
   varying vec2 vUv;
@@ -31,16 +45,18 @@ const VERTEX = /* glsl */`
   }
 `
 
-// Hard-edged monochrome disc with internal swirling motion via domain-warped
-// 3D simplex noise. Edge is essentially binary (tiny smoothstep for AA),
-// interior alpha modulates between ~0.55 and 1.0 so the swirls read clearly
-// without the disc losing its solid presence.
+// Hard-edged polychrome disc — Jupiter-from-orbit aesthetic. One octave of
+// low-frequency 3D simplex noise (smooth, no high-frequency detail) gets
+// gently domain-warped for slow drift, then mapped through three colour
+// stops via smoothstep so the surface reads as soft atmospheric bands.
 const FRAGMENT = /* glsl */`
   precision highp float;
   varying vec2 vUv;
   uniform float uTime;
   uniform float uDrift;
-  uniform vec3  uColor;
+  uniform vec3  uLight;
+  uniform vec3  uMid;
+  uniform vec3  uDeep;
 
   // --- Simplex 3D noise (Ashima / Stefan Gustavson, public domain) ---
   vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -98,36 +114,37 @@ const FRAGMENT = /* glsl */`
     float edge = 1.0 - smoothstep(0.97, 1.0, r);
     if (edge < 0.001) discard;
 
-    // Domain-warped noise creates the swirling, gel-like internal motion.
-    // The warp offset is itself a noise field that drifts with time; sampling
-    // primary noise at the warped position produces curling, eddying patterns
-    // instead of straight scrolling.
+    // Single low-frequency noise field with light domain warping. The warp
+    // gives the bands their slow curling drift rather than straight scroll;
+    // we keep it subtle so the features feel "soft atmospheric" rather
+    // than "swirling gel."
     float t = uTime * uDrift;
     vec2 warp = vec2(
-      snoise(vec3(p * 1.4, t * 0.40)),
-      snoise(vec3(p * 1.4 + vec2(31.7, 19.3), t * 0.40))
-    ) * 0.50;
+      snoise(vec3(p * 0.70, t * 0.18)),
+      snoise(vec3(p * 0.70 + vec2(31.7, 19.3), t * 0.18))
+    ) * 0.28;
 
-    float n  = snoise(vec3((p + warp) * 1.9, t * 0.55));
-    n       += snoise(vec3((p + warp) * 3.8, t * 0.85)) * 0.55;
-    n       += snoise(vec3((p + warp) * 6.5, t * 1.20)) * 0.28;
+    float n = snoise(vec3((p + warp) * 1.20, t * 0.35));
     n = n * 0.5 + 0.5;
 
-    // Keep the disc reading as a solid object — internal alpha never drops
-    // below 0.55 so the silhouette is always defined.
-    float alpha = edge * mix(0.55, 1.0, n);
+    // Three-tone palette blend: deep dominates the lower band of noise
+    // values, mid covers the middle, light fills the upper highlights.
+    float t1 = smoothstep(0.30, 0.55, n);
+    float t2 = smoothstep(0.65, 0.88, n);
+    vec3 col = mix(uDeep, uMid, t1);
+    col = mix(col, uLight, t2);
 
-    gl_FragColor = vec4(uColor, alpha);
+    gl_FragColor = vec4(col, edge);
   }
 `
 
-const Orb = ({ state, color, label }) => {
+const Orb = ({ state, palette, label }) => {
   const containerRef = useRef(null)
   // Latest values for the rAF loop to read without restarting on prop churn.
   const stateRef = useRef(state)
-  const colorRef = useRef(color)
+  const paletteRef = useRef(palette || FALLBACK_PALETTE)
   useEffect(() => { stateRef.current = state }, [state])
-  useEffect(() => { colorRef.current = color }, [color])
+  useEffect(() => { paletteRef.current = palette || FALLBACK_PALETTE }, [palette])
 
   useEffect(() => {
     const container = containerRef.current
@@ -149,13 +166,15 @@ const Orb = ({ state, color, label }) => {
     const scene = new THREE.Scene()
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 
-    const initialColour = new THREE.Color(colorRef.current || '#1C1A17')
+    const initialPalette = paletteRef.current
     const initialTarget = STATE_TARGETS[stateRef.current] || STATE_TARGETS.idle
 
     const uniforms = {
       uTime:  { value: 0 },
       uDrift: { value: initialTarget.drift },
-      uColor: { value: initialColour },
+      uLight: { value: new THREE.Color(initialPalette.light) },
+      uMid:   { value: new THREE.Color(initialPalette.mid) },
+      uDeep:  { value: new THREE.Color(initialPalette.deep) },
     }
 
     const material = new THREE.ShaderMaterial({
@@ -172,7 +191,9 @@ const Orb = ({ state, color, label }) => {
     let rafId = 0
     let lastT = performance.now()
     let currentScale = initialTarget.scale
-    const tickColour = new THREE.Color()
+    const tickLight = new THREE.Color()
+    const tickMid = new THREE.Color()
+    const tickDeep = new THREE.Color()
 
     const tick = () => {
       const now = performance.now()
@@ -190,10 +211,13 @@ const Orb = ({ state, color, label }) => {
       currentScale += (target.scale - currentScale) * lerpRate
       canvas.style.transform = `scale(${currentScale.toFixed(3)})`
 
-      if (colorRef.current) {
-        tickColour.set(colorRef.current)
-        uniforms.uColor.value.lerp(tickColour, lerpRate)
-      }
+      const pal = paletteRef.current
+      tickLight.set(pal.light)
+      tickMid.set(pal.mid)
+      tickDeep.set(pal.deep)
+      uniforms.uLight.value.lerp(tickLight, lerpRate)
+      uniforms.uMid.value.lerp(tickMid, lerpRate)
+      uniforms.uDeep.value.lerp(tickDeep, lerpRate)
 
       renderer.render(scene, camera)
       rafId = requestAnimationFrame(tick)

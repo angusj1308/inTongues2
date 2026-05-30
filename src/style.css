@@ -32710,7 +32710,7 @@ body:has(.cinema-page) {
 }
 
 [data-theme='dark'] .converse-call-page {
-  background: #2a221c;
+  background: #000000;
   color: #FBFAF8;
 }
 

@@ -27,12 +27,16 @@ const STATE_TARGETS = {
 // derived from its flag. `deep` dominates the surface, `mid` is the
 // transitional band, `light` is the bright highlight.
 const FALLBACK_PALETTE = { light: '#FBFAF8', mid: '#A8A29E', deep: '#3D3934' }
+const RED_PALETTE   = { light: '#FFFFFF', mid: '#F2A0A0', deep: '#C8102E' }
+const BLUE_PALETTE  = { light: '#FFFFFF', mid: '#6A93D6', deep: '#0A3D8F' }
+const GREEN_PALETTE = { light: '#FFFFFF', mid: '#7FC79A', deep: '#008C45' }
+
 export const LANGUAGE_PALETTES = {
-  English: { light: '#FFFFFF', mid: '#5B7FB8', deep: '#1F3A6B' },
-  Spanish: { light: '#FFFFFF', mid: '#F2A0A0', deep: '#C8102E' },
-  French:  { light: '#FFFFFF', mid: '#6A93D6', deep: '#0A3D8F' },
-  Italian: { light: '#FFFFFF', mid: '#7FC79A', deep: '#008C45' },
-  Russian: { light: '#FFFFFF', mid: '#6FA3CC', deep: '#0039A6' },
+  English: RED_PALETTE,
+  Spanish: RED_PALETTE,
+  Russian: RED_PALETTE,
+  French:  BLUE_PALETTE,
+  Italian: GREEN_PALETTE,
 }
 export const paletteForLanguage = (language) =>
   LANGUAGE_PALETTES[language] || FALLBACK_PALETTE

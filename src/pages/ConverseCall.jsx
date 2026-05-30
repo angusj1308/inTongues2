@@ -462,9 +462,9 @@ const ConverseCall = () => {
           state={callState}
           label={orbLabel}
           palette={paletteForLanguage(params.language)}
-          getOutputAmplitude={() => {
+          getOutputVolume={() => {
             const c = conversationRef.current
-            try { return c?.getOutputByteFrequencyData?.call(c) } catch { return null }
+            try { return c?.getOutputVolume?.call(c) ?? 0 } catch { return 0 }
           }}
         />
         {callState === 'connecting' && (

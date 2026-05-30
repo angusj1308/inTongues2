@@ -462,6 +462,10 @@ const ConverseCall = () => {
           state={callState}
           label={orbLabel}
           palette={paletteForLanguage(params.language)}
+          getOutputAmplitude={() => {
+            const c = conversationRef.current
+            try { return c?.getOutputByteFrequencyData?.call(c) } catch { return null }
+          }}
         />
         {callState === 'connecting' && (
           <p className="converse-call-status">Connecting…</p>

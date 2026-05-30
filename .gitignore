@@ -42,6 +42,9 @@ scripts/fonts/
 api backup
 .DS_Store
 
+# ytdl-core debug dumps of YouTube's player script (runtime artifacts)
+*-player-script.js
+
 # Local Gutenberg ingestion output (untrimmed; decide later)
 data/gutenberg_catalog.json
 data/gutenberg_catalog_classified.json

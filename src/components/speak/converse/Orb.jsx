@@ -13,14 +13,22 @@ import * as THREE from 'three'
 //   agent-speaking  → bigger + fast swirl
 //
 // Transitions lerp toward target each frame so the orb settles, no pulsing.
-const STATE_TARGETS = {
-  connecting:         { scale: 0.88, drift: 0.10 },
-  idle:               { scale: 0.88, drift: 0.10 },
-  'learner-speaking': { scale: 1.00, drift: 0.10 },
-  'agent-thinking':   { scale: 0.88, drift: 0.10 },
-  'agent-speaking':   { scale: 1.00, drift: 0.55 },
-  ending:             { scale: 0.70, drift: 0.08 },
-  error:              { scale: 0.85, drift: 0.0  },
+// scale: small while truly silent; bigger as soon as the turn is "active"
+// (user speaking, agent about to speak, agent speaking). agent-thinking
+// keeps the bigger size so there's no shrink-and-regrow between you
+// finishing and the agent starting.
+const SLOW_DRIFT = 0.10
+const FAST_DRIFT = 0.55
+const SCALE_BIG = 1.00
+const SCALE_SMALL = 0.88
+const STATE_SCALE = {
+  connecting:         0.88,
+  idle:               0.88,
+  'learner-speaking': 1.00,
+  'agent-thinking':   1.00,
+  'agent-speaking':   1.00,
+  ending:             0.70,
+  error:              0.85,
 }
 
 // Per-language palette: each language is its own "planet" with three tones
@@ -172,11 +180,11 @@ const Orb = ({ state, palette, label }) => {
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 
     const initialPalette = paletteRef.current
-    const initialTarget = STATE_TARGETS[stateRef.current] || STATE_TARGETS.idle
+    const initialScale = STATE_SCALE[stateRef.current] ?? SCALE_SMALL
 
     const uniforms = {
       uTime:  { value: 0 },
-      uDrift: { value: initialTarget.drift },
+      uDrift: { value: SLOW_DRIFT },
       uLight: { value: new THREE.Color(initialPalette.light) },
       uMid:   { value: new THREE.Color(initialPalette.mid) },
       uDeep:  { value: new THREE.Color(initialPalette.deep) },
@@ -195,7 +203,7 @@ const Orb = ({ state, palette, label }) => {
 
     let rafId = 0
     let lastT = performance.now()
-    let currentScale = initialTarget.scale
+    let currentScale = initialScale
     const tickLight = new THREE.Color()
     const tickMid = new THREE.Color()
     const tickDeep = new THREE.Color()
@@ -207,17 +215,22 @@ const Orb = ({ state, palette, label }) => {
 
       uniforms.uTime.value += dt
 
-      const target = STATE_TARGETS[stateRef.current] || STATE_TARGETS.idle
-
-      // Two-variable / three-state plan: drift (swirl speed) should belong
-      // to the *current* state, not the transition. Snap it almost instantly
-      // toward the target so the swirl never reads as a mid-speed in-between.
-      // Scale keeps its slow settle (~450ms) so size visibly transitions.
-      const scaleLerp = 1 - Math.pow(0.006, dt)
-      const driftLerp = 1 - Math.pow(0.000001, dt) // ~150ms to target
-      uniforms.uDrift.value += (target.drift - uniforms.uDrift.value) * driftLerp
-      currentScale += (target.scale - currentScale) * scaleLerp
+      const targetScale = STATE_SCALE[stateRef.current] ?? SCALE_SMALL
+      const scaleLerp = 1 - Math.pow(0.006, dt) // ~450ms settle
+      currentScale += (targetScale - currentScale) * scaleLerp
       canvas.style.transform = `scale(${currentScale.toFixed(3)})`
+
+      // Fast drift is gated on BOTH conditions: the state is agent-speaking
+      // AND the orb has fully grown to the speaking size. Until the orb is
+      // fully grown the swirl stays slow, so size transitions are never
+      // accompanied by a fast swirl. Same on the way down: as soon as the
+      // state leaves agent-speaking the swirl drops to slow even while the
+      // orb is still visibly shrinking.
+      const fullyGrown = currentScale > SCALE_BIG - 0.02
+      const wantsFast = stateRef.current === 'agent-speaking' && fullyGrown
+      const driftTarget = wantsFast ? FAST_DRIFT : SLOW_DRIFT
+      const driftLerp = 1 - Math.pow(0.000001, dt) // ~150ms to target
+      uniforms.uDrift.value += (driftTarget - uniforms.uDrift.value) * driftLerp
 
       const pal = paletteRef.current
       tickLight.set(pal.light)

@@ -8,7 +8,7 @@ import {
   appendCallRecord,
   patchCallRecord,
 } from '../services/writingChat'
-import Orb from '../components/speak/converse/Orb'
+import Orb, { paletteForLanguage } from '../components/speak/converse/Orb'
 
 const SunIcon = () => (
   <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -461,7 +461,7 @@ const ConverseCall = () => {
         <Orb
           state={callState}
           label={orbLabel}
-          color={darkMode ? '#FBFAF8' : '#1C1A17'}
+          palette={paletteForLanguage(params.language)}
         />
         {callState === 'connecting' && (
           <p className="converse-call-status">Connecting…</p>

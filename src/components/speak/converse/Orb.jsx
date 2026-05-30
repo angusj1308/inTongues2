@@ -118,25 +118,26 @@ const FRAGMENT = /* glsl */`
     float edge = 1.0 - smoothstep(0.97, 1.0, r);
     if (edge < 0.001) discard;
 
-    // Single low-frequency noise field with light domain warping. The warp
-    // gives the bands their slow curling drift rather than straight scroll;
-    // we keep it subtle so the features feel "soft atmospheric" rather
-    // than "swirling gel."
+    // Latitudinal stretch: squash Y so noise features compress into
+    // horizontal bands like a rotating planet's atmosphere — not isotropic
+    // round blobs. Then a tiny domain warp (much smaller than before) gives
+    // the bands a gentle living waver without curling them into marble.
     float t = uTime * uDrift;
+    vec2 sampleP = vec2(p.x, p.y * 1.7);
     vec2 warp = vec2(
-      snoise(vec3(p * 0.70, t * 0.18)),
-      snoise(vec3(p * 0.70 + vec2(31.7, 19.3), t * 0.18))
-    ) * 0.28;
+      snoise(vec3(sampleP * 0.55, t * 0.20)),
+      snoise(vec3(sampleP * 0.55 + vec2(31.7, 19.3), t * 0.20))
+    ) * 0.07;
 
-    float n = snoise(vec3((p + warp) * 1.20, t * 0.35));
+    float n = snoise(vec3((sampleP + warp) * 0.95, t * 0.32));
     n = n * 0.5 + 0.5;
 
-    // Three-tone palette blend: deep dominates the lower band of noise
-    // values, mid covers the middle, light fills the upper highlights.
-    float t1 = smoothstep(0.30, 0.55, n);
-    float t2 = smoothstep(0.65, 0.88, n);
-    vec3 col = mix(uDeep, uMid, t1);
-    col = mix(col, uLight, t2);
+    // Continuous, overlapping gradient between the three palette stops — no
+    // plateaus, no boundary edges. Both blends span the full noise range so
+    // the colour evolves smoothly from one extreme to the other across the
+    // surface.
+    vec3 col = mix(uDeep, uMid, smoothstep(0.0, 0.75, n));
+    col = mix(col, uLight, smoothstep(0.55, 1.0, n));
 
     gl_FragColor = vec4(col, edge);
   }

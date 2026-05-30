@@ -209,20 +209,23 @@ const Orb = ({ state, palette, label }) => {
 
       const target = STATE_TARGETS[stateRef.current] || STATE_TARGETS.idle
 
-      // Lerp roughly 90% over ~450ms toward the target — smooth settle, no
-      // pulse. Time-based so it's framerate-independent.
-      const lerpRate = 1 - Math.pow(0.006, dt)
-      uniforms.uDrift.value += (target.drift - uniforms.uDrift.value) * lerpRate
-      currentScale += (target.scale - currentScale) * lerpRate
+      // Two-variable / three-state plan: drift (swirl speed) should belong
+      // to the *current* state, not the transition. Snap it almost instantly
+      // toward the target so the swirl never reads as a mid-speed in-between.
+      // Scale keeps its slow settle (~450ms) so size visibly transitions.
+      const scaleLerp = 1 - Math.pow(0.006, dt)
+      const driftLerp = 1 - Math.pow(0.000001, dt) // ~150ms to target
+      uniforms.uDrift.value += (target.drift - uniforms.uDrift.value) * driftLerp
+      currentScale += (target.scale - currentScale) * scaleLerp
       canvas.style.transform = `scale(${currentScale.toFixed(3)})`
 
       const pal = paletteRef.current
       tickLight.set(pal.light)
       tickMid.set(pal.mid)
       tickDeep.set(pal.deep)
-      uniforms.uLight.value.lerp(tickLight, lerpRate)
-      uniforms.uMid.value.lerp(tickMid, lerpRate)
-      uniforms.uDeep.value.lerp(tickDeep, lerpRate)
+      uniforms.uLight.value.lerp(tickLight, scaleLerp)
+      uniforms.uMid.value.lerp(tickMid, scaleLerp)
+      uniforms.uDeep.value.lerp(tickDeep, scaleLerp)
 
       renderer.render(scene, camera)
       rafId = requestAnimationFrame(tick)

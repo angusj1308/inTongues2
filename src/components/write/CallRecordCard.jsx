@@ -125,6 +125,9 @@ const CallRecordCard = ({ record }) => {
 
       {transcript.length > 0 && (
         <div className="callrecord-transcript">
+          <div className="callrecord-transcript-head">
+            <span className="callrecord-title">Transcript</span>
+          </div>
           {visibleTranscript.map((turn, idx) => (
             <div
               key={idx}

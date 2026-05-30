@@ -151,15 +151,15 @@ const FRAGMENT = /* glsl */`
   }
 `
 
-const Orb = ({ state, palette, getOutputAmplitude, label }) => {
+const Orb = ({ state, palette, getOutputVolume, label }) => {
   const containerRef = useRef(null)
   // Latest values for the rAF loop to read without restarting on prop churn.
   const stateRef = useRef(state)
   const paletteRef = useRef(palette || FALLBACK_PALETTE)
-  const getOutputAmplitudeRef = useRef(getOutputAmplitude)
+  const getOutputVolumeRef = useRef(getOutputVolume)
   useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => { paletteRef.current = palette || FALLBACK_PALETTE }, [palette])
-  useEffect(() => { getOutputAmplitudeRef.current = getOutputAmplitude }, [getOutputAmplitude])
+  useEffect(() => { getOutputVolumeRef.current = getOutputVolume }, [getOutputVolume])
 
   useEffect(() => {
     const container = containerRef.current
@@ -229,27 +229,23 @@ const Orb = ({ state, palette, getOutputAmplitude, label }) => {
       currentScale += (targetScale - currentScale) * scaleLerp
       canvas.style.transform = `scale(${currentScale.toFixed(3)})`
 
-      // Poll the SDK's output frequency data each frame to decide if the
-      // agent is currently making sound. Hysteresis (250ms to flip on,
-      // 600ms to flip off) prevents flicker between syllables.
+      // Poll the SDK's voice-band volume scalar each frame. This is the SDK's
+      // own metric, already resampled to the voice range — much more reliable
+      // than computing RMS over a slice of frequency bins ourselves.
+      // Hysteresis (250ms to flip on, 600ms to flip off) prevents flicker
+      // between syllables.
       try {
-        const data = getOutputAmplitudeRef.current?.()
-        if (data && data.length) {
-          let sum = 0
-          const lo = 4, hi = Math.min(data.length, 64)
-          for (let i = lo; i < hi; i++) sum += data[i] * data[i]
-          const rms = Math.sqrt(sum / (hi - lo)) / 255
-          const ON_THRESHOLD = 0.04
-          const OFF_THRESHOLD = 0.02
-          if (rms > ON_THRESHOLD) {
-            silentSince = 0
-            if (!audibleSince) audibleSince = now
-            if (now - audibleSince > 250) agentAudible = true
-          } else if (rms < OFF_THRESHOLD) {
-            audibleSince = 0
-            if (!silentSince) silentSince = now
-            if (now - silentSince > 600) agentAudible = false
-          }
+        const vol = getOutputVolumeRef.current?.() ?? 0
+        const ON_THRESHOLD = 0.01
+        const OFF_THRESHOLD = 0.004
+        if (vol > ON_THRESHOLD) {
+          silentSince = 0
+          if (!audibleSince) audibleSince = now
+          if (now - audibleSince > 250) agentAudible = true
+        } else if (vol < OFF_THRESHOLD) {
+          audibleSince = 0
+          if (!silentSince) silentSince = now
+          if (now - silentSince > 600) agentAudible = false
         }
       } catch {
         /* analyser not ready */

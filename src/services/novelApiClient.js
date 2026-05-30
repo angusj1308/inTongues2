@@ -276,7 +276,7 @@ export const LENGTH_PRESETS = [
   { value: 'novel', label: 'Novel', chapters: 35, description: '~35 chapters, full story arc' },
 ]
 
-// Prose style presets — value matches keys in STYLE_ESSAYS (craftEssays.js)
+// Prose style presets (UI selection only)
 export const PROSE_STYLES = [
   { value: '', label: 'None', description: 'No specific author voice applied' },
   { value: 'bronte', label: 'Emily Brontë — Elemental & Visceral', description: 'Wuthering Heights style' },

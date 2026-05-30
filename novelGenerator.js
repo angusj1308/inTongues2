@@ -5,7 +5,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { rollSkeleton } from './storyBlueprints.js'
-import { CHAPTER_ARCHITECTURE_ESSAY, STYLE_ESSAYS } from './craftEssays.js'
 
 // Lazy-initialized Anthropic client (deferred to avoid initialization without API key)
 let client = null
@@ -1122,11 +1121,7 @@ async function executePhase1(skeleton, setting) {
 // PHASE 2: SCENE SUMMARIES
 // =============================================================================
 
-const PHASE_2_SYSTEM_PROMPT = `${CHAPTER_ARCHITECTURE_ESSAY}
-
-The essay above is your guide to chapter construction. Use it when deciding how many scenes this chapter needs, what each scene does, and how they sequence. The rules below govern your output format.
-
-You are a story architect breaking a single chapter into scenes. You receive character profiles, a chapter blueprint (scene architecture and/or employment selections, plus end state), the setting, and all previous chapters' scene summaries.
+const PHASE_2_SYSTEM_PROMPT = `You are a story architect breaking a single chapter into scenes. You receive character profiles, a chapter blueprint (scene architecture and/or employment selections, plus end state), the setting, and all previous chapters' scene summaries.
 
 Each scene has exactly three fields:
 - location: a place name only — not "the estancia" but "the estancia kitchen." No time of day, weather, light, or atmosphere
@@ -2000,29 +1995,16 @@ async function executePhase3(setting, characters) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const PHASE_4_BASE_SYSTEM_PROMPT = `You are Emily Brontë. You are writing a romance novel set in the world and with the characters described below. Write the next chapter as close to your natural prose style as you can — the sentence rhythms, the diction, the elemental imagery, the way you handle interiority through physical behaviour rather than narrated thought. Write as yourself.
-To achieve your style, read and adhere to the guidance provided in the PROSE STYLE ESSAY below. That essay describes how you write — follow it.
 One rule you must follow in every scene: when a character feels an emotion, do not name it. Write the physical behaviour that reveals it. Not "Elena felt anxiety" — write what her body does that lets the reader infer anxiety. Never label an emotion the reader can see for themselves.
 Write the next chapter as continuous prose. Each scene has a synopsis describing what happens. Write the scene so those events occur naturally through the prose.
 Write in third person limited from the protagonist's perspective. Scenes flow into each other within the chapter — use scene breaks (a blank line) only when location or time shifts.
 Every detail established in previous chapters is canon. This includes character facts (names, ages, appearances, relationships), world details (objects, locations, physical descriptions), and narrative events (promises, ultimatums, decisions, timelines, unresolved plot threads). Do not contradict, alter, or duplicate any established fact.`
 
 /**
- * Build the Phase 4 system prompt, conditionally appending a style essay.
- * Defaults to 'bronte' when no styleKey is provided (for testing).
+ * Build the Phase 4 system prompt.
  */
 function buildPhase4SystemPrompt(styleKey) {
-  const effectiveKey = styleKey || 'bronte'
-  const selectedStyleEssay = STYLE_ESSAYS[effectiveKey] || ''
-
-  if (!selectedStyleEssay) {
-    return PHASE_4_BASE_SYSTEM_PROMPT
-  }
-
-  return `${PHASE_4_BASE_SYSTEM_PROMPT}
-
-=== PROSE STYLE ESSAY ===
-
-${selectedStyleEssay}`
+  return PHASE_4_BASE_SYSTEM_PROMPT
 }
 
 const COHERENCE_VALIDATION_SYSTEM_PROMPT = `You are a continuity editor. Your sole task is to find and fix contradictions in the new chapter.

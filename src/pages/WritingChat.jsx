@@ -683,7 +683,7 @@ const WritingChat = () => {
           )}
           {messages.map((msg) => {
             if (msg.role === 'call') {
-              return <CallRecordCard key={msg.id} record={msg} />
+              return <CallRecordCard key={msg.id} record={msg} renderContent={renderWords} />
             }
             const hidden =
               listenFirst &&

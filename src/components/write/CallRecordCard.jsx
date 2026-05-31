@@ -19,7 +19,7 @@ const MVP_SPEAKER_LABEL = 'Speaker'
 const stripVoiceTags = (text) =>
   typeof text === 'string' ? text.replace(/<\/?[^>]+>/g, '').trim() : text
 
-const CallRecordCard = ({ record }) => {
+const CallRecordCard = ({ record, renderContent }) => {
   const audioRef = useRef(null)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -136,7 +136,16 @@ const CallRecordCard = ({ record }) => {
               <span className="callrecord-turn-label">
                 {turn.role === 'user' ? 'You' : MVP_SPEAKER_LABEL}
               </span>
-              <span className="callrecord-turn-text">{stripVoiceTags(turn.content)}</span>
+              <span className="callrecord-turn-text">
+                {(() => {
+                  const cleaned = stripVoiceTags(turn.content)
+                  // Only colour the agent's lines — the user side stays plain
+                  // (it's already what the learner produced, not a target).
+                  return renderContent && turn.role !== 'user'
+                    ? renderContent(cleaned)
+                    : cleaned
+                })()}
+              </span>
             </div>
           ))}
           {transcript.length > visibleTranscript.length && (

@@ -14,6 +14,11 @@ const formatTime = (seconds) => {
 
 const MVP_SPEAKER_LABEL = 'Speaker'
 
+// The agent emits voice-direction markers like `<Spanish female>…</Spanish female>`
+// for the TTS layer. Hide them in the displayed transcript.
+const stripVoiceTags = (text) =>
+  typeof text === 'string' ? text.replace(/<\/?[^>]+>/g, '').trim() : text
+
 const CallRecordCard = ({ record }) => {
   const audioRef = useRef(null)
   const [playing, setPlaying] = useState(false)
@@ -120,6 +125,9 @@ const CallRecordCard = ({ record }) => {
 
       {transcript.length > 0 && (
         <div className="callrecord-transcript">
+          <div className="callrecord-transcript-head">
+            <span className="callrecord-title">Transcript</span>
+          </div>
           {visibleTranscript.map((turn, idx) => (
             <div
               key={idx}
@@ -128,7 +136,7 @@ const CallRecordCard = ({ record }) => {
               <span className="callrecord-turn-label">
                 {turn.role === 'user' ? 'You' : MVP_SPEAKER_LABEL}
               </span>
-              <span className="callrecord-turn-text">{turn.content}</span>
+              <span className="callrecord-turn-text">{stripVoiceTags(turn.content)}</span>
             </div>
           ))}
           {transcript.length > visibleTranscript.length && (

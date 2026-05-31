@@ -32678,10 +32678,20 @@ body:has(.cinema-page) {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  border-top: 1px solid rgba(28, 26, 23, 0.08);
-  padding-top: 0.625rem;
+  padding-top: 0.25rem;
 }
-[data-theme='dark'] .callrecord-transcript { border-top-color: rgba(255, 255, 255, 0.08); }
+.callrecord-transcript-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  color: rgba(28, 26, 23, 0.65);
+  margin-bottom: 0.125rem;
+}
+[data-theme='dark'] .callrecord-transcript-head {
+  color: rgba(255, 255, 255, 0.65);
+}
 
 .callrecord-turn {
   display: flex;
